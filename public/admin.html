@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - SolidCoin</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container dashboard">
+        <header>
+            <h1>Painel do Administrador</h1>
+            <a href="/dashboard.html" style="text-decoration: none; color: #3498db;">Voltar ao Dashboard</a>
+        </header>
+
+        <div class="card">
+            <h2>Solicitações de Saque Pendentes</h2>
+            <div class="extrato-container">
+                <table id="saques-tabela">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Usuário</th>
+                            <th>Valor</th>
+                            <th>Carteira Solana</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="saques-pendentes-lista">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script src="admin-scripts.js"></script>
+</body>
+</html>

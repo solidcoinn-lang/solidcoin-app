@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SolidCoin - Login</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Adicionando um estilo para organizar os formulários lado a lado em telas maiores */
+        .login-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+        .login-wrapper .form-container {
+            flex: 1;
+            min-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="login-wrapper">
+            <div class="form-container">
+                <h2>Login SolidCoin</h2>
+                <form action="/login" method="POST">
+                    <input type="email" name="email" placeholder="Seu Email" required>
+                    <input type="password" name="senha" placeholder="Sua Senha" required>
+                    <button type="submit">Entrar</button>
+                    <a href="/esqueci-senha.html" style="display: block; text-align: center; margin-top: 15px;">Esqueci minha senha</a>
+                </form>
+            </div>
+
+            <div class="form-container">
+                <h2>Criar Conta</h2>
+                <form action="/cadastrar" method="POST">
+                    <input type="text" name="nome" placeholder="Seu Nome Completo" required>
+                    <input type="email" name="email" placeholder="Seu Email" required>
+                    <input type="password" name="senha" placeholder="Crie uma Senha" required>
+                    <button type="submit">Cadastrar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

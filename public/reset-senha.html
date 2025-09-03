@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Resetar Senha - SolidCoin</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="form-container">
+            <h2>Crie sua Nova Senha</h2>
+            <form id="reset-senha-form">
+                <input type="password" id="senha" placeholder="Nova Senha" required>
+                <input type="password" id="confirmarSenha" placeholder="Confirme a Nova Senha" required>
+                <button type="submit">Salvar Nova Senha</button>
+            </form>
+            <div id="mensagem" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+    <script>
+        document.getElementById('reset-senha-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const senha = document.getElementById('senha').value;
+            const confirmarSenha = document.getElementById('confirmarSenha').value;
+            const mensagemDiv = document.getElementById('mensagem');
+            
+            if (senha !== confirmarSenha) {
+                mensagemDiv.textContent = 'As senhas não coincidem.';
+                mensagemDiv.style.color = 'red';
+                return;
+            }
+
+            // Pega o token da URL
+            const token = new URLSearchParams(window.location.search).get('token');
+            if (!token) {
+                mensagemDiv.textContent = 'Token de recuperação inválido ou ausente.';
+                mensagemDiv.style.color = 'red';
+                return;
+            }
+
+            const response = await fetch(`/reset-senha/${token}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ senha })
+            });
+
+            const data = await response.json();
+            mensagemDiv.textContent = data.mensagem;
+            if (response.ok) {
+                mensagemDiv.style.color = 'green';
+                setTimeout(() => window.location.href = '/index.html', 3000); // Redireciona para login
+            } else {
+                mensagemDiv.style.color = 'red';
+            }
+        });
+    </script>
+</body>
+</html>

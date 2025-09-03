@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Recuperar Senha - SolidCoin</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="form-container">
+            <h2>Recuperar Senha</h2>
+            <p>Digite seu e-mail e enviaremos um link para você resetar sua senha.</p>
+            <form id="esqueci-senha-form">
+                <input type="email" id="email" placeholder="Seu Email" required>
+                <button type="submit">Enviar Link de Recuperação</button>
+            </form>
+            <div id="mensagem" style="margin-top: 15px;"></div>
+            <a href="/index.html" style="display: block; text-align: center; margin-top: 20px;">Voltar para o Login</a>
+        </div>
+    </div>
+    <script>
+        document.getElementById('esqueci-senha-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const mensagemDiv = document.getElementById('mensagem');
+
+            const response = await fetch('/esqueci-senha', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+
+            const data = await response.json();
+            mensagemDiv.textContent = data.mensagem;
+            if (response.ok) {
+                mensagemDiv.style.color = 'green';
+            } else {
+                mensagemDiv.style.color = 'red';
+            }
+        });
+    </script>
+</body>
+</html>
