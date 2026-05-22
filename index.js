@@ -15,8 +15,13 @@ const Transaction = require('./models/Transaction');
 const Withdrawal = require('./models/Withdrawal');
 
 const app = express();
-const PORT = process.env.PORT || 3000; // <-- LINHA ATUALIZADA AQUI
+const PORT = process.env.PORT || 3000;
 const ADMIN_EMAIL = "solidcoinn@gmail.com";
+
+// --- CONSTANTES DE ECONOMIA ---
+const STAKING_REWARD_RATE_MONTHLY = 0.05; // 5% ao mês
+const WHALE_THRESHOLD = 1000000; // 1 Milhão de SolidCoins
+const WHALE_YIELD_PER_DAY = 200;
 
 // Conexão com MongoDB
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -44,7 +49,7 @@ function isAdmin(req, res, next) {
     res.status(403).send('Acesso negado. Apenas para administradores.');
 }
 
-// Rotas de Página e Autenticação (Completas)
+// Rotas de Página e Autenticação
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 app.post('/cadastrar', async (req, res) => {
     const { nome, email, senha } = req.body;
@@ -72,7 +77,6 @@ app.post('/logout', checkAuthenticated, (req, res) => {
         res.json({ sucesso: true, mensagem: "Logout realizado." });
     });
 });
-// (As rotas de recuperação de senha estão omitidas por brevidade, mas devem estar no seu código se você as implementou)
 
 
 // --- ROTAS DA API ---
@@ -81,21 +85,60 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
     try {
         const user = await User.findById(req.session.user.id);
         const produtos = await Product.find({});
+
+        // --- LÓGICA DE RENDIMENTO AUTOMÁTICO PARA BALEIAS ---
+        const agora = new Date();
+        const tempoPassado = agora - new Date(user.lastYieldApplied);
+        const diasPassados = tempoPassado / (1000 * 60 * 60 * 24);
+
+        if (user.saldo >= WHALE_THRESHOLD && diasPassados >= 1) {
+            const diasInteiros = Math.floor(diasPassados);
+            const rendimentoGanho = diasInteiros * WHALE_YIELD_PER_DAY;
+            
+            const admin = await User.findOne({ email: ADMIN_EMAIL });
+            if (admin && admin.saldo >= rendimentoGanho) {
+                admin.saldo -= rendimentoGanho;
+                user.saldo += rendimentoGanho;
+                user.lastYieldApplied = agora;
+
+                const transacaoRendimento = new Transaction({
+                    userId: user._id,
+                    tipo: 'Rendimento Automático',
+                    descricao: `Rendimento de ${diasInteiros} dia(s)`,
+                    valor: rendimentoGanho
+                });
+
+                await Promise.all([user.save(), admin.save(), transacaoRendimento.save()]);
+                console.log(`✅ Rendimento de ${rendimentoGanho} aplicado para ${user.email}`);
+            }
+        }
+
         res.json({
             sucesso: true,
-            usuario: { nome: user.nome, saldo: user.saldo, solanaWallet: user.solanaWallet, isAdmin: user.email === ADMIN_EMAIL },
+            usuario: { 
+                nome: user.nome, 
+                saldo: user.saldo, 
+                stakedAmount: user.stakedAmount,
+                canUnstakeAt: user.canUnstakeAt,
+                solanaWallet: user.solanaWallet, 
+                tronWallet: user.tronWallet, // TRON ADICIONADA AQUI
+                isAdmin: user.email === ADMIN_EMAIL 
+            },
             marketplace: produtos.map(p => ({id: p._id, nome: p.nome, preco: p.preco, imagemUrl: p.imagemUrl}))
         });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao buscar dados." }); }
 });
 
+// --- ROTA DE CARTEIRAS ATUALIZADA ---
 app.post('/api/salvar-carteira', checkAuthenticated, async (req, res) => {
     try {
-        const { solanaWallet } = req.body;
-        if (!solanaWallet) return res.status(400).json({ sucesso: false, mensagem: "Endereço da carteira é obrigatório." });
-        await User.findByIdAndUpdate(req.session.user.id, { solanaWallet });
-        res.json({ sucesso: true, mensagem: "Carteira Solana salva com sucesso!" });
-    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao salvar carteira." }); }
+        const { solanaWallet, tronWallet } = req.body;
+        await User.findByIdAndUpdate(req.session.user.id, { 
+            solanaWallet: solanaWallet || '',
+            tronWallet: tronWallet || ''
+        });
+        res.json({ sucesso: true, mensagem: "Carteiras atualizadas com sucesso!" });
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao salvar carteiras." }); }
 });
 
 app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
@@ -103,17 +146,82 @@ app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
         const valor = parseFloat(req.body.valor);
         const user = await User.findById(req.session.user.id);
         if (!valor || valor <= 0) return res.status(400).json({ sucesso: false, mensagem: "Valor inválido." });
-        if (!user.solanaWallet) return res.status(400).json({ sucesso: false, mensagem: "Você precisa salvar uma carteira Solana primeiro." });
+        if (!user.solanaWallet && !user.tronWallet) return res.status(400).json({ sucesso: false, mensagem: "Você precisa salvar pelo menos uma carteira de saque." });
         if (user.saldo < valor) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente." });
+        
+        // Formata a string de carteira para o painel ADM saber de onde é
+        const carteiraParaSaque = user.solanaWallet ? `Solana: ${user.solanaWallet}` : `Tron: ${user.tronWallet}`;
+        
         const novoSaque = new Withdrawal({
             userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email,
-            solanaWallet: user.solanaWallet, valor: valor, status: 'Pendente'
+            solanaWallet: carteiraParaSaque, valor: valor, status: 'Pendente'
         });
         await novoSaque.save();
         res.json({ sucesso: true, mensagem: "Solicitação de saque enviada!" });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao solicitar saque." }); }
 });
 
+// --- ROTAS DE STAKING ---
+app.post('/api/staking/stake', checkAuthenticated, async (req, res) => {
+    try {
+        const valor = parseFloat(req.body.valor);
+        const user = await User.findById(req.session.user.id);
+        if (!valor || valor <= 0) return res.status(400).json({ sucesso: false, mensagem: "Valor inválido." });
+        if (user.saldo < valor) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente." });
+
+        user.saldo -= valor;
+        user.stakedAmount += valor;
+        user.canUnstakeAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 horas
+        user.lastRewardClaim = new Date(); 
+
+        await user.save();
+        res.json({ sucesso: true, mensagem: `${valor} SolidCoins colocadas em staking!`, usuario: { saldo: user.saldo, stakedAmount: user.stakedAmount, canUnstakeAt: user.canUnstakeAt } });
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao fazer staking." }); }
+});
+
+app.post('/api/staking/unstake', checkAuthenticated, async (req, res) => {
+    try {
+        const user = await User.findById(req.session.user.id);
+        if (user.stakedAmount <= 0) return res.status(400).json({ sucesso: false, mensagem: "Você não tem moedas em staking." });
+        if (new Date() < new Date(user.canUnstakeAt)) {
+            return res.status(400).json({ sucesso: false, mensagem: `Você só pode resgatar após ${new Date(user.canUnstakeAt).toLocaleString('pt-BR')}` });
+        }
+
+        const valorResgatado = user.stakedAmount;
+        user.saldo += valorResgatado;
+        user.stakedAmount = 0;
+        user.canUnstakeAt = null;
+
+        await user.save();
+        res.json({ sucesso: true, mensagem: `${valorResgatado} SolidCoins resgatadas com sucesso!`, usuario: { saldo: user.saldo, stakedAmount: user.stakedAmount } });
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao resgatar staking." }); }
+});
+
+app.post('/api/staking/claim-rewards', checkAuthenticated, async (req, res) => {
+    try {
+        const user = await User.findById(req.session.user.id);
+        const admin = await User.findOne({ email: ADMIN_EMAIL });
+        if (user.stakedAmount <= 0) return res.status(400).json({ sucesso: false, mensagem: "Você precisa de moedas em staking para reivindicar." });
+
+        const tempoPassadoMs = new Date() - new Date(user.lastRewardClaim);
+        const diasPassados = tempoPassadoMs / (1000 * 60 * 60 * 24);
+        const recompensaCalculada = (user.stakedAmount * (STAKING_REWARD_RATE_MONTHLY / 30)) * diasPassados;
+
+        if (recompensaCalculada < 0.01) return res.status(400).json({ sucesso: false, mensagem: "Recompensa muito baixa para reivindicar." });
+        if (admin.saldo < recompensaCalculada) return res.status(500).json({ sucesso: false, mensagem: "Recursos indisponíveis no momento." });
+
+        admin.saldo -= recompensaCalculada;
+        user.saldo += recompensaCalculada;
+        user.lastRewardClaim = new Date();
+
+        const transacao = new Transaction({ userId: user._id, tipo: 'Recompensa de Staking', descricao: `Reivindicação de ${recompensaCalculada.toFixed(2)} SC`, valor: recompensaCalculada });
+        await Promise.all([user.save(), admin.save(), transacao.save()]);
+
+        res.json({ sucesso: true, mensagem: `Você reivindicou ${recompensaCalculada.toFixed(2)} SC!`, usuario: { saldo: user.saldo } });
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao reivindicar." }); }
+});
+
+// --- DEMAIS ROTAS ---
 app.get('/api/meus-saques', checkAuthenticated, async (req, res) => {
     try {
         const saques = await Withdrawal.find({ userId: req.session.user.id }).sort({ data: -1 });
