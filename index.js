@@ -121,15 +121,22 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
                 stakedAmount: user.stakedAmount,
                 canUnstakeAt: user.canUnstakeAt,
                 solanaWallet: user.solanaWallet, 
-                tronWallet: user.tronWallet, // TRON ADICIONADA AQUI
+                tronWallet: user.tronWallet, 
                 isAdmin: user.email === ADMIN_EMAIL 
             },
-            marketplace: produtos.map(p => ({id: p._id, nome: p.nome, preco: p.preco, imagemUrl: p.imagemUrl}))
+            // MAPEIA OS PRODUTOS ENVIANDO A CATEGORIA PARA O FRONTEND
+            marketplace: produtos.map(p => ({
+                id: p._id, 
+                nome: p.nome, 
+                preco: p.preco, 
+                imagemUrl: p.imagemUrl,
+                categoria: p.categoria || 'Cédulas SolidCoin' // Adiciona fallback para a categoria
+            }))
         });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao buscar dados." }); }
 });
 
-// --- ROTA DE CARTEIRAS ATUALIZADA ---
+// --- ROTA DE CARTEIRAS ---
 app.post('/api/salvar-carteira', checkAuthenticated, async (req, res) => {
     try {
         const { solanaWallet, tronWallet } = req.body;
@@ -319,11 +326,12 @@ async function criarProdutosSeNaoExistirem() {
     try {
         if (await Product.countDocuments() > 0) return;
         console.log("🔧 Criando produtos padrão no Marketplace...");
+        // AQUI ESTÁ A CATEGORIA 'Cédulas SolidCoin' ADICIONADA:
         await Product.insertMany([
-            { nome: 'Cedula SolidCoin 1000', preco: 1000, imagemUrl: 'https://i.postimg.cc/vBmmytJq/projeto-page-0001.png' },
-            { nome: 'Cedula SolidCoin 5000', preco: 5000, imagemUrl: 'https://i.postimg.cc/1XZDMTnn/projeto2-page-0001.png' },
-            { nome: 'Cedula SolidCoin 10000', preco: 10000, imagemUrl: 'https://i.postimg.cc/XNwfXVmw/projeto3-page-0001.png' },
-            { nome: 'Cedula SolidCoin 100000', preco: 100000, imagemUrl: 'https://i.postimg.cc/MHxj1QN1/projeto4-page-0001.png' }
+            { nome: 'Cedula SolidCoin 1000', preco: 1000, imagemUrl: 'https://i.postimg.cc/vBmmytJq/projeto-page-0001.png', categoria: 'Cédulas SolidCoin' },
+            { nome: 'Cedula SolidCoin 5000', preco: 5000, imagemUrl: 'https://i.postimg.cc/1XZDMTnn/projeto2-page-0001.png', categoria: 'Cédulas SolidCoin' },
+            { nome: 'Cedula SolidCoin 10000', preco: 10000, imagemUrl: 'https://i.postimg.cc/XNwfXVmw/projeto3-page-0001.png', categoria: 'Cédulas SolidCoin' },
+            { nome: 'Cedula SolidCoin 100000', preco: 100000, imagemUrl: 'https://i.postimg.cc/MHxj1QN1/projeto4-page-0001.png', categoria: 'Cédulas SolidCoin' }
         ]);
         console.log("✅ Produtos padrão criados com sucesso!");
     } catch (error) { console.error("Erro ao criar produtos:", error); }

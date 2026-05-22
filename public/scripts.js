@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Outros Elementos
     const transferirForm = document.getElementById('transferir-form');
     const marketplaceListaEl = document.getElementById('marketplace-lista');
+    const categoriasContainer = document.getElementById('marketplace-categorias'); // <-- CONTAINER DAS CATEGORIAS
     const extratoListaEl = document.getElementById('extrato-lista');
     const saquesListaEl = document.getElementById('saques-lista');
 
@@ -113,13 +114,43 @@ document.addEventListener('DOMContentLoaded', () => {
                     carregarExtrato();
                     carregarHistoricoSaques();
 
-                    marketplaceListaEl.innerHTML = '';
-                    data.marketplace.forEach(produto => {
-                        const produtoDiv = document.createElement('div');
-                        produtoDiv.className = 'produto-item';
-                        produtoDiv.innerHTML = `<img src="${produto.imagemUrl || 'https://via.placeholder.com/100x100?text=Sem+Imagem'}" alt="${produto.nome}" class="produto-img"><div class="produto-info"><h3>${produto.nome}</h3><p><strong>${produto.preco} SolidCoins</strong></p></div><button class="comprar-btn" data-id="${produto.id}">Comprar</button>`;
-                        marketplaceListaEl.appendChild(produtoDiv);
+                    // --- LÓGICA DE CATEGORIAS DO MARKETPLACE ---
+                    categoriasContainer.innerHTML = ''; // Limpa botões antigos
+                    
+                    // Pega todas as categorias únicas do banco de dados
+                    const categoriasUnicas = [...new Set(data.marketplace.map(p => p.categoria))];
+                    
+                    // Função para renderizar produtos filtrados pela categoria
+                    const renderizarProdutos = (categoriaDesejada) => {
+                        marketplaceListaEl.innerHTML = '';
+                        const produtosFiltrados = data.marketplace.filter(p => p.categoria === categoriaDesejada);
+                        
+                        produtosFiltrados.forEach(produto => {
+                            const produtoDiv = document.createElement('div');
+                            produtoDiv.className = 'produto-item';
+                            produtoDiv.innerHTML = `<img src="${produto.imagemUrl || 'https://via.placeholder.com/100x100?text=Sem+Imagem'}" alt="${produto.nome}" class="produto-img"><div class="produto-info"><h3>${produto.nome}</h3><p><strong>${produto.preco} SolidCoins</strong></p></div><button class="comprar-btn" data-id="${produto.id}">Comprar</button>`;
+                            marketplaceListaEl.appendChild(produtoDiv);
+                        });
+                    };
+
+                    // Cria os botões das abas para cada categoria
+                    categoriasUnicas.forEach((categoria, index) => {
+                        const btn = document.createElement('button');
+                        btn.className = `cat-btn ${index === 0 ? 'active' : ''}`; // Deixa o primeiro ativo
+                        btn.textContent = categoria;
+                        btn.onclick = (e) => {
+                            // Tira o "active" de todos e coloca só no clicado
+                            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+                            e.target.classList.add('active');
+                            renderizarProdutos(categoria); // Filtra os produtos
+                        };
+                        categoriasContainer.appendChild(btn);
                     });
+
+                    // Se existir alguma categoria, exibe os produtos da primeira automaticamente
+                    if (categoriasUnicas.length > 0) {
+                        renderizarProdutos(categoriasUnicas[0]);
+                    }
                 }
                 
                 // Saldo e Staking atualizam sempre (para o efeito de tempo real)

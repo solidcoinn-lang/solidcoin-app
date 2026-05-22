@@ -189,3 +189,80 @@ button:hover {
 .status-rejeitado { color: #e74c3c; font-weight: bold; }
 .aprovar-btn { background-color: #27ae60 !important; width: auto !important; font-size: 0.8em !important; padding: 5px 10px !important; margin-right: 5px; }
 .rejeitar-btn { background-color: #e74c3c !important; width: auto !important; font-size: 0.8em !important; padding: 5px 10px !important; }
+
+/* --- NOVOS ESTILOS PARA O CARD DE STAKING --- */
+.staking-card {
+    background-color: #f0f8ff; /* Um azul bem claro para destacar */
+    border-left: 5px solid #3498db;
+}
+
+.staking-info {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+    font-size: 1.1em;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.staking-form {
+    flex-grow: 2; /* Faz o formulário ocupar mais espaço */
+    min-width: 250px;
+    margin-right: 10px;
+}
+
+.staking-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-grow: 1;
+    min-width: 200px;
+}
+
+.secondary-btn {
+    background-color: #7f8c8d !important;
+}
+.secondary-btn:hover {
+    background-color: #95a5a6 !important;
+}
+
+/* --- NOVOS ESTILOS DAS CATEGORIAS DO MARKETPLACE --- */
+.marketplace-categorias-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    overflow-x: auto; /* Permite rolagem lateral no celular */
+    padding-bottom: 5px;
+}
+
+.cat-btn {
+    background-color: #ecf0f1;
+    color: #2c3e50;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    white-space: nowrap; /* Impede que o texto quebre de linha */
+    width: auto; /* Garante que os botões não fiquem gigantes */
+}
+
+.cat-btn:hover {
+    background-color: #bdc3c7;
+}
+
+.cat-btn.active {
+    background-color: #3498db;
+    color: white;
+}
+
+/* Nova classe Grid para o marketplace com categorias */
+.marketplace-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: flex-start;
+}
