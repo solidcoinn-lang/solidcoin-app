@@ -13,6 +13,7 @@ const User = require('./models/User');
 const Product = require('./models/Product');
 const Transaction = require('./models/Transaction');
 const Withdrawal = require('./models/Withdrawal');
+const GiftCardOrder = require('./models/GiftCardOrder'); // <-- NOVO MODELO
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -78,7 +79,6 @@ app.post('/logout', checkAuthenticated, (req, res) => {
     });
 });
 
-
 // --- ROTAS DA API ---
 
 app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
@@ -102,48 +102,28 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
                 user.lastYieldApplied = agora;
 
                 const transacaoRendimento = new Transaction({
-                    userId: user._id,
-                    tipo: 'Rendimento Automático',
-                    descricao: `Rendimento de ${diasInteiros} dia(s)`,
-                    valor: rendimentoGanho
+                    userId: user._id, tipo: 'Rendimento Automático', descricao: `Rendimento de ${diasInteiros} dia(s)`, valor: rendimentoGanho
                 });
 
                 await Promise.all([user.save(), admin.save(), transacaoRendimento.save()]);
-                console.log(`✅ Rendimento de ${rendimentoGanho} aplicado para ${user.email}`);
             }
         }
 
         res.json({
             sucesso: true,
             usuario: { 
-                nome: user.nome, 
-                saldo: user.saldo, 
-                stakedAmount: user.stakedAmount,
-                canUnstakeAt: user.canUnstakeAt,
-                solanaWallet: user.solanaWallet, 
-                tronWallet: user.tronWallet, 
-                isAdmin: user.email === ADMIN_EMAIL 
+                nome: user.nome, saldo: user.saldo, stakedAmount: user.stakedAmount, canUnstakeAt: user.canUnstakeAt,
+                solanaWallet: user.solanaWallet, tronWallet: user.tronWallet, isAdmin: user.email === ADMIN_EMAIL 
             },
-            // MAPEIA OS PRODUTOS ENVIANDO A CATEGORIA PARA O FRONTEND
-            marketplace: produtos.map(p => ({
-                id: p._id, 
-                nome: p.nome, 
-                preco: p.preco, 
-                imagemUrl: p.imagemUrl,
-                categoria: p.categoria || 'Cédulas SolidCoin' // Adiciona fallback para a categoria
-            }))
+            marketplace: produtos.map(p => ({ id: p._id, nome: p.nome, preco: p.preco, imagemUrl: p.imagemUrl, categoria: p.categoria || 'Cédulas SolidCoin' }))
         });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao buscar dados." }); }
 });
 
-// --- ROTA DE CARTEIRAS ---
 app.post('/api/salvar-carteira', checkAuthenticated, async (req, res) => {
     try {
         const { solanaWallet, tronWallet } = req.body;
-        await User.findByIdAndUpdate(req.session.user.id, { 
-            solanaWallet: solanaWallet || '',
-            tronWallet: tronWallet || ''
-        });
+        await User.findByIdAndUpdate(req.session.user.id, { solanaWallet: solanaWallet || '', tronWallet: tronWallet || '' });
         res.json({ sucesso: true, mensagem: "Carteiras atualizadas com sucesso!" });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao salvar carteiras." }); }
 });
@@ -156,13 +136,8 @@ app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
         if (!user.solanaWallet && !user.tronWallet) return res.status(400).json({ sucesso: false, mensagem: "Você precisa salvar pelo menos uma carteira de saque." });
         if (user.saldo < valor) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente." });
         
-        // Formata a string de carteira para o painel ADM saber de onde é
         const carteiraParaSaque = user.solanaWallet ? `Solana: ${user.solanaWallet}` : `Tron: ${user.tronWallet}`;
-        
-        const novoSaque = new Withdrawal({
-            userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email,
-            solanaWallet: carteiraParaSaque, valor: valor, status: 'Pendente'
-        });
+        const novoSaque = new Withdrawal({ userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, solanaWallet: carteiraParaSaque, valor: valor, status: 'Pendente' });
         await novoSaque.save();
         res.json({ sucesso: true, mensagem: "Solicitação de saque enviada!" });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao solicitar saque." }); }
@@ -178,7 +153,7 @@ app.post('/api/staking/stake', checkAuthenticated, async (req, res) => {
 
         user.saldo -= valor;
         user.stakedAmount += valor;
-        user.canUnstakeAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 horas
+        user.canUnstakeAt = new Date(Date.now() + 48 * 60 * 60 * 1000); 
         user.lastRewardClaim = new Date(); 
 
         await user.save();
@@ -190,9 +165,7 @@ app.post('/api/staking/unstake', checkAuthenticated, async (req, res) => {
     try {
         const user = await User.findById(req.session.user.id);
         if (user.stakedAmount <= 0) return res.status(400).json({ sucesso: false, mensagem: "Você não tem moedas em staking." });
-        if (new Date() < new Date(user.canUnstakeAt)) {
-            return res.status(400).json({ sucesso: false, mensagem: `Você só pode resgatar após ${new Date(user.canUnstakeAt).toLocaleString('pt-BR')}` });
-        }
+        if (new Date() < new Date(user.canUnstakeAt)) return res.status(400).json({ sucesso: false, mensagem: `Você só pode resgatar após ${new Date(user.canUnstakeAt).toLocaleString('pt-BR')}` });
 
         const valorResgatado = user.stakedAmount;
         user.saldo += valorResgatado;
@@ -228,7 +201,46 @@ app.post('/api/staking/claim-rewards', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao reivindicar." }); }
 });
 
-// --- DEMAIS ROTAS ---
+// --- ROTA DE COMPRAR GIFT CARD ---
+app.post('/api/comprar-giftcard', checkAuthenticated, async (req, res) => {
+    try {
+        const { tipo, valorBRL } = req.body;
+        const valorReais = parseFloat(valorBRL);
+        
+        if (!['Google Play', 'Shopee'].includes(tipo)) return res.status(400).json({ sucesso: false, mensagem: "Tipo de Gift Card inválido." });
+        if (isNaN(valorReais) || valorReais < 15 || valorReais > 300) return res.status(400).json({ sucesso: false, mensagem: "O valor deve ser entre R$ 15 e R$ 300." });
+
+        const custoSolidCoin = valorReais * 500; // Cada 500 SC = R$ 1,00
+
+        const user = await User.findById(req.session.user.id);
+        const admin = await User.findOne({ email: ADMIN_EMAIL });
+
+        if (user.saldo < custoSolidCoin) return res.status(400).json({ sucesso: false, mensagem: `Saldo insuficiente. Custa ${custoSolidCoin} SC.` });
+
+        // Debita do usuário e envia para o ADM
+        user.saldo -= custoSolidCoin;
+        admin.saldo += custoSolidCoin;
+
+        // Cria o Pedido para o ADM ver
+        const novoPedido = new GiftCardOrder({
+            userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email,
+            tipo: tipo, valorBRL: valorReais, custoSolidCoin: custoSolidCoin
+        });
+
+        // Cria a transação de compra pendente no extrato do usuário
+        const transacaoCompra = new Transaction({
+            userId: user._id, tipo: 'Compra Gift Card',
+            descricao: `Pedido de Gift Card ${tipo} (R$ ${valorReais.toFixed(2)}). Aguardando PIN.`,
+            valor: -custoSolidCoin
+        });
+
+        await Promise.all([user.save(), admin.save(), novoPedido.save(), transacaoCompra.save()]);
+
+        res.json({ sucesso: true, mensagem: `Pedido realizado com sucesso! Custou ${custoSolidCoin} SolidCoins. O PIN será enviado para o seu Extrato.`, novoSaldo: user.saldo });
+
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao processar compra do Gift Card." }); }
+});
+
 app.get('/api/meus-saques', checkAuthenticated, async (req, res) => {
     try {
         const saques = await Withdrawal.find({ userId: req.session.user.id }).sort({ data: -1 });
@@ -278,66 +290,113 @@ app.get('/api/extrato', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: 'Erro ao buscar extrato.' }); }
 });
 
-// ROTAS DE ADMIN
+// --- ROTAS DE ADMIN ---
+
 app.get('/api/admin/saques-pendentes', isAdmin, async (req, res) => {
     try {
         const saques = await Withdrawal.find({ status: 'Pendente' }).sort({ data: 1 });
         res.json({ sucesso: true, saques });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao buscar saques pendentes." }); }
 });
+
 app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
     try {
         const { withdrawalId, acao } = req.body;
         const saque = await Withdrawal.findById(withdrawalId);
-        if (!saque || saque.status !== 'Pendente') return res.status(404).json({ sucesso: false, mensagem: "Solicitação não encontrada ou já processada." });
+        if (!saque || saque.status !== 'Pendente') return res.status(404).json({ sucesso: false, mensagem: "Solicitação não encontrada." });
         if (acao === 'aprovar') {
             const user = await User.findById(saque.userId);
             if (user.saldo < saque.valor) {
                 saque.status = 'Rejeitado';
                 await saque.save();
-                return res.status(400).json({ sucesso: false, mensagem: "Saldo do usuário tornou-se insuficiente. Saque rejeitado." });
+                return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente. Rejeitado." });
             }
             user.saldo -= saque.valor;
             saque.status = 'Aprovado';
             const transacao = new Transaction({ userId: user._id, tipo: 'Saque Aprovado', descricao: `Saque de ${saque.valor.toFixed(2)} para carteira`, valor: -saque.valor });
             await Promise.all([user.save(), saque.save(), transacao.save()]);
-            res.json({ sucesso: true, mensagem: `Saque de ${user.nome} APROVADO com sucesso.` });
+            res.json({ sucesso: true, mensagem: `Saque APROVADO.` });
         } else if (acao === 'rejeitar') {
             saque.status = 'Rejeitado';
             await saque.save();
-            res.json({ sucesso: true, mensagem: "Saque REJEITADO com sucesso." });
-        } else {
-            res.status(400).json({ sucesso: false, mensagem: "Ação inválida." });
+            res.json({ sucesso: true, mensagem: "Saque REJEITADO." });
         }
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao processar saque." }); }
 });
+
+// ADMIN: VER PEDIDOS DE GIFT CARDS
+app.get('/api/admin/giftcards-pendentes', isAdmin, async (req, res) => {
+    try {
+        const pedidos = await GiftCardOrder.find({ status: 'Pendente' }).sort({ data: 1 });
+        res.json({ sucesso: true, pedidos });
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao buscar pedidos de Gift Card." }); }
+});
+
+// ADMIN: PROCESSAR GIFT CARDS E ENVIAR PIN
+app.post('/api/admin/processar-giftcard', isAdmin, async (req, res) => {
+    try {
+        const { orderId, acao, pin } = req.body;
+        const order = await GiftCardOrder.findById(orderId);
+        if (!order || order.status !== 'Pendente') return res.status(404).json({ sucesso: false, mensagem: "Pedido não encontrado ou já processado." });
+
+        if (acao === 'enviar_pin') {
+            if (!pin) return res.status(400).json({ sucesso: false, mensagem: "O PIN é obrigatório." });
+
+            order.status = 'Concluido';
+            order.pin = pin;
+
+            // Cria transação com valor 0 apenas para aparecer em destaque no extrato do usuário
+            const transacaoPin = new Transaction({
+                userId: order.userId,
+                tipo: 'Entrega de Gift Card',
+                descricao: `O PIN do seu Gift Card ${order.tipo} (R$ ${order.valorBRL}) é: ${pin}`,
+                valor: 0 
+            });
+
+            await Promise.all([order.save(), transacaoPin.save()]);
+            res.json({ sucesso: true, mensagem: "PIN enviado para o extrato do usuário com sucesso!" });
+
+        } else if (acao === 'rejeitar') {
+            // Estorna o saldo para o usuario e tira do ADM
+            const user = await User.findById(order.userId);
+            const admin = await User.findOne({ email: ADMIN_EMAIL });
+
+            user.saldo += order.custoSolidCoin;
+            admin.saldo -= order.custoSolidCoin;
+            order.status = 'Rejeitado';
+
+            const transacaoEstorno = new Transaction({
+                userId: user._id, tipo: 'Estorno Gift Card',
+                descricao: `Reembolso. O pedido de Gift Card ${order.tipo} foi cancelado.`, valor: order.custoSolidCoin
+            });
+
+            await Promise.all([user.save(), admin.save(), order.save(), transacaoEstorno.save()]);
+            res.json({ sucesso: true, mensagem: "Pedido rejeitado e saldo estornado para o usuário." });
+        } else {
+            res.status(400).json({ sucesso: false, mensagem: "Ação inválida." });
+        }
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao processar Gift Card." }); }
+});
+
 
 // FUNÇÕES DE SETUP
 async function criarAdminSeNaoExistir() {
     try {
         if (await User.findOne({ email: ADMIN_EMAIL })) return;
-        console.log("🔧 Criando usuário ADM padrão...");
         const senhaHash = await bcrypt.hash("SolidCoin$24", 10);
         await new User({ nome: "CEO SolidCoin", email: ADMIN_EMAIL, senha: senhaHash, saldo: 1000000000 }).save();
-        console.log("✅ Usuário ADM criado com sucesso!");
     } catch (error) { console.error("Erro ao criar ADM:", error); }
 }
 async function criarProdutosSeNaoExistirem() {
     try {
         if (await Product.countDocuments() > 0) return;
-        console.log("🔧 Criando produtos padrão no Marketplace...");
-        // AQUI ESTÁ A CATEGORIA 'Cédulas SolidCoin' ADICIONADA:
         await Product.insertMany([
             { nome: 'Cedula SolidCoin 1000', preco: 1000, imagemUrl: 'https://i.postimg.cc/vBmmytJq/projeto-page-0001.png', categoria: 'Cédulas SolidCoin' },
             { nome: 'Cedula SolidCoin 5000', preco: 5000, imagemUrl: 'https://i.postimg.cc/1XZDMTnn/projeto2-page-0001.png', categoria: 'Cédulas SolidCoin' },
             { nome: 'Cedula SolidCoin 10000', preco: 10000, imagemUrl: 'https://i.postimg.cc/XNwfXVmw/projeto3-page-0001.png', categoria: 'Cédulas SolidCoin' },
             { nome: 'Cedula SolidCoin 100000', preco: 100000, imagemUrl: 'https://i.postimg.cc/MHxj1QN1/projeto4-page-0001.png', categoria: 'Cédulas SolidCoin' }
         ]);
-        console.log("✅ Produtos padrão criados com sucesso!");
     } catch (error) { console.error("Erro ao criar produtos:", error); }
 }
 
-// INICIALIZAÇÃO
-app.listen(PORT, () => {
-    console.log(`\n🚀 SolidCoin App rodando na porta ${PORT}`);
-});
+app.listen(PORT, () => { console.log(`\n🚀 SolidCoin App rodando na porta ${PORT}`); });

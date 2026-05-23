@@ -9,24 +9,45 @@
     <div class="container dashboard">
         <header>
             <h1>Painel do Administrador</h1>
-            <a href="/dashboard.html" style="text-decoration: none; color: #3498db;">Voltar ao Dashboard</a>
+            <a href="/dashboard.html" style="text-decoration: none; color: #3498db; font-weight:bold;">Voltar ao Dashboard</a>
         </header>
 
+        <!-- Pedidos de Gift Cards -->
+        <div class="card" style="border-left: 5px solid #e67e22;">
+            <h2>Pedidos de Gift Cards Pendentes</h2>
+            <div class="extrato-container">
+                <table id="giftcards-tabela">
+                    <thead>
+                        <tr>
+                            <th>Data / Usuário</th>
+                            <th>Tipo & Valor</th>
+                            <th>Custo (SC)</th>
+                            <th>Preencher PIN</th>
+                        </tr>
+                    </thead>
+                    <tbody id="giftcards-pendentes-lista">
+                        <!-- Preenchido via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Saques -->
         <div class="card">
             <h2>Solicitações de Saque Pendentes</h2>
             <div class="extrato-container">
                 <table id="saques-tabela">
                     <thead>
                         <tr>
-                            <th>Data</th>
-                            <th>Usuário</th>
+                            <th>Data / Usuário</th>
                             <th>Valor</th>
-                            <th>Carteira Solana</th>
+                            <th>Carteira (Solana / Tron)</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody id="saques-pendentes-lista">
-                        </tbody>
+                        <!-- Preenchido via JS -->
+                    </tbody>
                 </table>
             </div>
         </div>

@@ -20,7 +20,6 @@
             <p><span id="saldo-usuario">...</span> SolidCoins</p>
         </div>
         
-        <!-- --- SEÇÃO DE STAKING ADICIONADA --- -->
         <div class="card staking-card">
             <h2>Staking de SolidCoins (5% ao Mês)</h2>
             <div class="staking-info">
@@ -40,16 +39,13 @@
         </div>
 
         <div class="card-group">
-            <!-- --- SEÇÃO DE CARTEIRAS ATUALIZADA (SOLANA E TRON) --- -->
             <div class="card">
                 <h2>Minhas Carteiras para Saque</h2>
                 <form id="carteira-form">
                     <label style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Rede Solana (SOL):</label>
-                    <input type="text" id="solana-wallet" placeholder="Endereço da sua carteira Solana" style="margin-bottom: 15px;">
-                    
+                    <input type="text" id="solana-wallet" placeholder="Endereço Solana" style="margin-bottom: 15px;">
                     <label style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Rede Tron (TRX / TRC-20):</label>
-                    <input type="text" id="tron-wallet" placeholder="Endereço da sua carteira Tron" style="margin-bottom: 15px;">
-                    
+                    <input type="text" id="tron-wallet" placeholder="Endereço Tron" style="margin-bottom: 15px;">
                     <button type="submit">Salvar Carteiras</button>
                 </form>
             </div>
@@ -62,27 +58,41 @@
             </div>
         </div>
 
-        <div class="card">
-            <h2>Transferir SolidCoins</h2>
-            <form id="transferir-form">
-                <input type="email" id="email-destinatario" placeholder="Email do Destinatário" required>
-                <input type="number" id="valor-transferencia" placeholder="Valor" step="0.01" required>
-                <button type="submit">Enviar</button>
-            </form>
+        <div class="card-group">
+            <div class="card">
+                <h2>Transferir SolidCoins</h2>
+                <form id="transferir-form">
+                    <input type="email" id="email-destinatario" placeholder="Email do Destinatário" required>
+                    <input type="number" id="valor-transferencia" placeholder="Valor" step="0.01" required>
+                    <button type="submit">Enviar</button>
+                </form>
+            </div>
+
+            <!-- --- NOVO CARD: COMPRAR GIFT CARD --- -->
+            <div class="card" style="border: 2px solid #e67e22; background-color: #fffaf0;">
+                <h2>Comprar Gift Card</h2>
+                <p style="font-size: 0.85em; color: #555; margin-bottom: 15px;">Google Play ou Shopee. Taxa: 500 SC = R$ 1,00</p>
+                <form id="giftcard-form">
+                    <select id="giftcard-tipo" required style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                        <option value="" disabled selected>Escolha o Gift Card</option>
+                        <option value="Google Play">Google Play</option>
+                        <option value="Shopee">Shopee</option>
+                    </select>
+                    <input type="number" id="giftcard-valor" placeholder="Valor em R$ (Mín 15, Máx 300)" min="15" max="300" step="1" required>
+                    <p style="margin-bottom: 10px; font-size: 1.1em;">Custo: <strong id="giftcard-custo" style="color:#e67e22;">0</strong> SC</p>
+                    <button type="submit" style="background-color: #e67e22;">Comprar Gift Card</button>
+                </form>
+            </div>
         </div>
 
-        <!-- --- MARKETPLACE COM CATEGORIAS --- -->
         <div class="card">
             <h2>Marketplace</h2>
-            <!-- Container onde as abas de categoria serão injetadas -->
             <div id="marketplace-categorias" class="marketplace-categorias-container"></div>
-            <!-- Lista onde os produtos da aba atual vão aparecer -->
             <div id="marketplace-lista" class="marketplace-grid"></div>
         </div>
         
         <div class="card">
             <div class="tab-header">
-                <!-- Abas corrigidas (sem 'onclick') para não dar erro com extensões -->
                 <button class="tab-link active" data-tab="Extrato">Extrato</button>
                 <button class="tab-link" data-tab="Saques">Histórico de Saques</button>
             </div>
@@ -90,9 +100,7 @@
                 <h2>Extrato de Transações</h2>
                 <div class="extrato-container">
                     <table id="extrato-tabela">
-                        <thead>
-                            <tr><th>Data</th><th>Descrição</th><th>Valor</th></tr>
-                        </thead>
+                        <thead><tr><th>Data</th><th>Descrição</th><th>Valor</th></tr></thead>
                         <tbody id="extrato-lista"></tbody>
                     </table>
                 </div>
@@ -101,9 +109,7 @@
                 <h2>Histórico de Saques</h2>
                 <div class="extrato-container">
                     <table id="saques-tabela">
-                         <thead>
-                            <tr><th>Data</th><th>Valor</th><th>Carteira</th><th>Status</th></tr>
-                        </thead>
+                         <thead><tr><th>Data</th><th>Valor</th><th>Carteira</th><th>Status</th></tr></thead>
                         <tbody id="saques-lista"></tbody>
                     </table>
                 </div>
