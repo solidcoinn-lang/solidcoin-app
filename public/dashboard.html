@@ -1,10 +1,81 @@
-<!-- --- GIFT CARDS E RECARGAS --- -->
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - SolidCoin</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container dashboard">
+        <header>
+            <h1>Olá, <span id="nome-usuario">...</span>!</h1>
+            <div>
+                <button id="admin-btn" style="display: none; background-color: #9b59b6; margin-right: 10px;">Painel ADM</button>
+                <button id="logout-btn">Sair</button>
+            </div>
+        </header>
+
+        <div class="card saldo-card">
+            <h2>Seu Saldo</h2>
+            <p><span id="saldo-usuario">...</span> SolidCoins</p>
+        </div>
+        
+        <div class="card staking-card">
+            <h2>Staking de SolidCoins (5% ao Mês)</h2>
+            <div class="staking-info">
+                <span>Em Staking: <strong id="staked-amount">0.00</strong></span>
+                <span>Resgate liberado em: <strong id="unstake-date">--/--/----</strong></span>
+            </div>
+            <div class="card-group">
+                <form id="stake-form" class="staking-form">
+                    <input type="number" id="stake-valor" placeholder="Valor para Staking" step="0.01" required>
+                    <button type="submit">Colocar em Staking</button>
+                </form>
+                <div class="staking-actions">
+                     <button id="unstake-btn" class="secondary-btn">Resgatar Tudo</button>
+                     <button id="claim-rewards-btn">Reivindicar Recompensas</button>
+                </div>
+            </div>
+        </div>
+
         <div class="card-group">
+            <div class="card">
+                <h2>Minhas Carteiras para Saque</h2>
+                <form id="carteira-form">
+                    <label style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Rede Solana (SOL):</label>
+                    <input type="text" id="solana-wallet" placeholder="Endereço da sua carteira Solana">
+                    
+                    <label style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Rede Tron (TRX / TRC-20):</label>
+                    <input type="text" id="tron-wallet" placeholder="Endereço da sua carteira Tron">
+                    
+                    <button type="submit">Salvar Carteiras</button>
+                </form>
+            </div>
+            <div class="card">
+                <h2>Sacar SolidCoins</h2>
+                <form id="saque-form">
+                    <input type="number" id="valor-saque" placeholder="Valor do saque" step="0.01" required>
+                    <button type="submit">Solicitar Saque</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- --- AREA DE PRODUTOS DIRETOS --- -->
+        <div class="card-group">
+            <div class="card">
+                <h2>Transferir SolidCoins</h2>
+                <form id="transferir-form">
+                    <input type="email" id="email-destinatario" placeholder="Email do Destinatário" required>
+                    <input type="number" id="valor-transferencia" placeholder="Valor" step="0.01" required>
+                    <button type="submit">Enviar</button>
+                </form>
+            </div>
+
             <div class="card">
                 <h2>Comprar Gift Card</h2>
                 <p style="font-size: 0.9em; color: #555;">500 SC = R$ 1,00. O PIN chegará no seu extrato.</p>
                 <form id="giftcard-form">
-                    <select id="gift-tipo" required style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 4px;">
+                    <select id="gift-tipo" required>
                         <option value="Google Play">Google Play (Mín. R$ 15)</option>
                         <option value="Shopee">Shopee (Mín. R$ 30)</option>
                     </select>
@@ -18,17 +89,54 @@
                 <h2>Recarga de Celular</h2>
                 <p style="font-size: 0.9em; color: #555;">500 SC = R$ 1,00. O comprovante (NSU) irá para o extrato.</p>
                 <form id="recharge-form">
-                    <select id="recharge-operadora" required style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 4px;">
+                    <select id="recharge-operadora" required>
                         <option value="Claro">Claro</option>
                         <option value="Vivo">Vivo</option>
                         <option value="Tim">Tim</option>
                     </select>
-                    <select id="recharge-valor" required style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 4px;">
-                        <!-- Valores injetados pelo JS -->
-                    </select>
+                    <select id="recharge-valor" required></select>
                     <input type="text" id="recharge-celular" placeholder="Número (Ex: 11999999999)" required>
                     <p style="font-size: 0.9em; font-weight: bold;">Custo: <span id="recharge-custo">0</span> SC</p>
                     <button type="submit" style="background-color: #27ae60;">Fazer Recarga</button>
                 </form>
             </div>
         </div>
+
+        <div class="card">
+            <h2>Marketplace</h2>
+            <div id="marketplace-categorias" class="marketplace-categorias-container"></div>
+            <div id="marketplace-lista" class="marketplace-grid"></div>
+        </div>
+        
+        <div class="card">
+            <div class="tab-header">
+                <button class="tab-link active" data-tab="Extrato">Extrato</button>
+                <button class="tab-link" data-tab="Saques">Histórico de Saques</button>
+            </div>
+            <div id="Extrato" class="tab-content" style="display: block;">
+                <h2>Extrato de Transações</h2>
+                <div class="extrato-container">
+                    <table id="extrato-tabela">
+                        <thead>
+                            <tr><th>Data</th><th>Descrição</th><th>Valor</th></tr>
+                        </thead>
+                        <tbody id="extrato-lista"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="Saques" class="tab-content">
+                <h2>Histórico de Saques</h2>
+                <div class="extrato-container">
+                    <table id="saques-tabela">
+                         <thead>
+                            <tr><th>Data</th><th>Valor</th><th>Carteira</th><th>Status</th></tr>
+                        </thead>
+                        <tbody id="saques-lista"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="scripts.js"></script>
+</body>
+</html>

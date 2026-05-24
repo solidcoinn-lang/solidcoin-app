@@ -39,12 +39,16 @@ h1, h2, h3 {
     color: #2c3e50;
     margin-top: 0;
 }
-input[type="text"], input[type="email"], input[type="password"], input[type="number"] {
-    width: calc(100% - 20px);
+/* --- CAIXAS DE TEXTO E SELEÇÃO CORRIGIDAS --- */
+input[type="text"], input[type="email"], input[type="password"], input[type="number"], select {
+    width: 100%;
     padding: 10px;
     margin-bottom: 15px;
     border: 1px solid #ccc;
     border-radius: 4px;
+    box-sizing: border-box; /* Isso impede que os botões fiquem estranhos */
+    font-family: inherit;
+    font-size: 14px;
 }
 button {
     width: 100%;
@@ -164,7 +168,7 @@ button:hover {
 }
 .card-group > .card {
     flex: 1;
-    min-width: 300px;
+    min-width: 250px; /* Reduzido para caber 3 cards na mesma linha */
 }
 .tab-header {
     border-bottom: 1px solid #ccc;
@@ -192,7 +196,7 @@ button:hover {
 
 /* --- NOVOS ESTILOS PARA O CARD DE STAKING --- */
 .staking-card {
-    background-color: #f0f8ff; /* Um azul bem claro para destacar */
+    background-color: #f0f8ff;
     border-left: 5px solid #3498db;
 }
 
@@ -208,7 +212,7 @@ button:hover {
 }
 
 .staking-form {
-    flex-grow: 2; /* Faz o formulário ocupar mais espaço */
+    flex-grow: 2;
     min-width: 250px;
     margin-right: 10px;
 }
@@ -233,7 +237,7 @@ button:hover {
     display: flex;
     gap: 10px;
     margin-bottom: 20px;
-    overflow-x: auto; /* Permite rolagem lateral no celular */
+    overflow-x: auto;
     padding-bottom: 5px;
 }
 
@@ -246,8 +250,8 @@ button:hover {
     cursor: pointer;
     font-weight: bold;
     transition: all 0.3s ease;
-    white-space: nowrap; /* Impede que o texto quebre de linha */
-    width: auto; /* Garante que os botões não fiquem gigantes */
+    white-space: nowrap;
+    width: auto;
 }
 
 .cat-btn:hover {
@@ -259,7 +263,6 @@ button:hover {
     color: white;
 }
 
-/* Nova classe Grid para o marketplace com categorias */
 .marketplace-grid {
     display: flex;
     flex-wrap: wrap;
