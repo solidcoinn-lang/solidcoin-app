@@ -2,56 +2,140 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Admin - SolidCoin</title>
+    <title>Painel ADM - SolidCoin</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Estilos específicos para organizar as tabelas do Admin */
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            width: 100%;
+        }
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .admin-header h1 {
+            margin: 0;
+            color: #8e44ad;
+        }
+        .admin-header button {
+            width: auto;
+            padding: 10px 20px;
+            margin-left: 10px;
+        }
+        .section-card {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            min-width: 800px; /* Garante que a tabela não quebre em telas pequenas */
+        }
+        th, td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        tr:hover {
+            background-color: #f1f2f6;
+        }
+    </style>
 </head>
 <body>
-    <div class="container dashboard">
-        <header>
-            <h1>Painel do Administrador</h1>
-            <a href="/dashboard.html" style="text-decoration: none; color: #3498db; font-weight:bold;">Voltar ao Dashboard</a>
-        </header>
-
-        <!-- Pedidos de Gift Cards -->
-        <div class="card" style="border-left: 5px solid #e67e22;">
-            <h2>Pedidos de Gift Cards Pendentes</h2>
-            <div class="extrato-container">
-                <table id="giftcards-tabela">
-                    <thead>
-                        <tr>
-                            <th>Data / Usuário</th>
-                            <th>Tipo & Valor</th>
-                            <th>Custo (SC)</th>
-                            <th>Preencher PIN</th>
-                        </tr>
-                    </thead>
-                    <tbody id="giftcards-pendentes-lista">
-                        <!-- Preenchido via JS -->
-                    </tbody>
-                </table>
+    <div class="admin-container">
+        
+        <div class="admin-header">
+            <h1>Painel do Administrador (CEO)</h1>
+            <div>
+                <button onclick="window.location.href='/dashboard.html'" style="background-color: #3498db;">Voltar ao Dashboard</button>
+                <button id="logout-btn">Sair</button>
             </div>
         </div>
 
-        <!-- Saques -->
-        <div class="card">
-            <h2>Solicitações de Saque Pendentes</h2>
-            <div class="extrato-container">
-                <table id="saques-tabela">
-                    <thead>
-                        <tr>
-                            <th>Data / Usuário</th>
-                            <th>Valor</th>
-                            <th>Carteira (Solana / Tron)</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="saques-pendentes-lista">
-                        <!-- Preenchido via JS -->
-                    </tbody>
-                </table>
-            </div>
+        <!-- 1. TABELA DE SAQUES DE SOLIDCOINS -->
+        <div class="section-card" style="border-left: 5px solid #f39c12;">
+            <h2>Saques Pendentes (Cripto)</h2>
+            <p style="color: #7f8c8d; font-size: 0.9em; margin-top: -10px;">Aprove transferências para as carteiras Solana ou Tron dos usuários.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Usuário</th>
+                        <th>Valor (SC)</th>
+                        <th>Carteira Informada</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="saques-lista">
+                    <tr><td colspan="5" style="text-align: center;">Carregando...</td></tr>
+                </tbody>
+            </table>
         </div>
+
+        <!-- 2. TABELA DE COMPRAS DE GIFT CARDS -->
+        <div class="section-card" style="border-left: 5px solid #27ae60;">
+            <h2>Pedidos de Gift Cards</h2>
+            <p style="color: #7f8c8d; font-size: 0.9em; margin-top: -10px;">Ao aprovar, o sistema pedirá que você digite o PIN para enviar ao usuário.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Usuário</th>
+                        <th>Loja</th>
+                        <th>Valor (R$)</th>
+                        <th>Custo Pago (SC)</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="gifts-lista">
+                    <tr><td colspan="6" style="text-align: center;">Carregando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 3. TABELA DE RECARGAS DE CELULAR -->
+        <div class="section-card" style="border-left: 5px solid #3498db;">
+            <h2>Pedidos de Recarga de Celular</h2>
+            <p style="color: #7f8c8d; font-size: 0.9em; margin-top: -10px;">Faça a recarga e clique em Aprovar para inserir o comprovante (NSU/Transação).</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Usuário</th>
+                        <th>Operadora</th>
+                        <th>Número (Celular)</th>
+                        <th>Valor (R$)</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="recharges-lista">
+                    <tr><td colspan="6" style="text-align: center;">Carregando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
     </div>
+
+    <!-- Referência para o script que controla as aprovações -->
     <script src="admin-scripts.js"></script>
 </body>
 </html>
