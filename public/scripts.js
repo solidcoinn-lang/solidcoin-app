@@ -40,11 +40,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const marketplaceListaEl = document.getElementById('marketplace-lista');
     const categoriasContainer = document.getElementById('marketplace-categorias');
 
-    // Gift Cards
+    // Gift Cards e Resgate SolidCoin
     const giftcardForm = document.getElementById('giftcard-form');
     const giftTipoSelect = document.getElementById('gift-tipo');
     const giftValorInput = document.getElementById('gift-valor');
     const giftCustoSpan = document.getElementById('gift-custo');
+    const resgatarGiftSolidCoinForm = document.getElementById('resgatar-gift-solidcoin-form');
 
     // Recargas
     const rechargeForm = document.getElementById('recharge-form');
@@ -226,7 +227,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.sucesso) { atualizarSaldo(data.usuario.saldo); carregarExtrato(); }
     });
 
-    // --- LÓGICA DE GIFT CARDS ---
+    // --- LÓGICA DE RESGATE DE GIFT CARD SOLIDCOIN ---
+    if (resgatarGiftSolidCoinForm) {
+        resgatarGiftSolidCoinForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const codigo = document.getElementById('codigo-gift-solidcoin').value;
+            const response = await fetch('/api/resgatar-giftcard-solidcoin', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ codigo }) 
+            });
+            const data = await response.json();
+            alert(data.mensagem);
+            
+            if(data.sucesso) { 
+                atualizarSaldo(data.novoSaldo);
+                carregarExtrato();
+                resgatarGiftSolidCoinForm.reset(); 
+            }
+        });
+    }
+
+    // --- LÓGICA DE COMPRA DE GIFT CARDS (EXTERNOS) ---
     if (giftcardForm) {
         const atualizarGift = () => {
             const tipo = giftTipoSelect.value;

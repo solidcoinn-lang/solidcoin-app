@@ -5,6 +5,7 @@ const bodyParser = require("body-parser");
 const session = require("express-session");
 const bcrypt = require("bcryptjs");
 const path = require("path");
+const crypto = require('crypto'); // Necessário para gerar os códigos aleatórios
 
 // Importa os modelos
 const User = require('./models/User');
@@ -12,7 +13,8 @@ const Product = require('./models/Product');
 const Transaction = require('./models/Transaction');
 const Withdrawal = require('./models/Withdrawal');
 const GiftCardOrder = require('./models/GiftCardOrder');
-const RechargeOrder = require('./models/RechargeOrder'); // <-- MODELO DE RECARGA ADICIONADO
+const RechargeOrder = require('./models/RechargeOrder'); 
+const SolidCoinGiftCard = require('./models/SolidCoinGiftCard'); // <-- NOVO MODELO AQUI
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -206,7 +208,7 @@ app.post('/api/staking/claim-rewards', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao reivindicar." }); }
 });
 
-// --- ROTA DE COMPRAR GIFT CARD ---
+// --- ROTA DE COMPRAR GIFT CARD EXTERNO (Google Play/Shopee) ---
 app.post('/api/giftcard/comprar', checkAuthenticated, async (req, res) => {
     try {
         const { tipo, valorReais } = req.body;
@@ -309,7 +311,77 @@ app.get('/api/extrato', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: 'Erro ao buscar extrato.' });}
 });
 
-// --- ROTAS DO ADMIN (PAINEL) ---
+// =========================================================
+// --- NOVAS ROTAS DO GIFTCARD SOLIDCOIN (GERAR E RESGATAR)
+// =========================================================
+
+// ADM GERA O CÓDIGO E DESCONTA DO SEU SALDO
+app.post('/api/admin/gerar-giftcard-solidcoin', isAdmin, async (req, res) => {
+    try {
+        const valor = parseFloat(req.body.valor);
+        if (!valor || valor <= 0) return res.status(400).json({ sucesso: false, mensagem: "Valor inválido." });
+
+        const admin = await User.findOne({ email: ADMIN_EMAIL });
+        if (admin.saldo < valor) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente na conta do CEO para gerar este Gift Card." });
+
+        // Gera um código seguro tipo: SOLID-4B8A9F21
+        const codigoGerado = 'SOLID-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+
+        admin.saldo -= valor;
+
+        const novoGift = new SolidCoinGiftCard({
+            codigo: codigoGerado,
+            valor: valor
+        });
+
+        const transacaoAdmin = new Transaction({
+            userId: admin._id,
+            tipo: 'Geração Gift Card SC',
+            descricao: `Código gerado: ${codigoGerado}`,
+            valor: -valor
+        });
+
+        await Promise.all([admin.save(), novoGift.save(), transacaoAdmin.save()]);
+        res.json({ sucesso: true, mensagem: `Gift Card gerado com sucesso!\nCódigo: ${codigoGerado}\nValor: ${valor} SC` });
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao gerar Gift Card SolidCoin." }); }
+});
+
+// USUÁRIO RESGATA O CÓDIGO
+app.post('/api/resgatar-giftcard-solidcoin', checkAuthenticated, async (req, res) => {
+    try {
+        const { codigo } = req.body;
+        if (!codigo) return res.status(400).json({ sucesso: false, mensagem: "O código é obrigatório." });
+
+        // Procura o código no banco
+        const giftCard = await SolidCoinGiftCard.findOne({ codigo: codigo });
+        if (!giftCard) return res.status(404).json({ sucesso: false, mensagem: "Código inválido ou inexistente." });
+        if (giftCard.isUsed) return res.status(400).json({ sucesso: false, mensagem: "Este Gift Card já foi resgatado." });
+
+        const user = await User.findById(req.session.user.id);
+
+        // Adiciona saldo ao usuário
+        user.saldo += giftCard.valor;
+        
+        // Marca o cartão como usado
+        giftCard.isUsed = true;
+        giftCard.usedBy = user._id;
+        giftCard.usedAt = new Date();
+
+        const transacaoUser = new Transaction({
+            userId: user._id,
+            tipo: 'Resgate Gift Card SC',
+            descricao: `Resgate do código ${codigo}`,
+            valor: giftCard.valor
+        });
+
+        await Promise.all([user.save(), giftCard.save(), transacaoUser.save()]);
+        res.json({ sucesso: true, mensagem: `Parabéns! Você resgatou ${giftCard.valor} SolidCoins com sucesso!`, novoSaldo: user.saldo });
+
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao resgatar Gift Card SolidCoin." }); }
+});
+
+
+// --- ROTAS DO ADMIN (PAINEL GERAL) ---
 
 app.get('/api/admin/pedidos-pendentes', isAdmin, async (req, res) => {
     try {
@@ -351,7 +423,7 @@ app.post('/api/admin/processar-giftcard', isAdmin, async (req, res) => {
         const order = await GiftCardOrder.findById(orderId);
         if (!order || order.status !== 'Pendente') return res.status(404).json({ sucesso: false, mensagem: "Pedido não encontrado ou já processado." });
 
-        if (acao === 'aprovar' || acao === 'enviar_pin') { // Aceita ambas as nomenclaturas
+        if (acao === 'aprovar' || acao === 'enviar_pin') { 
             if(!pin) return res.status(400).json({ sucesso: false, mensagem: "O PIN é obrigatório." });
             order.status = 'Concluido';
             order.pin = pin;

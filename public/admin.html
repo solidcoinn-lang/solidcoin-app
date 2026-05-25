@@ -17,46 +17,68 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 30px;
-            background-color: #fff;
+            background-color: #1a1a1a; /* Ajustado para o tema escuro */
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            border: 1px solid rgba(212, 175, 55, 0.15);
         }
         .admin-header h1 {
             margin: 0;
-            color: #8e44ad;
+            color: #d4af37;
         }
         .admin-header button {
             width: auto;
             padding: 10px 20px;
             margin-left: 10px;
+            background-color: #333;
+            color: #d4af37;
+            border: 1px solid #d4af37;
+        }
+        .admin-header button:hover {
+            background-color: #d4af37;
+            color: #000;
         }
         .section-card {
-            background-color: #fff;
+            background-color: #1a1a1a; /* Ajustado para o tema escuro */
             padding: 25px;
             border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
             margin-bottom: 30px;
             overflow-x: auto;
+            border: 1px solid rgba(212, 175, 55, 0.15);
         }
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 15px;
-            min-width: 800px; /* Garante que a tabela não quebre em telas pequenas */
+            min-width: 800px;
         }
         th, td {
             padding: 12px 15px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #333;
             text-align: left;
+            color: #e0e0e0;
         }
         th {
-            background-color: #f8f9fa;
+            background-color: #222;
             font-weight: bold;
-            color: #2c3e50;
+            color: #d4af37;
         }
         tr:hover {
-            background-color: #f1f2f6;
+            background-color: #2a2a2a;
+        }
+        /* Ajuste do input de geração de código para alinhar com o design */
+        #valor-gerar-gift {
+            background-color: #0a0a0a;
+            color: #fff;
+            border: 1px solid #333;
+            padding: 12px;
+            border-radius: 6px;
+        }
+        #valor-gerar-gift:focus {
+            outline: none;
+            border-color: #d4af37;
         }
     </style>
 </head>
@@ -66,15 +88,23 @@
         <div class="admin-header">
             <h1>Painel do Administrador (CEO)</h1>
             <div>
-                <button onclick="window.location.href='/dashboard.html'" style="background-color: #3498db;">Voltar ao Dashboard</button>
-                <button id="logout-btn">Sair</button>
+                <button onclick="window.location.href='/dashboard.html'">Voltar ao Dashboard</button>
+                <button id="logout-btn" style="border-color: #e74c3c; color: #e74c3c;">Sair</button>
             </div>
         </div>
 
-        <!-- 1. TABELA DE SAQUES DE SOLIDCOINS -->
+        <div class="section-card" style="border-left: 5px solid #d4af37;">
+            <h2>Gerar Gift Card SolidCoin</h2>
+            <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Crie um código promocional. O valor será descontado do saldo do CEO.</p>
+            <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center;">
+                <input type="number" id="valor-gerar-gift" placeholder="Valor em SolidCoins (Ex: 5000)" style="max-width: 300px; margin-bottom: 0;">
+                <button onclick="gerarGiftCardSolidCoin()" style="background-color: #d4af37; color: #000; width: auto; font-weight: bold; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer;">Gerar Código</button>
+            </div>
+        </div>
+
         <div class="section-card" style="border-left: 5px solid #f39c12;">
             <h2>Saques Pendentes (Cripto)</h2>
-            <p style="color: #7f8c8d; font-size: 0.9em; margin-top: -10px;">Aprove transferências para as carteiras Solana ou Tron dos usuários.</p>
+            <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Aprove transferências para as carteiras Solana ou Tron dos usuários.</p>
             <table>
                 <thead>
                     <tr>
@@ -91,10 +121,9 @@
             </table>
         </div>
 
-        <!-- 2. TABELA DE COMPRAS DE GIFT CARDS -->
         <div class="section-card" style="border-left: 5px solid #27ae60;">
-            <h2>Pedidos de Gift Cards</h2>
-            <p style="color: #7f8c8d; font-size: 0.9em; margin-top: -10px;">Ao aprovar, o sistema pedirá que você digite o PIN para enviar ao usuário.</p>
+            <h2>Pedidos de Gift Cards Externos</h2>
+            <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Ao aprovar, o sistema pedirá que você digite o PIN para enviar ao usuário.</p>
             <table>
                 <thead>
                     <tr>
@@ -112,10 +141,9 @@
             </table>
         </div>
 
-        <!-- 3. TABELA DE RECARGAS DE CELULAR -->
         <div class="section-card" style="border-left: 5px solid #3498db;">
             <h2>Pedidos de Recarga de Celular</h2>
-            <p style="color: #7f8c8d; font-size: 0.9em; margin-top: -10px;">Faça a recarga e clique em Aprovar para inserir o comprovante (NSU/Transação).</p>
+            <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Faça a recarga e clique em Aprovar para inserir o comprovante (NSU/Transação).</p>
             <table>
                 <thead>
                     <tr>
@@ -135,7 +163,6 @@
 
     </div>
 
-    <!-- Referência para o script que controla as aprovações -->
     <script src="admin-scripts.js"></script>
 </body>
 </html>

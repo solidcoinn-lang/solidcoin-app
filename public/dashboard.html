@@ -10,7 +10,7 @@
         <header>
             <h1>Olá, <span id="nome-usuario">...</span>!</h1>
             <div>
-                <button id="admin-btn" style="display: none; background-color: #9b59b6; margin-right: 10px;">Painel ADM</button>
+                <button id="admin-btn" style="display: none;">Painel ADM</button>
                 <button id="logout-btn">Sair</button>
             </div>
         </header>
@@ -60,10 +60,10 @@
             </div>
         </div>
 
-        <!-- --- AREA DE PRODUTOS DIRETOS --- -->
         <div class="card-group">
             <div class="card">
                 <h2>Transferir SolidCoins</h2>
+                <p style="font-size: 0.9em; color: #aaa;">Envie saldo para outros usuários da plataforma.</p>
                 <form id="transferir-form">
                     <input type="email" id="email-destinatario" placeholder="Email do Destinatário" required>
                     <input type="number" id="valor-transferencia" placeholder="Valor" step="0.01" required>
@@ -72,22 +72,31 @@
             </div>
 
             <div class="card">
+                <h2>Resgatar Gift Card SolidCoin</h2>
+                <p style="font-size: 0.9em; color: #aaa;">Ganhou um código promocional? Resgate suas moedas aqui!</p>
+                <form id="resgatar-gift-solidcoin-form">
+                    <input type="text" id="codigo-gift-solidcoin" placeholder="Ex: SOLID-ABCD1234" required style="text-transform: uppercase;">
+                    <button type="submit">Resgatar Código</button>
+                </form>
+            </div>
+
+            <div class="card">
                 <h2>Comprar Gift Card</h2>
-                <p style="font-size: 0.9em; color: #555;">500 SC = R$ 1,00. O PIN chegará no seu extrato.</p>
+                <p style="font-size: 0.9em; color: #aaa;">500 SC = R$ 1,00. O PIN chegará no seu extrato.</p>
                 <form id="giftcard-form">
                     <select id="gift-tipo" required>
                         <option value="Google Play">Google Play (Mín. R$ 15)</option>
                         <option value="Shopee">Shopee (Mín. R$ 30)</option>
                     </select>
                     <input type="number" id="gift-valor" placeholder="Valor em R$ (Ex: 30)" min="15" max="300" step="1" required>
-                    <p style="font-size: 0.9em; font-weight: bold;">Custo: <span id="gift-custo">0</span> SC</p>
+                    <p style="font-size: 0.9em; font-weight: bold; color: #d4af37;">Custo: <span id="gift-custo">0</span> SC</p>
                     <button type="submit">Comprar Gift Card</button>
                 </form>
             </div>
 
             <div class="card">
                 <h2>Recarga de Celular</h2>
-                <p style="font-size: 0.9em; color: #555;">500 SC = R$ 1,00. O comprovante (NSU) irá para o extrato.</p>
+                <p style="font-size: 0.9em; color: #aaa;">500 SC = R$ 1,00. O comprovante (NSU) irá para o extrato.</p>
                 <form id="recharge-form">
                     <select id="recharge-operadora" required>
                         <option value="Claro">Claro</option>
@@ -96,8 +105,8 @@
                     </select>
                     <select id="recharge-valor" required></select>
                     <input type="text" id="recharge-celular" placeholder="Número (Ex: 11999999999)" required>
-                    <p style="font-size: 0.9em; font-weight: bold;">Custo: <span id="recharge-custo">0</span> SC</p>
-                    <button type="submit" style="background-color: #27ae60;">Fazer Recarga</button>
+                    <p style="font-size: 0.9em; font-weight: bold; color: #d4af37;">Custo: <span id="recharge-custo">0</span> SC</p>
+                    <button type="submit">Fazer Recarga</button>
                 </form>
             </div>
         </div>
