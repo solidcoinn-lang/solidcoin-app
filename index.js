@@ -241,9 +241,9 @@ app.post('/api/recharge/comprar', checkAuthenticated, async (req, res) => {
         const valorR = parseFloat(valorReais);
         
         const validValues = {
-            Claro: [15, 20, 25, 30, 35, 40, 50, 100],
-            Vivo: [10, 12, 15, 20, 25, 30],
-            Tim: [15, 20, 30, 50, 100]
+            Claro: [20, 25, 30, 35, 40, 50, 100,],
+            Vivo: [20, 25, 30, 35, 40, 50, 100, 200, 300],
+            Tim: [20, 30, 40, 50, 60, 100]
         };
 
         if (!validValues[operadora] || !validValues[operadora].includes(valorR)) {

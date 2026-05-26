@@ -277,9 +277,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- LÓGICA DE RECARGAS DE CELULAR ---
     if (rechargeForm) {
         const valoresOperadoras = {
-            Claro: [15, 20, 25, 30, 35, 40, 50, 100],
-            Vivo: [10, 12, 15, 20, 25, 30],
-            Tim: [15, 20, 30, 50, 100]
+            Claro: [20, 25, 30, 35, 40, 50, 100,],
+            Vivo: [20, 25, 30, 35, 40, 50, 100, 200, 300],
+            Tim: [20, 30, 40, 50, 60, 100]
         };
 
         const atualizarValoresRecarga = () => {
