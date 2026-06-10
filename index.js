@@ -5,7 +5,7 @@ const bodyParser = require("body-parser");
 const session = require("express-session");
 const bcrypt = require("bcryptjs");
 const path = require("path");
-const crypto = require('crypto'); // Necessário para gerar os códigos aleatórios
+const crypto = require('crypto');
 
 // Importa os modelos
 const User = require('./models/User');
@@ -14,17 +14,18 @@ const Transaction = require('./models/Transaction');
 const Withdrawal = require('./models/Withdrawal');
 const GiftCardOrder = require('./models/GiftCardOrder');
 const RechargeOrder = require('./models/RechargeOrder'); 
-const SolidCoinGiftCard = require('./models/SolidCoinGiftCard'); // <-- NOVO MODELO AQUI
+const SolidCoinGiftCard = require('./models/SolidCoinGiftCard');
+const Deposit = require('./models/Deposit'); // <-- NOVO MODELO DE DEPÓSITO
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_EMAIL = "solidcoinn@gmail.com";
 
 // --- CONSTANTES DE ECONOMIA ---
-const STAKING_REWARD_RATE_MONTHLY = 0.05; // 5% ao mês
-const WHALE_THRESHOLD = 1000000; // 1 Milhão de SolidCoins
+const STAKING_REWARD_RATE_MONTHLY = 0.05; 
+const WHALE_THRESHOLD = 1000000; 
 const WHALE_YIELD_PER_DAY = 200;
-const SC_POR_REAL = 500; // 500 SC = R$ 1,00
+const SC_POR_REAL = 500; 
 
 // Conexão com MongoDB
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -34,7 +35,6 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
         criarProdutosSeNaoExistirem();
     }).catch(err => console.error("❌ Erro ao conectar ao MongoDB:", err));
 
-// Middlewares
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -42,7 +42,6 @@ app.use(session({
     secret: 'seu-segredo-super-secreto-aqui', resave: false, saveUninitialized: false, cookie: { secure: false }
 }));
 
-// Middlewares de Autenticação
 function checkAuthenticated(req, res, next) {
     if (req.session.user) return next();
     res.status(401).json({ sucesso: false, mensagem: "Acesso não autorizado." });
@@ -52,7 +51,6 @@ function isAdmin(req, res, next) {
     res.status(403).send('Acesso negado. Apenas para administradores.');
 }
 
-// Rotas de Página e Autenticação
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 app.post('/cadastrar', async (req, res) => {
     const { nome, email, senha } = req.body;
@@ -83,18 +81,17 @@ app.post('/logout', checkAuthenticated, (req, res) => {
 
 // --- ROTAS DA API ---
 
-// Dados do Dashboard
 app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
     try {
         const user = await User.findById(req.session.user.id);
         const produtos = await Product.find({});
         
-        // Rendimento para Baleias
         const agora = new Date();
         const tempoPassado = agora - new Date(user.lastYieldApplied);
         const diasPassados = tempoPassado / (1000 * 60 * 60 * 24);
 
-        if(user.saldo >= WHALE_THRESHOLD && diasPassados >= 1) {
+        // AQUI ESTÁ A CORREÇÃO: O CEO NÃO GANHA RENDIMENTO DIÁRIO
+        if(user.saldo >= WHALE_THRESHOLD && diasPassados >= 1 && user.email !== ADMIN_EMAIL) {
             const diasInteiros = Math.floor(diasPassados);
             const rendimentoGanho = diasInteiros * WHALE_YIELD_PER_DAY;
             const admin = await User.findOne({ email: ADMIN_EMAIL });
@@ -122,7 +119,25 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao buscar dados." }); }
 });
 
-// Carteiras e Saques
+// --- ROTA DE DEPÓSITO ---
+app.post('/api/depositar', checkAuthenticated, async (req, res) => {
+    try {
+        const { rede, linkTransacao, valor } = req.body;
+        const valorNum = parseFloat(valor);
+        if (!rede || !linkTransacao || !valorNum || valorNum <= 0) return res.status(400).json({ sucesso: false, mensagem: "Dados inválidos." });
+
+        const user = await User.findById(req.session.user.id);
+        const novoDeposito = new Deposit({
+            userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email,
+            rede, linkTransacao, valor: valorNum
+        });
+        
+        await novoDeposito.save();
+        res.json({ sucesso: true, mensagem: "Aviso de depósito enviado! O ADM irá verificar o link e liberar suas SolidCoins em breve." });
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao registrar depósito." }); }
+});
+
+// Demais Rotas de Usuário (Saques, Carteiras, Staking, Transferir, Comprar, Extrato)
 app.post('/api/salvar-carteira', checkAuthenticated, async (req, res) => {
     try {
         const { solanaWallet, tronWallet } = req.body;
@@ -153,7 +168,6 @@ app.get('/api/meus-saques', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao buscar saques." });}
 });
 
-// --- ROTAS DE STAKING ---
 app.post('/api/staking/stake', checkAuthenticated, async (req, res) => {
     try {
         const valor = parseFloat(req.body.valor);
@@ -208,7 +222,6 @@ app.post('/api/staking/claim-rewards', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao reivindicar." }); }
 });
 
-// --- ROTA DE COMPRAR GIFT CARD EXTERNO (Google Play/Shopee) ---
 app.post('/api/giftcard/comprar', checkAuthenticated, async (req, res) => {
     try {
         const { tipo, valorReais } = req.body;
@@ -234,21 +247,18 @@ app.post('/api/giftcard/comprar', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao processar compra do Gift Card." }); }
 });
 
-// --- ROTA DE RECARGA DE CELULAR ---
 app.post('/api/recharge/comprar', checkAuthenticated, async (req, res) => {
     try {
         const { operadora, valorReais, numeroCelular } = req.body;
         const valorR = parseFloat(valorReais);
         
         const validValues = {
-            Claro: [20, 25, 30, 35, 40, 50, 100,],
+            Claro: [20, 25, 30, 35, 40, 50, 100],
             Vivo: [20, 25, 30, 35, 40, 50, 100, 200, 300],
             Tim: [20, 30, 40, 50, 60, 100]
         };
 
-        if (!validValues[operadora] || !validValues[operadora].includes(valorR)) {
-            return res.status(400).json({ sucesso: false, mensagem: "Valor inválido para a operadora selecionada." });
-        }
+        if (!validValues[operadora] || !validValues[operadora].includes(valorR)) return res.status(400).json({ sucesso: false, mensagem: "Valor inválido para a operadora selecionada." });
         if (!numeroCelular || numeroCelular.length < 10) return res.status(400).json({ sucesso: false, mensagem: "Número de celular inválido." });
 
         const valorSC = valorR * SC_POR_REAL;
@@ -256,8 +266,7 @@ app.post('/api/recharge/comprar', checkAuthenticated, async (req, res) => {
         
         if (user.saldo < valorSC) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente em SolidCoins." });
 
-        user.saldo -= valorSC; 
-        admin.saldo += valorSC;
+        user.saldo -= valorSC; admin.saldo += valorSC;
         
         const order = new RechargeOrder({ userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, operadora, numeroCelular, valorReais: valorR, valorSolidCoin: valorSC });
         const txUser = new Transaction({ userId: user._id, tipo: 'Recarga de Celular', descricao: `Pedido ${operadora} (${numeroCelular}) - R$ ${valorR.toFixed(2)}`, valor: -valorSC });
@@ -268,7 +277,6 @@ app.post('/api/recharge/comprar', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao pedir Recarga." }); }
 });
 
-// Transferências e Marketplace
 app.post('/api/transferir', checkAuthenticated, async (req, res) => {
     const { emailDestinatario, valor } = req.body;
     const valorNumerico = parseFloat(valor);
@@ -311,10 +319,6 @@ app.get('/api/extrato', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: 'Erro ao buscar extrato.' });}
 });
 
-// =========================================================
-// --- NOVAS ROTAS DO GIFTCARD SOLIDCOIN (GERAR E RESGATAR)
-// =========================================================
-
 // ADM GERA O CÓDIGO E DESCONTA DO SEU SALDO
 app.post('/api/admin/gerar-giftcard-solidcoin', isAdmin, async (req, res) => {
     try {
@@ -324,22 +328,11 @@ app.post('/api/admin/gerar-giftcard-solidcoin', isAdmin, async (req, res) => {
         const admin = await User.findOne({ email: ADMIN_EMAIL });
         if (admin.saldo < valor) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente na conta do CEO para gerar este Gift Card." });
 
-        // Gera um código seguro tipo: SOLID-4B8A9F21
         const codigoGerado = 'SOLID-' + crypto.randomBytes(4).toString('hex').toUpperCase();
-
         admin.saldo -= valor;
 
-        const novoGift = new SolidCoinGiftCard({
-            codigo: codigoGerado,
-            valor: valor
-        });
-
-        const transacaoAdmin = new Transaction({
-            userId: admin._id,
-            tipo: 'Geração Gift Card SC',
-            descricao: `Código gerado: ${codigoGerado}`,
-            valor: -valor
-        });
+        const novoGift = new SolidCoinGiftCard({ codigo: codigoGerado, valor: valor });
+        const transacaoAdmin = new Transaction({ userId: admin._id, tipo: 'Geração Gift Card SC', descricao: `Código gerado: ${codigoGerado}`, valor: -valor });
 
         await Promise.all([admin.save(), novoGift.save(), transacaoAdmin.save()]);
         res.json({ sucesso: true, mensagem: `Gift Card gerado com sucesso!\nCódigo: ${codigoGerado}\nValor: ${valor} SC` });
@@ -352,31 +345,18 @@ app.post('/api/resgatar-giftcard-solidcoin', checkAuthenticated, async (req, res
         const { codigo } = req.body;
         if (!codigo) return res.status(400).json({ sucesso: false, mensagem: "O código é obrigatório." });
 
-        // Procura o código no banco
         const giftCard = await SolidCoinGiftCard.findOne({ codigo: codigo });
         if (!giftCard) return res.status(404).json({ sucesso: false, mensagem: "Código inválido ou inexistente." });
         if (giftCard.isUsed) return res.status(400).json({ sucesso: false, mensagem: "Este Gift Card já foi resgatado." });
 
         const user = await User.findById(req.session.user.id);
-
-        // Adiciona saldo ao usuário
         user.saldo += giftCard.valor;
-        
-        // Marca o cartão como usado
-        giftCard.isUsed = true;
-        giftCard.usedBy = user._id;
-        giftCard.usedAt = new Date();
+        giftCard.isUsed = true; giftCard.usedBy = user._id; giftCard.usedAt = new Date();
 
-        const transacaoUser = new Transaction({
-            userId: user._id,
-            tipo: 'Resgate Gift Card SC',
-            descricao: `Resgate do código ${codigo}`,
-            valor: giftCard.valor
-        });
+        const transacaoUser = new Transaction({ userId: user._id, tipo: 'Resgate Gift Card SC', descricao: `Resgate do código ${codigo}`, valor: giftCard.valor });
 
         await Promise.all([user.save(), giftCard.save(), transacaoUser.save()]);
         res.json({ sucesso: true, mensagem: `Parabéns! Você resgatou ${giftCard.valor} SolidCoins com sucesso!`, novoSaldo: user.saldo });
-
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao resgatar Gift Card SolidCoin." }); }
 });
 
@@ -388,8 +368,39 @@ app.get('/api/admin/pedidos-pendentes', isAdmin, async (req, res) => {
         const saques = await Withdrawal.find({ status: 'Pendente' }).sort({ data: 1 });
         const gifts = await GiftCardOrder.find({ status: 'Pendente' }).sort({ data: 1 });
         const recharges = await RechargeOrder.find({ status: 'Pendente' }).sort({ data: 1 });
-        res.json({ sucesso: true, saques, gifts, recharges });
+        const depositos = await Deposit.find({ status: 'Pendente' }).sort({ data: 1 }); // <-- ADICIONADO DEPÓSITOS AQUI
+        res.json({ sucesso: true, saques, gifts, recharges, depositos });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao buscar pedidos." }); }
+});
+
+// APROVAÇÃO DE DEPÓSITOS PELO ADM
+app.post('/api/admin/processar-deposito', isAdmin, async (req, res) => {
+    try {
+        const { depositId, acao } = req.body;
+        const deposito = await Deposit.findById(depositId);
+        if (!deposito || deposito.status !== 'Pendente') return res.status(404).json({ sucesso: false, mensagem: "Depósito não encontrado." });
+
+        const user = await User.findById(deposito.userId);
+        const admin = await User.findOne({ email: ADMIN_EMAIL });
+
+        if (acao === 'aprovar') {
+            if (admin.saldo < deposito.valor) return res.status(400).json({ sucesso: false, mensagem: "O CEO não possui SolidCoins suficientes para creditar este depósito." });
+            
+            admin.saldo -= deposito.valor;
+            user.saldo += deposito.valor;
+            deposito.status = 'Aprovado';
+
+            const txUser = new Transaction({ userId: user._id, tipo: 'Depósito Aprovado', descricao: `Depósito via ${deposito.rede}`, valor: deposito.valor });
+            const txAdmin = new Transaction({ userId: admin._id, tipo: 'Depósito Creditado', descricao: `Depósito para ${user.nome}`, valor: -deposito.valor });
+
+            await Promise.all([user.save(), admin.save(), deposito.save(), txUser.save(), txAdmin.save()]);
+            res.json({ sucesso: true, mensagem: "Depósito APROVADO! As SolidCoins foram enviadas para o usuário." });
+        } else {
+            deposito.status = 'Rejeitado';
+            await deposito.save();
+            res.json({ sucesso: true, mensagem: "Depósito REJEITADO." });
+        }
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao processar depósito." }); }
 });
 
 app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {

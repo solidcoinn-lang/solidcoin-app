@@ -60,6 +60,29 @@
             </div>
         </div>
 
+        <div class="card" style="border-left: 5px solid #2ecc71;">
+            <h2>Depositar SolidCoins</h2>
+            <p style="font-size: 0.9em; color: #aaa;">Selecione a rede, envie suas SolidCoins e cole o Hash/Link da transação para o ADM aprovar.</p>
+            <form id="deposito-form">
+                <select id="deposito-rede" required>
+                    <option value="" disabled selected>Selecione a Rede para envio</option>
+                    <option value="Solana">Rede Solana (SOL)</option>
+                    <option value="Tron">Rede Tron (TRC-20)</option>
+                </select>
+                
+                <div id="deposito-carteira-box" style="display: none; background-color: #111; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px dashed #d4af37; word-break: break-all; text-align: center;">
+                    <p style="margin: 0 0 5px 0; font-size: 0.85em; color: #aaa;">Copie nossa carteira e faça o envio:</p>
+                    <strong id="deposito-carteira-texto" style="color: #d4af37; user-select: all; font-size: 1.1em; letter-spacing: 1px;"></strong>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="deposito-valor" placeholder="Valor enviado (Ex: 5000)" step="0.01" required style="flex: 1;">
+                    <input type="text" id="deposito-link" placeholder="Link/Hash da Transação" required style="flex: 2;">
+                </div>
+                <button type="submit" style="background-color: #2ecc71; color: #000;">Avisar Depósito</button>
+            </form>
+        </div>
+
         <div class="card-group">
             <div class="card">
                 <h2>Transferir SolidCoins</h2>
@@ -145,6 +168,19 @@
                 </div>
             </div>
         </div>
+
+        <footer style="text-align: center; padding: 30px 20px; margin-top: 40px; border-top: 1px solid #333;">
+            <p style="color: #aaa; margin-bottom: 15px; font-size: 1.1em;">Faça parte da nossa comunidade oficial:</p>
+            <div style="display: flex; justify-content: center; gap: 30px; align-items: center;">
+                <a href="https://youtube.com/@comunidadesolidcoin?si=u8UKKJvylZb31RkL" target="_blank" style="color: #d4af37; text-decoration: none; font-weight: bold; font-size: 1.2em; transition: color 0.3s;">
+                    📺 YouTube
+                </a>
+                <a href="https://t.me/comunidadesolidcoin" target="_blank" style="color: #d4af37; text-decoration: none; font-weight: bold; font-size: 1.2em; transition: color 0.3s;">
+                    ✈️ Telegram
+                </a>
+            </div>
+        </footer>
+
     </div>
     <script src="scripts.js"></script>
 </body>

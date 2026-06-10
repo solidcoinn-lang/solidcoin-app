@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Lógica de Logout do ADM
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
@@ -7,29 +6,47 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = '/index.html';
         });
     }
-
-    // Carrega tudo ao abrir a página
     window.carregarPendentes();
 });
 
-// --- FUNÇÃO PARA CARREGAR TODAS AS TABELAS ---
 window.carregarPendentes = async () => {
     try {
         const res = await fetch('/api/admin/pedidos-pendentes');
-        if (res.status === 401 || res.status === 403) {
-            window.location.href = '/index.html';
-            return;
-        }
+        if (res.status === 401 || res.status === 403) { window.location.href = '/index.html'; return; }
         
         const data = await res.json();
         
         if (data.sucesso) {
-            // 1. CARREGAR SAQUES PENDENTES
+            // 0. CARREGAR DEPÓSITOS PENDENTES
+            const depositosList = document.getElementById('depositos-lista');
+            if (depositosList) {
+                depositosList.innerHTML = '';
+                if (data.depositos && data.depositos.length === 0) {
+                    depositosList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhum depósito pendente.</td></tr>';
+                } else if (data.depositos) {
+                    data.depositos.forEach(dep => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${new Date(dep.data).toLocaleString('pt-BR')}</td>
+                            <td>${dep.nomeUsuario} <br><small style="color: #888;">${dep.emailUsuario}</small></td>
+                            <td><strong style="color:#2ecc71">${dep.rede}</strong></td>
+                            <td style="font-size: 0.9em; word-break: break-all; max-width: 250px;">${dep.linkTransacao}</td>
+                            <td><strong style="color:#d4af37">${dep.valor.toFixed(2)} SC</strong></td>
+                            <td>
+                                <button class="aprovar-btn" onclick="processarDeposito('${dep._id}', 'aprovar')">Aprovar (Creditar)</button>
+                                <button class="rejeitar-btn" onclick="processarDeposito('${dep._id}', 'rejeitar')">Rejeitar (Falso)</button>
+                            </td>
+                        `;
+                        depositosList.appendChild(tr);
+                    });
+                }
+            }
+
+            // 1. CARREGAR SAQUES
             const saquesList = document.getElementById('saques-lista');
             if (saquesList) {
                 saquesList.innerHTML = '';
-                if (data.saques.length === 0) {
-                    saquesList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #888;">Nenhum saque pendente.</td></tr>';
+                if (data.saques.length === 0) { saquesList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #888;">Nenhum saque pendente.</td></tr>';
                 } else {
                     data.saques.forEach(saq => {
                         const tr = document.createElement('tr');
@@ -48,20 +65,17 @@ window.carregarPendentes = async () => {
                 }
             }
 
-            // 2. CARREGAR GIFT CARDS PENDENTES (Google/Shopee)
+            // 2. CARREGAR GIFT CARDS
             const giftsList = document.getElementById('gifts-lista');
             if (giftsList) {
                 giftsList.innerHTML = '';
-                if (data.gifts.length === 0) {
-                    giftsList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhum pedido de Gift Card pendente.</td></tr>';
+                if (data.gifts.length === 0) { giftsList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhum pedido de Gift Card pendente.</td></tr>';
                 } else {
                     data.gifts.forEach(gift => {
                         const tr = document.createElement('tr');
-                        // Suporte para retrocompatibilidade do banco de dados (tipo vs tipoGift)
                         const tipo = gift.tipoGift || gift.tipo;
                         const valorReais = gift.valorReais || gift.valorBRL;
                         const custo = gift.valorSolidCoin || gift.custoSolidCoin;
-                        
                         tr.innerHTML = `
                             <td>${new Date(gift.data || gift.geradoEm || Date.now()).toLocaleString('pt-BR')}</td>
                             <td>${gift.nomeUsuario} <br><small style="color: #888;">${gift.emailUsuario}</small></td>
@@ -78,12 +92,11 @@ window.carregarPendentes = async () => {
                 }
             }
 
-            // 3. CARREGAR RECARGAS DE CELULAR PENDENTES
+            // 3. CARREGAR RECARGAS
             const rechargesList = document.getElementById('recharges-lista');
             if (rechargesList) {
                 rechargesList.innerHTML = '';
-                if (data.recharges.length === 0) {
-                    rechargesList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhuma recarga pendente.</td></tr>';
+                if (data.recharges.length === 0) { rechargesList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhuma recarga pendente.</td></tr>';
                 } else {
                     data.recharges.forEach(rec => {
                         const tr = document.createElement('tr');
@@ -103,23 +116,26 @@ window.carregarPendentes = async () => {
                 }
             }
         }
-    } catch (error) {
-        console.error("Erro ao carregar dados do painel:", error);
-    }
+    } catch (error) { console.error("Erro ao carregar dados do painel:", error); }
 };
 
-// --- FUNÇÕES DE PROCESSAMENTO (BOTÕES) ---
-
-window.processarSaque = async (id, acao) => {
-    if (acao === 'rejeitar' && !confirm('Tem certeza que deseja rejeitar este saque? (As moedas NÃO são devolvidas automaticamente neste caso)')) return;
+window.processarDeposito = async (id, acao) => {
+    if (acao === 'aprovar' && !confirm('Atenção: Ao aprovar, as SolidCoins serão DEBITADAS do seu saldo de CEO e enviadas ao usuário. Confirma?')) return;
+    if (acao === 'rejeitar' && !confirm('Tem certeza que a transação é inválida/falsa?')) return;
     
-    const res = await fetch('/api/admin/processar-saque', {
+    const res = await fetch('/api/admin/processar-deposito', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ withdrawalId: id, acao })
+        body: JSON.stringify({ depositId: id, acao })
     });
     const data = await res.json();
     alert(data.mensagem);
     if(data.sucesso) window.carregarPendentes();
+};
+
+window.processarSaque = async (id, acao) => {
+    if (acao === 'rejeitar' && !confirm('Tem certeza que deseja rejeitar este saque? (As moedas NÃO são devolvidas automaticamente neste caso)')) return;
+    const res = await fetch('/api/admin/processar-saque', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ withdrawalId: id, acao }) });
+    const data = await res.json(); alert(data.mensagem); if(data.sucesso) window.carregarPendentes();
 };
 
 window.processarGiftCard = async (id, acao) => {
@@ -127,17 +143,10 @@ window.processarGiftCard = async (id, acao) => {
     if (acao === 'aprovar') {
         pin = prompt('Compra aprovada! Digite o PIN do Gift Card para enviar ao usuário:');
         if (!pin) return alert('Operação cancelada. O PIN é obrigatório para concluir o pedido.');
-    } else if (!confirm('Tem certeza que deseja cancelar e devolver as SolidCoins para o usuário?')) {
-        return;
-    }
+    } else if (!confirm('Tem certeza que deseja cancelar e devolver as SolidCoins para o usuário?')) { return; }
 
-    const res = await fetch('/api/admin/processar-giftcard', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: id, acao, pin })
-    });
-    const data = await res.json();
-    alert(data.mensagem);
-    if(data.sucesso) window.carregarPendentes();
+    const res = await fetch('/api/admin/processar-giftcard', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: id, acao, pin }) });
+    const data = await res.json(); alert(data.mensagem); if(data.sucesso) window.carregarPendentes();
 };
 
 window.processarRecharge = async (id, acao) => {
@@ -145,44 +154,21 @@ window.processarRecharge = async (id, acao) => {
     if (acao === 'aprovar') {
         nsu = prompt('Recarga realizada! Digite o NSU ou ID da transação para enviar ao usuário:');
         if (!nsu) return alert('Operação cancelada. O NSU é obrigatório.');
-    } else if (!confirm('Tem certeza que deseja cancelar e devolver as SolidCoins para o usuário?')) {
-        return;
-    }
+    } else if (!confirm('Tem certeza que deseja cancelar e devolver as SolidCoins para o usuário?')) { return; }
 
-    const res = await fetch('/api/admin/processar-recharge', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rechargeId: id, acao, nsu })
-    });
-    const data = await res.json();
-    alert(data.mensagem);
-    if(data.sucesso) window.carregarPendentes();
+    const res = await fetch('/api/admin/processar-recharge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rechargeId: id, acao, nsu }) });
+    const data = await res.json(); alert(data.mensagem); if(data.sucesso) window.carregarPendentes();
 };
 
-// --- GERAR CÓDIGOS SOLIDCOIN ---
 window.gerarGiftCardSolidCoin = async () => {
     const valorInput = document.getElementById('valor-gerar-gift');
     const valor = valorInput ? parseFloat(valorInput.value) : 0;
-    
     if (!valor || valor <= 0) return alert("Digite um valor válido em SolidCoins.");
-    
     if(!confirm(`Deseja gerar um Gift Card de ${valor} SC? Isso será debitado do seu saldo de CEO.`)) return;
 
     try {
-        const res = await fetch('/api/admin/gerar-giftcard-solidcoin', {
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ valor })
-        });
-        const data = await res.json();
-        
-        // Exibe o código gerado na tela
-        alert(data.mensagem);
-        
-        if(data.sucesso && valorInput) {
-            valorInput.value = '';
-        }
-    } catch(e) {
-        console.error(e);
-        alert("Erro ao tentar gerar o código. Verifique a conexão.");
-    }
+        const res = await fetch('/api/admin/gerar-giftcard-solidcoin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valor }) });
+        const data = await res.json(); alert(data.mensagem);
+        if(data.sucesso && valorInput) { valorInput.value = ''; }
+    } catch(e) { console.error(e); alert("Erro ao tentar gerar o código. Verifique a conexão."); }
 };
