@@ -15,9 +15,16 @@
             </div>
         </header>
 
+        <!-- --- CARD DE SALDO COM OLHINHO E COTAÇÃO --- -->
         <div class="card saldo-card">
-            <h2>Seu Saldo</h2>
+            <h2 style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                Seu Saldo <span id="toggle-saldo" style="cursor: pointer; font-size: 0.9em; filter: grayscale(100%);">👁️</span>
+            </h2>
             <p><span id="saldo-usuario">...</span> SolidCoins</p>
+            <p style="font-size: 0.95em; color: #aaa; margin-top: 5px;">
+                ≈ R$ <span id="saldo-reais">0.00</span> <br>
+                <small style="color: #666; font-size: 0.8em;">(Cotação atual: <span id="cotacao-atual">500</span> SC = R$ 1,00)</small>
+            </p>
         </div>
         
         <div class="card staking-card">
@@ -38,16 +45,57 @@
             </div>
         </div>
 
+        <!-- --- NOVO CARD: CLUBE DE SÓCIOS SOLIDCOIN --- -->
+        <div class="card" style="border-left: 5px solid #9b59b6;">
+            <h2>Clube de Sócios SolidCoin</h2>
+            <div style="background: #111; padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; border: 1px solid #333;">
+                <span style="font-size: 0.9em; color: #aaa;">Status: <strong id="status-socio" style="color: #d4af37;">...</strong></span>
+                <span id="vencimento-socio-box" style="font-size: 0.9em; color: #aaa; display: none;">Renovação: <strong id="vencimento-socio" style="color: #e74c3c;">--/--/----</strong></span>
+            </div>
+            
+            <form id="socio-form">
+                <select id="socio-plano" required>
+                    <option value="" disabled selected>Escolha o seu Plano de Sócio</option>
+                    <option value="Socio SolidCoin para Todos">Socio SolidCoin para Todos (R$ 1,00/mês)</option>
+                    <option value="Iron">Iron (R$ 5,00/mês)</option>
+                    <option value="Bronze">Bronze (R$ 10,00/mês)</option>
+                    <option value="Prata">Prata (R$ 20,00/mês)</option>
+                    <option value="Ouro">Ouro (R$ 50,00/mês)</option>
+                    <option value="Diamante">Diamante (R$ 100,00/mês)</option>
+                </select>
+
+                <div id="socio-detalhes" style="display:none; text-align: center; margin: 15px 0; background: #0a0a0a; padding: 15px; border-radius: 8px;">
+                    <img id="socio-img" src="" style="width: 140px; height: 140px; object-fit: contain; margin-bottom: 10px; border-radius: 8px;">
+                    <p id="socio-desc" style="font-size: 0.95em; color: #d4af37; font-weight: bold; margin: 0;"></p>
+                </div>
+
+                <select id="socio-pagamento" required style="display: none;">
+                    <option value="" disabled selected>Forma de Pagamento</option>
+                    <option value="Pix">Pix (InfinitePay)</option>
+                    <option value="Solana">USDC (Rede Solana)</option>
+                    <option value="Tron">USDT (Rede Tron)</option>
+                </select>
+
+                <div id="socio-instrucoes" style="display: none; background-color: #111; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px dashed #d4af37; text-align: center; word-break: break-all;">
+                    <p style="margin: 0 0 5px 0; font-size: 0.85em; color: #aaa;" id="socio-instrucao-texto">...</p>
+                    <strong id="socio-instrucao-dado" style="color: #d4af37; user-select: all; font-size: 1.1em; letter-spacing: 1px;"></strong>
+                    <a id="socio-link-pix" href="#" target="_blank" style="display:none; background-color: #2ecc71; color: #000; font-weight: bold; text-decoration: none; margin-top: 10px; padding: 10px; border-radius: 6px;">🔗 Clicar para pagar via Pix</a>
+                </div>
+
+                <input type="text" id="socio-txid" placeholder="Cole aqui a ID da Transação ou Hash" required style="display: none;">
+                <button type="submit" id="socio-btn" style="background-color: #9b59b6; color: #fff; display: none;">Assinar / Renovar Plano</button>
+            </form>
+        </div>
+
+        <!-- OUTROS CARDS MANTIDOS -->
         <div class="card-group">
             <div class="card">
                 <h2>Minhas Carteiras para Saque</h2>
                 <form id="carteira-form">
                     <label style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Rede Solana (SOL):</label>
                     <input type="text" id="solana-wallet" placeholder="Endereço da sua carteira Solana">
-                    
                     <label style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Rede Tron (TRX / TRC-20):</label>
                     <input type="text" id="tron-wallet" placeholder="Endereço da sua carteira Tron">
-                    
                     <button type="submit">Salvar Carteiras</button>
                 </form>
             </div>
@@ -105,7 +153,7 @@
 
             <div class="card">
                 <h2>Comprar Gift Card</h2>
-                <p style="font-size: 0.9em; color: #aaa;">500 SC = R$ 1,00. O PIN chegará no seu extrato.</p>
+                <p style="font-size: 0.9em; color: #aaa;">O PIN chegará no seu extrato.</p>
                 <form id="giftcard-form">
                     <select id="gift-tipo" required>
                         <option value="Google Play">Google Play (Mín. R$ 15)</option>
@@ -119,7 +167,7 @@
 
             <div class="card">
                 <h2>Recarga de Celular</h2>
-                <p style="font-size: 0.9em; color: #aaa;">500 SC = R$ 1,00. O comprovante (NSU) irá para o extrato.</p>
+                <p style="font-size: 0.9em; color: #aaa;">O comprovante (NSU) irá para o extrato.</p>
                 <form id="recharge-form">
                     <select id="recharge-operadora" required>
                         <option value="Claro">Claro</option>
@@ -169,6 +217,7 @@
             </div>
         </div>
 
+        <!-- --- RODAPÉ COM REDES SOCIAIS --- -->
         <footer style="text-align: center; padding: 30px 20px; margin-top: 40px; border-top: 1px solid #333;">
             <p style="color: #aaa; margin-bottom: 15px; font-size: 1.1em;">Faça parte da nossa comunidade oficial:</p>
             <div style="display: flex; justify-content: center; gap: 30px; align-items: center;">

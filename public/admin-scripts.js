@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     window.carregarPendentes();
+    window.carregarInadimplentes();
 });
 
 window.carregarPendentes = async () => {
@@ -17,7 +18,35 @@ window.carregarPendentes = async () => {
         const data = await res.json();
         
         if (data.sucesso) {
-            // 0. CARREGAR DEPÓSITOS PENDENTES
+            // SÓCIOS PENDENTES
+            const sociosList = document.getElementById('socios-lista');
+            if (sociosList) {
+                sociosList.innerHTML = '';
+                if (data.socios && data.socios.length === 0) {
+                    sociosList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhum pedido de Sócio pendente.</td></tr>';
+                } else if (data.socios) {
+                    data.socios.forEach(socio => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${new Date(socio.data).toLocaleString('pt-BR')}</td>
+                            <td>${socio.nomeUsuario} <br><small style="color: #888;">${socio.emailUsuario}</small></td>
+                            <td><strong style="color:#9b59b6">${socio.plano}</strong></td>
+                            <td style="font-size: 0.85em; word-break: break-all; max-width: 250px;">
+                                <strong style="color:#3498db">${socio.metodoPagamento}</strong><br>
+                                TxID: ${socio.txId}
+                            </td>
+                            <td><strong style="color:#d4af37">${socio.moedasReceber.toLocaleString('pt-BR')} SC</strong></td>
+                            <td>
+                                <button class="aprovar-btn" onclick="processarSocio('${socio._id}', 'aprovar')">Aprovar (Tornar Sócio)</button>
+                                <button class="rejeitar-btn" onclick="processarSocio('${socio._id}', 'rejeitar')">Rejeitar (Falso)</button>
+                            </td>
+                        `;
+                        sociosList.appendChild(tr);
+                    });
+                }
+            }
+
+            // DEPÓSITOS PENDENTES
             const depositosList = document.getElementById('depositos-lista');
             if (depositosList) {
                 depositosList.innerHTML = '';
@@ -42,7 +71,7 @@ window.carregarPendentes = async () => {
                 }
             }
 
-            // 1. CARREGAR SAQUES
+            // SAQUES
             const saquesList = document.getElementById('saques-lista');
             if (saquesList) {
                 saquesList.innerHTML = '';
@@ -65,7 +94,7 @@ window.carregarPendentes = async () => {
                 }
             }
 
-            // 2. CARREGAR GIFT CARDS
+            // GIFT CARDS
             const giftsList = document.getElementById('gifts-lista');
             if (giftsList) {
                 giftsList.innerHTML = '';
@@ -92,7 +121,7 @@ window.carregarPendentes = async () => {
                 }
             }
 
-            // 3. CARREGAR RECARGAS
+            // RECARGAS
             const rechargesList = document.getElementById('recharges-lista');
             if (rechargesList) {
                 rechargesList.innerHTML = '';
@@ -117,6 +146,76 @@ window.carregarPendentes = async () => {
             }
         }
     } catch (error) { console.error("Erro ao carregar dados do painel:", error); }
+};
+
+window.carregarInadimplentes = async () => {
+    try {
+        const res = await fetch('/api/admin/inadimplentes');
+        const data = await res.json();
+        const lista = document.getElementById('inadimplentes-lista');
+        if (lista) {
+            lista.innerHTML = '';
+            if (!data.inadimplentes || data.inadimplentes.length === 0) {
+                lista.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #888;">Nenhum sócio inadimplente.</td></tr>';
+            } else {
+                data.inadimplentes.forEach(user => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${user.nome}</strong></td>
+                        <td>${user.email}</td>
+                        <td><span style="color: #e74c3c;">${user.planoSocio}</span></td>
+                        <td>${new Date(user.vencimentoSocio).toLocaleDateString('pt-BR')}</td>
+                        <td>
+                            <button class="rejeitar-btn" onclick="cancelarSocio('${user._id}')">Cancelar Plano</button>
+                        </td>
+                    `;
+                    lista.appendChild(tr);
+                });
+            }
+        }
+    } catch(e) { console.error("Erro ao carregar inadimplentes:", e); }
+};
+
+window.atualizarCotacao = async () => {
+    const cotacao = document.getElementById('valor-cotacao').value;
+    if(!cotacao || parseFloat(cotacao) <= 0) return alert("Digite um valor de cotação válido.");
+    if(!confirm(`Confirma a mudança para R$ 1,00 = ${cotacao} SC no sistema todo?`)) return;
+
+    try {
+        const res = await fetch('/api/admin/atualizar-cotacao', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cotacao })
+        });
+        const data = await res.json();
+        alert(data.mensagem);
+        if(data.sucesso) document.getElementById('valor-cotacao').value = '';
+    } catch(e) { alert("Erro ao atualizar a cotação."); }
+};
+
+window.cancelarSocio = async (userId) => {
+    if(!confirm("Tem certeza que deseja cancelar os benefícios de Sócio deste usuário?")) return;
+    try {
+        const res = await fetch('/api/admin/cancelar-socio', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId })
+        });
+        const data = await res.json();
+        alert(data.mensagem);
+        if(data.sucesso) window.carregarInadimplentes();
+    } catch(e) { alert("Erro ao cancelar o sócio."); }
+};
+
+window.processarSocio = async (id, acao) => {
+    if (acao === 'aprovar' && !confirm('Verificou a transação? Ao aprovar as moedas serão debitadas de você e o plano do usuário ficará ativo por 30 dias.')) return;
+    if (acao === 'rejeitar' && !confirm('Tem certeza que deseja rejeitar esse pagamento?')) return;
+    
+    const res = await fetch('/api/admin/processar-socio', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: id, acao })
+    });
+    const data = await res.json();
+    alert(data.mensagem);
+    if(data.sucesso) window.carregarPendentes();
 };
 
 window.processarDeposito = async (id, acao) => {

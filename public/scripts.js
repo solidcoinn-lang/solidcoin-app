@@ -16,45 +16,126 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const nomeUsuarioEl = document.getElementById('nome-usuario');
     const saldoUsuarioEl = document.getElementById('saldo-usuario');
+    const saldoReaisEl = document.getElementById('saldo-reais');
+    const cotacaoAtualEl = document.getElementById('cotacao-atual');
+    const toggleSaldoBtn = document.getElementById('toggle-saldo');
+    
     const logoutBtn = document.getElementById('logout-btn');
     const adminBtn = document.getElementById('admin-btn');
     const extratoListaEl = document.getElementById('extrato-lista');
     const saquesListaEl = document.getElementById('saques-lista');
     
+    let isSaldoOculto = false;
+    let ultimoSaldoSC = 0;
+    let scRate = 500; // Padrão, mas atualizado pela API
+
+    toggleSaldoBtn.addEventListener('click', () => {
+        isSaldoOculto = !isSaldoOculto;
+        toggleSaldoBtn.textContent = isSaldoOculto ? '🙈' : '👁️';
+        atualizarUIValores();
+    });
+
+    const atualizarUIValores = () => {
+        const saldoFormatado = ultimoSaldoSC.toFixed(2);
+        const saldoReaisFormatado = (ultimoSaldoSC / scRate).toFixed(2);
+        
+        if (isSaldoOculto) {
+            saldoUsuarioEl.textContent = '••••••';
+            saldoReaisEl.textContent = '••••••';
+        } else {
+            saldoUsuarioEl.textContent = saldoFormatado;
+            saldoReaisEl.textContent = saldoReaisFormatado;
+        }
+    };
+
+    const atualizarSaldo = (novoSaldo) => { 
+        ultimoSaldoSC = parseFloat(novoSaldo || 0);
+        atualizarUIValores();
+    };
+
+    // Staking
     const stakedAmountEl = document.getElementById('staked-amount');
     const unstakeDateEl = document.getElementById('unstake-date');
     const stakeForm = document.getElementById('stake-form');
     const unstakeBtn = document.getElementById('unstake-btn');
     const claimRewardsBtn = document.getElementById('claim-rewards-btn');
     
-    const carteiraForm = document.getElementById('carteira-form');
-    const solanaWalletInput = document.getElementById('solana-wallet');
-    const tronWalletInput = document.getElementById('tron-wallet');
-    const saqueForm = document.getElementById('saque-form');
-    const transferirForm = document.getElementById('transferir-form');
-    
-    // Depósitos
-    const depositoForm = document.getElementById('deposito-form');
-    const depositoRede = document.getElementById('deposito-rede');
-    const depositoCarteiraBox = document.getElementById('deposito-carteira-box');
-    const depositoCarteiraTexto = document.getElementById('deposito-carteira-texto');
+    // --- LÓGICA DOS PLANOS DE SÓCIO ---
+    const planosData = {
+        "Socio SolidCoin para Todos": { img: "https://i.postimg.cc/DZ39CCDv/file-000000004a7c71f98e2aedb0290f8b53.png", desc: "Ao aderir a esse plano o Sócio terá 500 SolidCoins mensais.", pix: "https://invoice.infinitepay.io/plans/solidcoin/gDRbdBuXD" },
+        "Iron": { img: "https://i.postimg.cc/wMCLJm33/file-000000008d0c720e8dc3a17f05318954.png", desc: "2.750 + Bônus 10% = 3.025 SolidCoins.", pix: "https://invoice.infinitepay.io/plans/solidcoin/IzqprmCRH" },
+        "Bronze": { img: "https://i.postimg.cc/vTV0x9bh/file-000000005f18720ea997f1f684984712.png", desc: "5.500 + Bônus 15% = 6.325 SolidCoins.", pix: "https://invoice.infinitepay.io/plans/solidcoin/FpXkomAf1" },
+        "Prata": { img: "https://i.postimg.cc/fW9CKcQ0/1779763037364.png", desc: "11.000 + Bônus 20% = 13.200 SolidCoins.", pix: "https://invoice.infinitepay.io/plans/solidcoin/3AJ9uKWkz" },
+        "Ouro": { img: "https://i.postimg.cc/YSTgGP9s/1779763235400.png", desc: "27.500 + Bônus 25% = 34.375 SolidCoins.", pix: "https://invoice.infinitepay.io/plans/solidcoin/67x6Rp2wAz" },
+        "Diamante": { img: "https://i.postimg.cc/LXdY6ZQJ/1779763392066.png", desc: "55.000 + Bônus 30% = 71.500 SolidCoins.", pix: "https://invoice.infinitepay.io/plans/solidcoin/22eN8p8iIl" }
+    };
 
-    const marketplaceListaEl = document.getElementById('marketplace-lista');
-    const categoriasContainer = document.getElementById('marketplace-categorias');
+    const socioForm = document.getElementById('socio-form');
+    const socioPlano = document.getElementById('socio-plano');
+    const socioPagamento = document.getElementById('socio-pagamento');
+    const socioDetalhes = document.getElementById('socio-detalhes');
+    const socioInstrucoes = document.getElementById('socio-instrucoes');
+    const socioTxid = document.getElementById('socio-txid');
+    const socioBtn = document.getElementById('socio-btn');
 
-    const giftcardForm = document.getElementById('giftcard-form');
-    const giftTipoSelect = document.getElementById('gift-tipo');
-    const giftValorInput = document.getElementById('gift-valor');
-    const giftCustoSpan = document.getElementById('gift-custo');
-    const resgatarGiftSolidCoinForm = document.getElementById('resgatar-gift-solidcoin-form');
+    socioPlano.addEventListener('change', () => {
+        const plano = planosData[socioPlano.value];
+        if(plano) {
+            socioDetalhes.style.display = 'block';
+            document.getElementById('socio-img').src = plano.img;
+            document.getElementById('socio-desc').textContent = plano.desc;
+            socioPagamento.style.display = 'block';
+            socioPagamento.value = ""; // Reseta pagamento
+            socioInstrucoes.style.display = 'none';
+            socioTxid.style.display = 'none';
+            socioBtn.style.display = 'none';
+        }
+    });
 
-    const rechargeForm = document.getElementById('recharge-form');
-    const rechargeOperadora = document.getElementById('recharge-operadora');
-    const rechargeValor = document.getElementById('recharge-valor');
-    const rechargeCelular = document.getElementById('recharge-celular');
-    const rechargeCusto = document.getElementById('recharge-custo');
+    socioPagamento.addEventListener('change', () => {
+        socioInstrucoes.style.display = 'block';
+        socioTxid.style.display = 'block';
+        socioBtn.style.display = 'block';
+        
+        const plano = planosData[socioPlano.value];
+        const metodo = socioPagamento.value;
+        const textoEl = document.getElementById('socio-instrucao-texto');
+        const dadoEl = document.getElementById('socio-instrucao-dado');
+        const linkPix = document.getElementById('socio-link-pix');
 
-    const atualizarSaldo = (novoSaldo) => { saldoUsuarioEl.textContent = parseFloat(novoSaldo || 0).toFixed(2); };
+        if (metodo === 'Pix') {
+            textoEl.textContent = "Faça o pagamento no InfinitePay e cole a ID da Transação abaixo:";
+            dadoEl.textContent = "";
+            linkPix.style.display = 'inline-block';
+            linkPix.href = plano.pix;
+        } else if (metodo === 'Solana') {
+            textoEl.textContent = "Envie o valor em USDC para a carteira Solana abaixo:";
+            dadoEl.textContent = "HfvVTPtjEbYZCKCvk1KtrWX8WvVF5iRQjTPGLPTeJ7Mb";
+            linkPix.style.display = 'none';
+        } else if (metodo === 'Tron') {
+            textoEl.textContent = "Envie o valor em USDT para a carteira Tron abaixo:";
+            dadoEl.textContent = "TXwJkvcqumZSbDFzgtcdpKWh7CupubPsSZ";
+            linkPix.style.display = 'none';
+        }
+    });
+
+    socioForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const plano = socioPlano.value;
+        const metodo = socioPagamento.value;
+        const txId = socioTxid.value;
+
+        if (!confirm(`Confirmar envio de assinatura do plano ${plano} pago via ${metodo}?`)) return;
+
+        const res = await fetch('/api/socio/assinar', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plano, metodoPagamento: metodo, txId })
+        });
+        const data = await res.json();
+        alert(data.mensagem);
+        if (data.sucesso) { socioForm.reset(); socioDetalhes.style.display = 'none'; socioInstrucoes.style.display = 'none'; socioTxid.style.display='none'; socioBtn.style.display='none'; }
+    });
+    // --- FIM SÓCIO ---
 
     const atualizarUIStaking = (usuario) => {
         stakedAmountEl.textContent = parseFloat(usuario.stakedAmount || 0).toFixed(2);
@@ -105,15 +186,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
 
             if (data.sucesso) {
+                // Atualiza Cotação Global e Status do Sócio
+                scRate = data.scRate || 500;
+                cotacaoAtualEl.textContent = scRate;
+
                 if (!isUpdate) { 
                     nomeUsuarioEl.textContent = data.usuario.nome;
-                    solanaWalletInput.value = data.usuario.solanaWallet || '';
-                    tronWalletInput.value = data.usuario.tronWallet || '';
+                    document.getElementById('solana-wallet').value = data.usuario.solanaWallet || '';
+                    document.getElementById('tron-wallet').value = data.usuario.tronWallet || '';
                     if (data.usuario.isAdmin) { adminBtn.style.display = 'inline-block'; }
                     carregarExtrato(); carregarHistoricoSaques();
 
+                    const categoriasContainer = document.getElementById('marketplace-categorias');
+                    const marketplaceListaEl = document.getElementById('marketplace-lista');
                     categoriasContainer.innerHTML = '';
                     const categoriasUnicas = [...new Set(data.marketplace.map(p => p.categoria))];
+                    
                     const renderizarProdutos = (categoriaDesejada) => {
                         marketplaceListaEl.innerHTML = '';
                         const produtosFiltrados = data.marketplace.filter(p => p.categoria === categoriaDesejada);
@@ -137,66 +225,75 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     if (categoriasUnicas.length > 0) { renderizarProdutos(categoriasUnicas[0]); }
                 }
-                atualizarSaldo(data.usuario.saldo); atualizarUIStaking(data.usuario);
+                
+                // Atualiza info do Sócio Header
+                document.getElementById('status-socio').textContent = data.usuario.statusSocio || 'Inativo';
+                if(data.usuario.statusSocio === 'Inadimplente') document.getElementById('status-socio').style.color = '#e74c3c';
+                
+                if(data.usuario.vencimentoSocio) {
+                    document.getElementById('vencimento-socio-box').style.display = 'block';
+                    document.getElementById('vencimento-socio').textContent = new Date(data.usuario.vencimentoSocio).toLocaleDateString('pt-BR');
+                }
+
+                atualizarSaldo(data.usuario.saldo); 
+                atualizarUIStaking(data.usuario);
             } else if (!isUpdate) { alert(data.mensagem); }
         } catch (error) { console.error("Erro ao carregar o dashboard:", error); }
     };
 
-    carteiraForm.addEventListener('submit', async (e) => {
+    // Atualiza custos dinâmicos baseados na cotação SC
+    const atualizarCustoDinamico = (inputEl, spanCustoEl) => {
+        const v = parseFloat(inputEl.value) || 0;
+        spanCustoEl.textContent = (v * scRate).toLocaleString('pt-BR');
+    };
+
+    // Eventos (Formulários Básicos)
+    document.getElementById('carteira-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const dados = { solanaWallet: solanaWalletInput.value, tronWallet: tronWalletInput.value };
+        const dados = { solanaWallet: document.getElementById('solana-wallet').value, tronWallet: document.getElementById('tron-wallet').value };
         const response = await fetch('/api/salvar-carteira', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados) });
         const data = await response.json(); alert(data.mensagem);
     });
 
-    saqueForm.addEventListener('submit', async (e) => {
+    document.getElementById('saque-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const valor = document.getElementById('valor-saque').value;
-        if (!solanaWalletInput.value && !tronWalletInput.value) { return alert('Salve pelo menos uma carteira primeiro.'); }
+        const sol = document.getElementById('solana-wallet').value;
+        const tron = document.getElementById('tron-wallet').value;
+        if (!sol && !tron) return alert('Salve pelo menos uma carteira primeiro.');
         const response = await fetch('/api/solicitar-saque', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valor }) });
         const data = await response.json(); alert(data.mensagem);
-        if (data.sucesso) { saqueForm.reset(); carregarHistoricoSaques(); }
+        if (data.sucesso) { document.getElementById('saque-form').reset(); carregarHistoricoSaques(); }
     });
 
-    // --- LÓGICA DE DEPÓSITO ---
+    // Depósito
+    const depositoForm = document.getElementById('deposito-form');
+    const depositoRede = document.getElementById('deposito-rede');
     if (depositoForm) {
         depositoRede.addEventListener('change', () => {
-            depositoCarteiraBox.style.display = 'block';
-            if (depositoRede.value === 'Solana') {
-                depositoCarteiraTexto.textContent = 'HfvVTPtjEbYZCKCvk1KtrWX8WvVF5iRQjTPGLPTeJ7Mb';
-            } else if (depositoRede.value === 'Tron') {
-                depositoCarteiraTexto.textContent = 'TXwJkvcqumZSbDFzgtcdpKWh7CupubPsSZ';
-            }
+            document.getElementById('deposito-carteira-box').style.display = 'block';
+            if (depositoRede.value === 'Solana') document.getElementById('deposito-carteira-texto').textContent = 'HfvVTPtjEbYZCKCvk1KtrWX8WvVF5iRQjTPGLPTeJ7Mb';
+            else if (depositoRede.value === 'Tron') document.getElementById('deposito-carteira-texto').textContent = 'TXwJkvcqumZSbDFzgtcdpKWh7CupubPsSZ';
         });
-
         depositoForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const rede = depositoRede.value;
-            const valor = document.getElementById('deposito-valor').value;
-            const linkTransacao = document.getElementById('deposito-link').value;
-
-            if (!confirm(`Confirmar aviso de depósito de ${valor} SC na rede ${rede}?`)) return;
-
-            const res = await fetch('/api/depositar', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ rede, valor, linkTransacao })
-            });
-            const data = await res.json();
-            alert(data.mensagem);
-            if (data.sucesso) { depositoForm.reset(); depositoCarteiraBox.style.display = 'none'; }
+            const rede = depositoRede.value; const valor = document.getElementById('deposito-valor').value; const linkTransacao = document.getElementById('deposito-link').value;
+            if (!confirm(`Avisar depósito de ${valor} SC na rede ${rede}?`)) return;
+            const res = await fetch('/api/depositar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rede, valor, linkTransacao }) });
+            const data = await res.json(); alert(data.mensagem);
+            if (data.sucesso) { depositoForm.reset(); document.getElementById('deposito-carteira-box').style.display = 'none'; }
         });
     }
 
-    transferirForm.addEventListener('submit', async (e) => {
+    document.getElementById('transferir-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const emailDestinatario = document.getElementById('email-destinatario').value;
-        const valor = document.getElementById('valor-transferencia').value;
+        const emailDestinatario = document.getElementById('email-destinatario').value; const valor = document.getElementById('valor-transferencia').value;
         const response = await fetch('/api/transferir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emailDestinatario, valor }) });
         const data = await response.json(); alert(data.mensagem);
-        if (data.sucesso) { atualizarSaldo(data.novoSaldo); carregarExtrato(); transferirForm.reset(); }
+        if (data.sucesso) { atualizarSaldo(data.novoSaldo); carregarExtrato(); document.getElementById('transferir-form').reset(); }
     });
 
-    marketplaceListaEl.addEventListener('click', async (e) => {
+    document.getElementById('marketplace-lista').addEventListener('click', async (e) => {
         if (e.target.classList.contains('comprar-btn')) {
             const produtoId = e.target.dataset.id;
             const response = await fetch('/api/comprar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ produtoId }) });
@@ -206,8 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     stakeForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const valor = document.getElementById('stake-valor').value;
+        e.preventDefault(); const valor = document.getElementById('stake-valor').value;
         const response = await fetch('/api/staking/stake', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valor }) });
         const data = await response.json(); alert(data.mensagem);
         if (data.sucesso) { atualizarSaldo(data.usuario.saldo); atualizarUIStaking(data.usuario); stakeForm.reset(); }
@@ -226,53 +322,49 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.sucesso) { atualizarSaldo(data.usuario.saldo); carregarExtrato(); }
     });
 
-    if (resgatarGiftSolidCoinForm) {
-        resgatarGiftSolidCoinForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const codigo = document.getElementById('codigo-gift-solidcoin').value;
-            const response = await fetch('/api/resgatar-giftcard-solidcoin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo }) });
-            const data = await response.json(); alert(data.mensagem);
-            if(data.sucesso) { atualizarSaldo(data.novoSaldo); carregarExtrato(); resgatarGiftSolidCoinForm.reset(); }
-        });
-    }
-
-    if (giftcardForm) {
-        const atualizarGift = () => {
-            const tipo = giftTipoSelect.value;
-            if(tipo === 'Shopee') { giftValorInput.min = 30; giftValorInput.placeholder = "Valor em R$ (Mín 30, Máx 300)"; } 
-            else { giftValorInput.min = 15; giftValorInput.placeholder = "Valor em R$ (Mín 15, Máx 300)"; }
-            const v = parseFloat(giftValorInput.value) || 0;
-            giftCustoSpan.textContent = (v * 500).toLocaleString('pt-BR');
+    const giftForm = document.getElementById('giftcard-form');
+    if (giftForm) {
+        const tipo = document.getElementById('gift-tipo'); const val = document.getElementById('gift-valor'); const custo = document.getElementById('gift-custo');
+        const updateG = () => {
+            if(tipo.value === 'Shopee') { val.min = 30; val.placeholder = "Valor em R$ (Mín 30)"; } else { val.min = 15; val.placeholder = "Valor em R$ (Mín 15)"; }
+            atualizarCustoDinamico(val, custo);
         };
-        giftTipoSelect.addEventListener('change', atualizarGift); giftValorInput.addEventListener('input', atualizarGift); atualizarGift();
-
-        giftcardForm.addEventListener('submit', async (e) => {
+        tipo.addEventListener('change', updateG); val.addEventListener('input', updateG); updateG();
+        giftForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const tipo = giftTipoSelect.value; const valorReais = giftValorInput.value;
-            if (!confirm(`Confirmar a compra de Gift Card ${tipo} de R$ ${valorReais} por ${valorReais * 500} SC?`)) return;
-            const res = await fetch('/api/giftcard/comprar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tipo, valorReais}) });
+            if (!confirm(`Confirmar a compra de Gift Card de R$ ${val.value}?`)) return;
+            const res = await fetch('/api/giftcard/comprar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tipo: tipo.value, valorReais: val.value}) });
             const data = await res.json(); alert(data.mensagem);
-            if(data.sucesso){ atualizarSaldo(data.novoSaldo); carregarExtrato(); giftcardForm.reset(); atualizarGift(); }
+            if(data.sucesso){ atualizarSaldo(data.novoSaldo); carregarExtrato(); giftForm.reset(); updateG(); }
         });
     }
 
-    if (rechargeForm) {
+    const resgatarGiftForm = document.getElementById('resgatar-gift-solidcoin-form');
+    if(resgatarGiftForm) {
+        resgatarGiftForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const res = await fetch('/api/resgatar-giftcard-solidcoin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo: document.getElementById('codigo-gift-solidcoin').value }) });
+            const data = await res.json(); alert(data.mensagem);
+            if(data.sucesso) { atualizarSaldo(data.novoSaldo); carregarExtrato(); resgatarGiftForm.reset(); }
+        });
+    }
+
+    const rechForm = document.getElementById('recharge-form');
+    if (rechForm) {
+        const op = document.getElementById('recharge-operadora'); const val = document.getElementById('recharge-valor'); const cel = document.getElementById('recharge-celular'); const custo = document.getElementById('recharge-custo');
         const valoresOperadoras = { Claro: [20, 25, 30, 35, 40, 50, 100], Vivo: [20, 25, 30, 35, 40, 50, 100, 200, 300], Tim: [20, 30, 40, 50, 60, 100] };
-        const atualizarValoresRecarga = () => {
-            const op = rechargeOperadora.value; rechargeValor.innerHTML = '';
-            valoresOperadoras[op].forEach(val => { const opt = document.createElement('option'); opt.value = val; opt.textContent = `R$ ${val.toFixed(2)}`; rechargeValor.appendChild(opt); });
-            atualizarCustoRecarga();
+        const updateR = () => {
+            val.innerHTML = '';
+            valoresOperadoras[op.value].forEach(v => { const opt = document.createElement('option'); opt.value = v; opt.textContent = `R$ ${v.toFixed(2)}`; val.appendChild(opt); });
+            atualizarCustoDinamico(val, custo);
         };
-        const atualizarCustoRecarga = () => { const v = parseFloat(rechargeValor.value) || 0; rechargeCusto.textContent = (v * 500).toLocaleString('pt-BR'); };
-        rechargeOperadora.addEventListener('change', atualizarValoresRecarga); rechargeValor.addEventListener('change', atualizarCustoRecarga); atualizarValoresRecarga();
-
-        rechargeForm.addEventListener('submit', async (e) => {
+        op.addEventListener('change', updateR); val.addEventListener('change', () => atualizarCustoDinamico(val, custo)); updateR();
+        rechForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const operadora = rechargeOperadora.value; const valorReais = rechargeValor.value; const numeroCel = rechargeCelular.value;
-            if (!confirm(`Confirmar recarga ${operadora} de R$ ${valorReais} para o número ${numeroCel}?`)) return;
-            const res = await fetch('/api/recharge/comprar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({operadora, valorReais, numeroCelular: numeroCel}) });
+            if (!confirm(`Confirmar recarga ${op.value} de R$ ${val.value}?`)) return;
+            const res = await fetch('/api/recharge/comprar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({operadora: op.value, valorReais: val.value, numeroCelular: cel.value}) });
             const data = await res.json(); alert(data.mensagem);
-            if(data.sucesso){ atualizarSaldo(data.novoSaldo); carregarExtrato(); rechargeForm.reset(); atualizarValoresRecarga(); }
+            if(data.sucesso){ atualizarSaldo(data.novoSaldo); carregarExtrato(); rechForm.reset(); updateR(); }
         });
     }
 
