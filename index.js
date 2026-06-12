@@ -353,7 +353,7 @@ app.post('/api/staking/claim-rewards', checkAuthenticated, async (req, res) => {
         const diasPassados = tempoPassadoMs / (1000 * 60 * 60 * 24);
         const recompensaCalculada = (user.stakedAmount * (STAKING_REWARD_RATE_MONTHLY / 30)) * diasPassados;
 
-        if (recompensaCalculada < 0.01) return res.status(400).json({ sucesso: false, mensagem: "Recompensa muito baixa para reivindicar." });
+        if (recompensaCalculada < 0.01) return res.status(400).json({ sucesso: false, mensagem: "RECOMPENSA muito baixa para reivindicar." });
         if (admin.saldo < recompensaCalculada) return res.status(500).json({ sucesso: false, mensagem: "Recursos indisponíveis no momento." });
 
         admin.saldo -= recompensaCalculada;
@@ -374,6 +374,7 @@ app.post('/api/staking/claim-rewards', checkAuthenticated, async (req, res) => {
     }
 });
 
+// --- ROTA DE COMPRAR GIFT CARD EXTERNO (Google Play/Shopee) - CORRIGIDA ---
 app.post('/api/giftcard/comprar', checkAuthenticated, async (req, res) => {
     try {
         const { tipo, valorReais } = req.body;
@@ -391,7 +392,20 @@ app.post('/api/giftcard/comprar', checkAuthenticated, async (req, res) => {
         user.saldo -= valorSC; 
         admin.saldo += valorSC;
         
-        const order = new GiftCardOrder({ userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, tipoGift: tipo, valorReais: valorR, valorSolidCoin: valorSC });
+        // CORREÇÃO: Força o status Pendente e mapeia ambos os modelos de nomenclaturas anteriores
+        const order = new GiftCardOrder({ 
+            userId: user._id, 
+            nomeUsuario: user.nome, 
+            emailUsuario: user.email, 
+            tipoGift: tipo, 
+            tipo: tipo,
+            valorReais: valorR, 
+            valorBRL: valorR,
+            valorSolidCoin: valorSC, 
+            custoSolidCoin: valorSC,
+            status: 'Pendente' 
+        });
+        
         const txUser = new Transaction({ userId: user._id, tipo: 'Compra Gift Card', descricao: `Pedido ${tipo} - R$ ${valorR.toFixed(2)} (Aguardando PIN)`, valor: -valorSC });
         const txAdmin = new Transaction({ userId: admin._id, tipo: 'Venda Gift Card', descricao: `Pedido ${tipo} por ${user.nome}`, valor: valorSC });
 
@@ -416,6 +430,7 @@ app.post('/api/recharge/comprar', checkAuthenticated, async (req, res) => {
         if (!validValues[operadora] || !validValues[operadora].includes(valorR)) return res.status(400).json({ sucesso: false, mensagem: "Valor inválido para a operadora selecionada." });
         if (!numeroCelular || numeroCelular.length < 10) return res.status(400).json({ sucesso: false, mensagem: "Número de celular inválido." });
 
+        const scRate = await getSCRate();
         const valorSC = valorR * scRate;
         const [user, admin] = await Promise.all([ User.findById(req.session.user.id), User.findOne({ email: ADMIN_EMAIL }) ]);
         
@@ -424,7 +439,7 @@ app.post('/api/recharge/comprar', checkAuthenticated, async (req, res) => {
         user.saldo -= valorSC; 
         admin.saldo += valorSC;
         
-        const order = new RechargeOrder({ userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, operadora, numeroCelular, valorReais: valorR, valorSolidCoin: valorSC });
+        const order = new RechargeOrder({ userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, operadora, numeroCelular, valorReais: valorR, valorSolidCoin: valorSC, status: 'Pendente' });
         const txUser = new Transaction({ userId: user._id, tipo: 'Recarga de Celular', descricao: `Pedido ${operadora} (${numeroCelular}) - R$ ${valorR.toFixed(2)}`, valor: -valorSC });
         const txAdmin = new Transaction({ userId: admin._id, tipo: 'Venda Recarga', descricao: `Recarga ${operadora} por ${user.nome}`, valor: valorSC });
 
@@ -493,7 +508,7 @@ app.get('/api/extrato', checkAuthenticated, async (req, res) => {
     }
 });
 
-// --- ADMIN: GERENCIAMENTO DE USUÁRIOS E SENHAS (NOVO) ---
+// --- ADMIN: GERENCIAMENTO DE USUÁRIOS E SENHAS ---
 app.get('/api/admin/usuarios', isAdmin, async (req, res) => {
     try {
         const usuarios = await User.find({ email: { $ne: ADMIN_EMAIL } }).select('nome email statusSocio planoSocio');
@@ -650,7 +665,7 @@ app.post('/api/admin/processar-socio', isAdmin, async (req, res) => {
                 new Transaction({ userId: user._id, tipo: 'Assinatura Sócio SolidCoin', descricao: `Plano ${ordem.plano}`, valor: ordem.moedasReceber }).save(),
                 new Transaction({ userId: admin._id, tipo: 'Pagamento Sócio', descricao: `Entregue a ${user.nome}`, valor: -ordem.moedasReceber }).save()
             ]);
-            res.json({ sucesso: true, mensagem: `Plano aprovado! O usuário agora é Sócio ${ordem.plano}.` });
+            res.json({ sucesso: true, mensagem: `Plano approved! O usuário agora é Sócio ${ordem.plano}.` });
         } else {
             ordem.status = 'Rejeitado'; 
             await ordem.save();
