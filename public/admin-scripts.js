@@ -8,7 +8,59 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     window.carregarPendentes();
     window.carregarInadimplentes();
+    window.carregarUsuarios(); // <-- NOVA CHAMADA
 });
+
+// --- NOVA FUNÇÃO: LISTAR TODOS OS USUÁRIOS ---
+window.carregarUsuarios = async () => {
+    try {
+        const res = await fetch('/api/admin/usuarios');
+        const data = await res.json();
+        const lista = document.getElementById('usuarios-lista');
+        
+        if (lista) {
+            lista.innerHTML = '';
+            if (!data.usuarios || data.usuarios.length === 0) {
+                lista.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #888;">Nenhum usuário cadastrado.</td></tr>';
+            } else {
+                data.usuarios.forEach(user => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${user.nome}</strong></td>
+                        <td>${user.email}</td>
+                        <td><span class="status-${(user.statusSocio || 'Inativo').toLowerCase()}">${user.statusSocio || 'Inativo'}</span></td>
+                        <td>${user.planoSocio || 'Nenhum'}</td>
+                        <td>
+                            <button class="btn-admin" style="padding: 6px 12px; font-size: 0.85em; background-color: #9b59b6; color: #fff;" onclick="alterarSenhaUsuario('${user._id}', '${user.nome}')">Redefinir Senha</button>
+                        </td>
+                    `;
+                    lista.appendChild(tr);
+                });
+            }
+        }
+    } catch (e) {
+        console.error("Erro ao carregar lista de usuários:", e);
+    }
+};
+
+// --- NOVA FUNÇÃO: ALTERAR SENHA DIRETAMENTE ---
+window.alterarSenhaUsuario = async (userId, nomeUser) => {
+    const novaSenha = prompt(`Digite a nova senha para o usuário "${nomeUser}":`);
+    if (!novaSenha) return; // Cancela se deixar em branco
+    if (novaSenha.length < 4) return alert("A senha deve ter no mínimo 4 caracteres.");
+
+    try {
+        const res = await fetch('/api/admin/alterar-senha-usuario', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, novaSenha })
+        });
+        const data = await res.json();
+        alert(data.mensagem);
+    } catch (e) {
+        alert("Erro ao redefinir a senha do usuário.");
+    }
+};
 
 window.carregarPendentes = async () => {
     try {
@@ -215,7 +267,7 @@ window.processarSocio = async (id, acao) => {
     });
     const data = await res.json();
     alert(data.mensagem);
-    if(data.sucesso) window.carregarPendentes();
+    if(data.sucesso) { window.carregarPendentes(); window.carregarUsuarios(); }
 };
 
 window.processarDeposito = async (id, acao) => {

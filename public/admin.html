@@ -31,7 +31,25 @@
             </div>
         </div>
 
-        <!-- --- NOVA SEÇÃO: CONTROLE DE COTAÇÃO --- -->
+        <div class="section-card" style="border-left: 5px solid #9b59b6;">
+            <h2>Lista Geral de Usuários (Gerenciar Contas & Senhas)</h2>
+            <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Visualize os dados dos usuários e altere/redefina senhas em segundos se houver perda de acesso.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>E-mail</th>
+                        <th>Status Sócio</th>
+                        <th>Plano</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="usuarios-lista">
+                    <tr><td colspan="5" style="text-align: center;">Carregando usuários...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
         <div class="section-card" style="border-left: 5px solid #3498db; display: flex; align-items: center; justify-content: space-between;">
             <div>
                 <h2 style="margin-top: 0;">Cotação da SolidCoin</h2>
@@ -45,7 +63,6 @@
             </div>
         </div>
 
-        <!-- 0. TABELA DE GERAÇÃO DE GIFT CARDS SOLIDCOIN -->
         <div class="section-card" style="border-left: 5px solid #d4af37;">
             <h2>Gerar Gift Card SolidCoin</h2>
             <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Crie um código promocional. O valor será descontado do saldo do CEO.</p>
@@ -55,8 +72,7 @@
             </div>
         </div>
 
-        <!-- --- NOVA SEÇÃO: PEDIDOS DE SÓCIO --- -->
-        <div class="section-card" style="border-left: 5px solid #9b59b6;">
+        <div class="section-card" style="border-left: 5px solid #8e44ad;">
             <h2>Assinaturas de Sócio SolidCoin</h2>
             <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Verifique o pagamento na Blockchain/InfinitePay e libere as moedas do plano Sócio.</p>
             <table>
@@ -76,7 +92,6 @@
             </table>
         </div>
 
-        <!-- --- NOVA SEÇÃO: INADIMPLENTES --- -->
         <div class="section-card" style="border-left: 5px solid #e74c3c;">
             <h2>Sócios Inadimplentes</h2>
             <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Usuários que o plano de 30 dias venceu e não renovaram. Você pode cancelar os benefícios deles.</p>
@@ -96,7 +111,6 @@
             </table>
         </div>
 
-        <!-- TABELA DE DEPÓSITOS PENDENTES -->
         <div class="section-card" style="border-left: 5px solid #2ecc71;">
             <h2>Avisos de Depósito Pendentes</h2>
             <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Verifique o Hash na blockchain e libere as SolidCoins (serão debitadas do saldo do CEO).</p>
@@ -104,7 +118,6 @@
                 <thead>
                     <tr>
                         <th>Data</th>
-                        <th>Usuário</th>
                         <th>Rede</th>
                         <th>Hash / TXID (Link Transação)</th>
                         <th>Valor Requerido</th>
@@ -117,7 +130,6 @@
             </table>
         </div>
 
-        <!-- 1. TABELA DE SAQUES DE SOLIDCOINS -->
         <div class="section-card" style="border-left: 5px solid #f39c12;">
             <h2>Saques Pendentes (Cripto)</h2>
             <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Aprove transferências para as carteiras Solana ou Tron dos usuários.</p>
@@ -137,7 +149,6 @@
             </table>
         </div>
 
-        <!-- 2. TABELA DE COMPRAS DE GIFT CARDS -->
         <div class="section-card" style="border-left: 5px solid #27ae60;">
             <h2>Pedidos de Gift Cards Externos</h2>
             <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Ao aprovar, o sistema pedirá que você digite o PIN para enviar ao usuário.</p>
@@ -158,7 +169,6 @@
             </table>
         </div>
 
-        <!-- 3. TABELA DE RECARGAS DE CELULAR -->
         <div class="section-card" style="border-left: 5px solid #3498db;">
             <h2>Pedidos de Recarga de Celular</h2>
             <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Faça a recarga e clique em Aprovar para inserir o comprovante (NSU/Transação).</p>

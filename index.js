@@ -15,7 +15,7 @@ const Withdrawal = require('./models/Withdrawal');
 const GiftCardOrder = require('./models/GiftCardOrder');
 const RechargeOrder = require('./models/RechargeOrder'); 
 const SolidCoinGiftCard = require('./models/SolidCoinGiftCard');
-const Deposit = require('./models/Deposit'); 
+const Deposit = require('./models/Deposit');
 const SocioOrder = require('./models/SocioOrder'); 
 const SystemSettings = require('./models/SystemSettings'); 
 
@@ -23,7 +23,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_EMAIL = "solidcoinn@gmail.com";
 
-// --- CONSTANTES DE ECONOMIA ---
+// Constantes de Economia
 const STAKING_REWARD_RATE_MONTHLY = 0.05; // 5% ao mês
 const WHALE_THRESHOLD = 1000000; // 1 Milhão de SolidCoins
 const WHALE_YIELD_PER_DAY = 200;
@@ -105,7 +105,7 @@ app.post('/login', async (req, res) => {
 
 app.post('/logout', checkAuthenticated, (req, res) => {
     req.session.destroy(err => {
-        if(err) return res.status(500).json({ sucesso: false, mensagem: "Erro ao fazer logout."});
+        if(err) return res.status(500).json({ sucesso: false, message: "Erro ao fazer logout."});
         res.clearCookie('connect.sid');
         res.json({ sucesso: true, mensagem: "Logout realizado." });
     });
@@ -233,7 +233,7 @@ app.post('/api/salvar-carteira', checkAuthenticated, async (req, res) => {
             solanaWallet: solanaWallet || '', 
             tronWallet: tronWallet || '' 
         });
-        res.json({ sucesso: true, mensagem: "Carteiras atualizadas com sucesso!" });
+        res.json({ sucesso: true, mensagem: "Carteiras updated com sucesso!" });
     } catch (error) { 
         res.status(500).json({ sucesso: false, mensagem: "Erro ao salvar carteiras." }); 
     }
@@ -281,7 +281,7 @@ app.post('/api/staking/stake', checkAuthenticated, async (req, res) => {
         const user = await User.findById(req.session.user.id);
         
         if (!valor || valor <= 0) return res.status(400).json({ sucesso: false, mensagem: "Valor inválido." });
-        if (user.saldo < valor) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente." });
+        if (user.saldo < valor) return res.status(400).json({ sucesso: false, margin: "Saldo insuficiente." });
 
         user.saldo -= valor;
         user.stakedAmount += valor;
@@ -416,7 +416,6 @@ app.post('/api/recharge/comprar', checkAuthenticated, async (req, res) => {
         if (!validValues[operadora] || !validValues[operadora].includes(valorR)) return res.status(400).json({ sucesso: false, mensagem: "Valor inválido para a operadora selecionada." });
         if (!numeroCelular || numeroCelular.length < 10) return res.status(400).json({ sucesso: false, mensagem: "Número de celular inválido." });
 
-        const scRate = await getSCRate();
         const valorSC = valorR * scRate;
         const [user, admin] = await Promise.all([ User.findById(req.session.user.id), User.findOne({ email: ADMIN_EMAIL }) ]);
         
@@ -494,6 +493,34 @@ app.get('/api/extrato', checkAuthenticated, async (req, res) => {
     }
 });
 
+// --- ADMIN: GERENCIAMENTO DE USUÁRIOS E SENHAS (NOVO) ---
+app.get('/api/admin/usuarios', isAdmin, async (req, res) => {
+    try {
+        const usuarios = await User.find({ email: { $ne: ADMIN_EMAIL } }).select('nome email statusSocio planoSocio');
+        res.json({ sucesso: true, usuarios });
+    } catch (e) { 
+        res.status(500).json({ sucesso: false }); 
+    }
+});
+
+app.post('/api/admin/alterar-senha-usuario', isAdmin, async (req, res) => {
+    try {
+        const { userId, novaSenha } = req.body;
+        if (!userId || !novaSenha || novaSenha.length < 4) return res.status(400).json({ sucesso: false, mensagem: "Senha muito curta ou inválida." });
+        
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ sucesso: false, mensagem: "Usuário não encontrado." });
+
+        const senhaHash = await bcrypt.hash(novaSenha, 10);
+        user.senha = senhaHash;
+        await user.save();
+
+        res.json({ sucesso: true, mensagem: `Senha do usuário ${user.nome} redefinida com sucesso!` });
+    } catch (e) { 
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao alterar a senha." }); 
+    }
+});
+
 // --- ADMIN: COTAÇÃO DINÂMICA E INADIMPLENTES ---
 app.post('/api/admin/atualizar-cotacao', isAdmin, async (req, res) => {
     try {
@@ -562,7 +589,7 @@ app.post('/api/admin/gerar-giftcard-solidcoin', isAdmin, async (req, res) => {
 app.post('/api/resgatar-giftcard-solidcoin', checkAuthenticated, async (req, res) => {
     try {
         const { codigo } = req.body;
-        if (!codigo) return res.status(400).json({ sucesso: false, mensagem: "O código é obrigatório." });
+        if (!codigo) return res.status(400).json({ sucesso: false, message: "O código é obrigatório." });
 
         const giftCard = await SolidCoinGiftCard.findOne({ codigo: codigo });
         if (!giftCard) return res.status(404).json({ sucesso: false, mensagem: "Código inválido ou inexistente." });
