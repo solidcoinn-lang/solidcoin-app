@@ -32,22 +32,30 @@
         </div>
 
         <div class="section-card" style="border-left: 5px solid #9b59b6;">
-            <h2>Lista Geral de Usuários (Gerenciar Contas & Senhas)</h2>
-            <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Visualize os dados dos usuários e altere/redefina senhas em segundos se houver perda de acesso.</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nome</th>
-                        <th>E-mail</th>
-                        <th>Status Sócio</th>
-                        <th>Plano</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="usuarios-lista">
-                    <tr><td colspan="5" style="text-align: center;">Carregando usuários...</td></tr>
-                </tbody>
-            </table>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <h2 style="margin: 0;">Lista Geral de Usuários</h2>
+                    <p style="color: #aaa; font-size: 0.9em; margin: 5px 0 0 0;">Total de cadastrados: <strong id="total-usuarios" style="color: #d4af37; font-size: 1.2em;">0</strong></p>
+                </div>
+                <input type="text" id="pesquisa-usuario" class="input-admin" placeholder="🔍 Pesquisar por nome ou e-mail..." style="max-width: 300px; margin-bottom: 0; width: 100%;">
+            </div>
+            
+            <div style="max-height: 350px; overflow-y: auto; border: 1px solid #333; border-radius: 6px;">
+                <table style="margin-top: 0; width: 100%; border-collapse: collapse;">
+                    <thead style="position: sticky; top: 0; z-index: 10;">
+                        <tr>
+                            <th>Nome</th>
+                            <th>E-mail</th>
+                            <th>Status Sócio</th>
+                            <th>Plano</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usuarios-lista">
+                        <tr><td colspan="5" style="text-align: center;">Carregando usuários...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="section-card" style="border-left: 5px solid #3498db; display: flex; align-items: center; justify-content: space-between;">

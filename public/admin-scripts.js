@@ -1,3 +1,5 @@
+let todosUsuarios = []; // Variável global para guardar a lista e permitir a pesquisa rápida
+
 document.addEventListener('DOMContentLoaded', () => {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
@@ -6,47 +8,70 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = '/index.html';
         });
     }
+
+    // Evento de Pesquisa de Usuários em Tempo Real
+    const pesquisaInput = document.getElementById('pesquisa-usuario');
+    if (pesquisaInput) {
+        pesquisaInput.addEventListener('input', (e) => {
+            const termo = e.target.value.toLowerCase();
+            const usuariosFiltrados = todosUsuarios.filter(user => 
+                user.nome.toLowerCase().includes(termo) || 
+                user.email.toLowerCase().includes(termo)
+            );
+            renderizarListaUsuarios(usuariosFiltrados);
+        });
+    }
+
     window.carregarPendentes();
     window.carregarInadimplentes();
-    window.carregarUsuarios(); // <-- NOVA CHAMADA
+    window.carregarUsuarios();
 });
 
-// --- NOVA FUNÇÃO: LISTAR TODOS OS USUÁRIOS ---
+// --- FUNÇÕES DE USUÁRIOS E PESQUISA ---
 window.carregarUsuarios = async () => {
     try {
         const res = await fetch('/api/admin/usuarios');
         const data = await res.json();
-        const lista = document.getElementById('usuarios-lista');
         
-        if (lista) {
-            lista.innerHTML = '';
-            if (!data.usuarios || data.usuarios.length === 0) {
-                lista.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #888;">Nenhum usuário cadastrado.</td></tr>';
-            } else {
-                data.usuarios.forEach(user => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td><strong>${user.nome}</strong></td>
-                        <td>${user.email}</td>
-                        <td><span class="status-${(user.statusSocio || 'Inativo').toLowerCase()}">${user.statusSocio || 'Inativo'}</span></td>
-                        <td>${user.planoSocio || 'Nenhum'}</td>
-                        <td>
-                            <button class="btn-admin" style="padding: 6px 12px; font-size: 0.85em; background-color: #9b59b6; color: #fff;" onclick="alterarSenhaUsuario('${user._id}', '${user.nome}')">Redefinir Senha</button>
-                        </td>
-                    `;
-                    lista.appendChild(tr);
-                });
-            }
+        if (data.sucesso) {
+            todosUsuarios = data.usuarios || [];
+            document.getElementById('total-usuarios').textContent = todosUsuarios.length;
+            renderizarListaUsuarios(todosUsuarios);
         }
     } catch (e) {
         console.error("Erro ao carregar lista de usuários:", e);
     }
 };
 
-// --- NOVA FUNÇÃO: ALTERAR SENHA DIRETAMENTE ---
+const renderizarListaUsuarios = (usuarios) => {
+    const lista = document.getElementById('usuarios-lista');
+    if (!lista) return;
+
+    lista.innerHTML = '';
+    
+    if (usuarios.length === 0) {
+        lista.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #888;">Nenhum usuário encontrado na pesquisa.</td></tr>';
+        return;
+    }
+
+    usuarios.forEach(user => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${user.nome}</strong></td>
+            <td>${user.email}</td>
+            <td><span class="status-${(user.statusSocio || 'Inativo').toLowerCase()}">${user.statusSocio || 'Inativo'}</span></td>
+            <td>${user.planoSocio || 'Nenhum'}</td>
+            <td>
+                <button class="btn-admin" style="padding: 6px 12px; font-size: 0.85em; background-color: #9b59b6; color: #fff;" onclick="alterarSenhaUsuario('${user._id}', '${user.nome}')">Redefinir Senha</button>
+            </td>
+        `;
+        lista.appendChild(tr);
+    });
+};
+
 window.alterarSenhaUsuario = async (userId, nomeUser) => {
-    const novaSenha = prompt(`Digite a nova senha para o usuário "${nomeUser}":`);
-    if (!novaSenha) return; // Cancela se deixar em branco
+    const novaSenha = prompt(`Digite a nova senha provisória para o usuário "${nomeUser}":`);
+    if (!novaSenha) return;
     if (novaSenha.length < 4) return alert("A senha deve ter no mínimo 4 caracteres.");
 
     try {
@@ -62,6 +87,7 @@ window.alterarSenhaUsuario = async (userId, nomeUser) => {
     }
 };
 
+// --- FUNÇÕES DOS OUTROS PAINÉIS ---
 window.carregarPendentes = async () => {
     try {
         const res = await fetch('/api/admin/pedidos-pendentes');
@@ -253,7 +279,7 @@ window.cancelarSocio = async (userId) => {
         });
         const data = await res.json();
         alert(data.mensagem);
-        if(data.sucesso) window.carregarInadimplentes();
+        if(data.sucesso) { window.carregarInadimplentes(); window.carregarUsuarios(); }
     } catch(e) { alert("Erro ao cancelar o sócio."); }
 };
 
