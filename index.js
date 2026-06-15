@@ -76,15 +76,69 @@ async function getSCRate() {
 // Rotas de Página e Autenticação
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
+// --- ROTA DE CADASTRO COM SISTEMA DE INDICAÇÃO ---
 app.post('/cadastrar', async (req, res) => {
-    const { nome, email, senha } = req.body;
+    const { nome, email, senha, codigoIndicacao } = req.body;
     if (!nome || !email || !senha) return res.status(400).send("Dados incompletos.");
+    
     try {
         if (await User.findOne({ email })) return res.status(409).send("Email já cadastrado.");
+
+        const admin = await User.findOne({ email: ADMIN_EMAIL });
+        let referrer = null;
+        
+        // Verifica se o código de indicação existe
+        if (codigoIndicacao) {
+            referrer = await User.findOne({ codigoIndicacao: codigoIndicacao.toUpperCase() });
+        }
+
         const senhaHash = await bcrypt.hash(senha, 10);
-        await new User({ nome, email, senha: senhaHash }).save();
+        
+        // Gerar um código único de indicação para o NOVO usuário (6 caracteres)
+        let novoCodigoUnico;
+        let isCodeUnique = false;
+        while (!isCodeUnique) {
+            novoCodigoUnico = crypto.randomBytes(3).toString('hex').toUpperCase();
+            const existe = await User.findOne({ codigoIndicacao: novoCodigoUnico });
+            if (!existe) isCodeUnique = true;
+        }
+
+        let saldoInicial = 0;
+        let indicadoPorId = null;
+
+        // Se foi indicado e o CEO tem saldo para pagar os 500 SC (250 pra cada)
+        if (referrer && admin && admin.saldo >= 500) {
+            saldoInicial = 250; // Saldo do novo usuário
+            indicadoPorId = referrer._id;
+            
+            referrer.saldo += 250; // Saldo de quem indicou
+            admin.saldo -= 500; // Debita do CEO
+            
+            const txReferrer = new Transaction({ userId: referrer._id, tipo: 'Bônus de Indicação', descricao: `Você convidou ${nome}`, valor: 250 });
+            const txAdmin = new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Bônus pago para ${referrer.nome} e ${nome}`, valor: -500 });
+            
+            await Promise.all([referrer.save(), admin.save(), txReferrer.save(), txAdmin.save()]);
+        }
+
+        // Cria o novo usuário
+        const novoUsuario = new User({ 
+            nome, 
+            email, 
+            senha: senhaHash,
+            saldo: saldoInicial,
+            codigoIndicacao: novoCodigoUnico,
+            indicadoPor: indicadoPorId
+        });
+        
+        await novoUsuario.save();
+
+        if (saldoInicial > 0) {
+            await new Transaction({ userId: novoUsuario._id, tipo: 'Bônus de Boas-Vindas', descricao: `Você usou o código de ${referrer.nome}`, valor: 250 }).save();
+        }
+
         res.redirect('/index.html?cadastro=sucesso');
     } catch (error) { 
+        console.error(error);
         res.status(500).send("Erro ao cadastrar."); 
     }
 });
@@ -119,6 +173,12 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
         const user = await User.findById(req.session.user.id);
         const produtos = await Product.find({});
         const scRate = await getSCRate();
+
+        // Retrocompatibilidade: Se um usuário antigo logar, ele ganha um código de indicação na hora
+        if (!user.codigoIndicacao) {
+            user.codigoIndicacao = crypto.randomBytes(3).toString('hex').toUpperCase();
+            await user.save();
+        }
         
         // Verifica Inadimplência do Sócio
         if (user.statusSocio === 'Ativo' && user.vencimentoSocio && new Date() > new Date(user.vencimentoSocio)) {
@@ -157,7 +217,8 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
             usuario: { 
                 nome: user.nome, saldo: user.saldo, stakedAmount: user.stakedAmount, canUnstakeAt: user.canUnstakeAt,
                 solanaWallet: user.solanaWallet, tronWallet: user.tronWallet, isAdmin: user.email === ADMIN_EMAIL,
-                statusSocio: user.statusSocio, planoSocio: user.planoSocio, vencimentoSocio: user.vencimentoSocio
+                statusSocio: user.statusSocio, planoSocio: user.planoSocio, vencimentoSocio: user.vencimentoSocio,
+                codigoIndicacao: user.codigoIndicacao // Enviando o código para o HTML
             },
             marketplace: produtos.map(p => ({
                 id: p._id, nome: p.nome, preco: p.preco, imagemUrl: p.imagemUrl, categoria: p.categoria || 'Cédulas SolidCoin'
@@ -353,7 +414,7 @@ app.post('/api/staking/claim-rewards', checkAuthenticated, async (req, res) => {
         const diasPassados = tempoPassadoMs / (1000 * 60 * 60 * 24);
         const recompensaCalculada = (user.stakedAmount * (STAKING_REWARD_RATE_MONTHLY / 30)) * diasPassados;
 
-        if (recompensaCalculada < 0.01) return res.status(400).json({ sucesso: false, mensagem: "RECOMPENSA muito baixa para reivindicar." });
+        if (recompensaCalculada < 0.01) return res.status(400).json({ sucesso: false, mensagem: "Recompensa muito baixa para reivindicar." });
         if (admin.saldo < recompensaCalculada) return res.status(500).json({ sucesso: false, mensagem: "Recursos indisponíveis no momento." });
 
         admin.saldo -= recompensaCalculada;
@@ -374,7 +435,6 @@ app.post('/api/staking/claim-rewards', checkAuthenticated, async (req, res) => {
     }
 });
 
-// --- ROTA DE COMPRAR GIFT CARD EXTERNO (Google Play/Shopee) - CORRIGIDA ---
 app.post('/api/giftcard/comprar', checkAuthenticated, async (req, res) => {
     try {
         const { tipo, valorReais } = req.body;
@@ -392,7 +452,6 @@ app.post('/api/giftcard/comprar', checkAuthenticated, async (req, res) => {
         user.saldo -= valorSC; 
         admin.saldo += valorSC;
         
-        // CORREÇÃO: Força o status Pendente e mapeia ambos os modelos de nomenclaturas anteriores
         const order = new GiftCardOrder({ 
             userId: user._id, 
             nomeUsuario: user.nome, 
@@ -578,7 +637,6 @@ app.post('/api/admin/cancelar-socio', isAdmin, async (req, res) => {
     }
 });
 
-// ADM GERA O CÓDIGO E DESCONTA DO SEU SALDO
 app.post('/api/admin/gerar-giftcard-solidcoin', isAdmin, async (req, res) => {
     try {
         const valor = parseFloat(req.body.valor);
@@ -600,7 +658,6 @@ app.post('/api/admin/gerar-giftcard-solidcoin', isAdmin, async (req, res) => {
     }
 });
 
-// USUÁRIO RESGATA O CÓDIGO
 app.post('/api/resgatar-giftcard-solidcoin', checkAuthenticated, async (req, res) => {
     try {
         const { codigo } = req.body;
@@ -640,6 +697,7 @@ app.get('/api/admin/pedidos-pendentes', isAdmin, async (req, res) => {
     }
 });
 
+// --- ROTA ATUALIZADA: PROCESSAR SÓCIO (INCLUI 5% DE COMISSÃO DE AFILIADO) ---
 app.post('/api/admin/processar-socio', isAdmin, async (req, res) => {
     try {
         const { orderId, acao } = req.body;
@@ -660,12 +718,35 @@ app.post('/api/admin/processar-socio', isAdmin, async (req, res) => {
             user.vencimentoSocio = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 dias
             ordem.status = 'Aprovado';
 
-            await Promise.all([
-                user.save(), admin.save(), ordem.save(),
-                new Transaction({ userId: user._id, tipo: 'Assinatura Sócio SolidCoin', descricao: `Plano ${ordem.plano}`, valor: ordem.moedasReceber }).save(),
-                new Transaction({ userId: admin._id, tipo: 'Pagamento Sócio', descricao: `Entregue a ${user.nome}`, valor: -ordem.moedasReceber }).save()
-            ]);
-            res.json({ sucesso: true, mensagem: `Plano approved! O usuário agora é Sócio ${ordem.plano}.` });
+            const transacoesToSave = [
+                new Transaction({ userId: user._id, tipo: 'Assinatura Sócio SolidCoin', descricao: `Plano ${ordem.plano}`, valor: ordem.moedasReceber }),
+                new Transaction({ userId: admin._id, tipo: 'Pagamento Sócio', descricao: `Entregue a ${user.nome}`, valor: -ordem.moedasReceber })
+            ];
+            const updatesToSave = [user.save(), ordem.save()];
+
+            // Lógica de 5% de Comissão para quem convidou
+            if (user.indicadoPor) {
+                const referrer = await User.findById(user.indicadoPor);
+                if (referrer) {
+                    const comissao = ordem.moedasReceber * 0.05;
+                    
+                    if (admin.saldo >= comissao) {
+                        admin.saldo -= comissao;
+                        referrer.saldo += comissao;
+                        
+                        transacoesToSave.push(new Transaction({ userId: referrer._id, tipo: 'Comissão de Indicação (Sócio)', descricao: `5% do plano de ${user.nome}`, valor: comissao }));
+                        transacoesToSave.push(new Transaction({ userId: admin._id, tipo: 'Pagamento de Comissão', descricao: `Para ${referrer.nome}`, valor: -comissao }));
+                        updatesToSave.push(referrer.save());
+                    }
+                }
+            }
+
+            updatesToSave.push(admin.save());
+            for (let tx of transacoesToSave) updatesToSave.push(tx.save());
+
+            await Promise.all(updatesToSave);
+
+            res.json({ sucesso: true, mensagem: `Plano aprovado! O usuário agora é Sócio ${ordem.plano}.` });
         } else {
             ordem.status = 'Rejeitado'; 
             await ordem.save();
@@ -808,10 +889,22 @@ app.post('/api/admin/processar-recharge', isAdmin, async (req, res) => {
 // FUNÇÕES DE SETUP
 async function setupInicial() {
     try {
-        if (!(await User.findOne({ email: ADMIN_EMAIL }))) {
+        let ceo = await User.findOne({ email: ADMIN_EMAIL });
+        if (!ceo) {
             const senhaHash = await bcrypt.hash("SolidCoin$24", 10);
-            await new User({ nome: "CEO SolidCoin", email: ADMIN_EMAIL, senha: senhaHash, saldo: 1000000000 }).save();
+            ceo = new User({ 
+                nome: "CEO SolidCoin", 
+                email: ADMIN_EMAIL, 
+                senha: senhaHash, 
+                saldo: 1000000000,
+                codigoIndicacao: 'CEO123'
+            });
+            await ceo.save();
+        } else if (!ceo.codigoIndicacao) {
+            ceo.codigoIndicacao = 'CEO123';
+            await ceo.save();
         }
+        
         if (await Product.countDocuments() === 0) {
             await Product.insertMany([
                 { nome: 'Cedula SolidCoin 1000', preco: 1000, imagemUrl: 'https://i.postimg.cc/vBmmytJq/projeto-page-0001.png', categoria: 'Cédulas SolidCoin'},

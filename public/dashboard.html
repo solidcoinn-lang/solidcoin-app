@@ -15,7 +15,7 @@
             </div>
         </header>
 
-        <!-- --- CARD DE SALDO COM OLHINHO E COTAÇÃO --- -->
+        <!-- CARD DE SALDO COM OLHINHO E COTAÇÃO -->
         <div class="card saldo-card">
             <h2 style="display: flex; align-items: center; justify-content: center; gap: 10px;">
                 Seu Saldo <span id="toggle-saldo" style="cursor: pointer; font-size: 0.9em; filter: grayscale(100%);">👁️</span>
@@ -25,6 +25,21 @@
                 ≈ R$ <span id="saldo-reais">0.00</span> <br>
                 <small style="color: #666; font-size: 0.8em;">(Cotação atual: <span id="cotacao-atual">500</span> SC = R$ 1,00)</small>
             </p>
+        </div>
+
+        <!-- --- NOVO CARD: PROGRAMA DE INDICAÇÃO --- -->
+        <div class="card" style="border-left: 5px solid #f1c40f; background: linear-gradient(145deg, #1a1a1a, #2a2a2a);">
+            <h2 style="color: #f1c40f;">🤝 Programa de Indicação</h2>
+            <p style="color: #ddd; font-size: 0.95em;">Convide seus amigos e ganhem juntos! Quando alguém usar seu código no cadastro:</p>
+            <ul style="color: #aaa; font-size: 0.9em; text-align: left; margin: 10px 0; padding-left: 20px;">
+                <li>Você ganha <strong>250 SolidCoins</strong></li>
+                <li>Seu amigo ganha <strong>250 SolidCoins</strong></li>
+                <li>Se ele assinar um plano de Sócio, você ganha <strong>5% de Comissão</strong> do valor do plano na hora!</li>
+            </ul>
+            <div style="background-color: #111; padding: 15px; border-radius: 8px; border: 1px dashed #f1c40f; margin-top: 15px;">
+                <p style="margin: 0 0 5px 0; color: #aaa; font-size: 0.85em;">Compartilhe seu código único:</p>
+                <strong id="codigo-indicacao" style="font-size: 1.5em; letter-spacing: 2px; color: #d4af37;">CARREGANDO...</strong>
+            </div>
         </div>
         
         <div class="card staking-card">
@@ -45,7 +60,7 @@
             </div>
         </div>
 
-        <!-- --- NOVO CARD: CLUBE DE SÓCIOS SOLIDCOIN --- -->
+        <!-- CARD: CLUBE DE SÓCIOS SOLIDCOIN -->
         <div class="card" style="border-left: 5px solid #9b59b6;">
             <h2>Clube de Sócios SolidCoin</h2>
             <div style="background: #111; padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; border: 1px solid #333;">
@@ -87,7 +102,6 @@
             </form>
         </div>
 
-        <!-- OUTROS CARDS MANTIDOS -->
         <div class="card-group">
             <div class="card">
                 <h2>Minhas Carteiras para Saque</h2>
@@ -217,7 +231,7 @@
             </div>
         </div>
 
-        <!-- --- RODAPÉ COM REDES SOCIAIS --- -->
+        <!-- RODAPÉ COM REDES SOCIAIS -->
         <footer style="text-align: center; padding: 30px 20px; margin-top: 40px; border-top: 1px solid #333;">
             <p style="color: #aaa; margin-bottom: 15px; font-size: 1.1em;">Faça parte da nossa comunidade oficial:</p>
             <div style="display: flex; justify-content: center; gap: 30px; align-items: center;">

@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const saldoReaisEl = document.getElementById('saldo-reais');
     const cotacaoAtualEl = document.getElementById('cotacao-atual');
     const toggleSaldoBtn = document.getElementById('toggle-saldo');
+    const codigoIndicacaoEl = document.getElementById('codigo-indicacao'); // <-- NOVO ELEMENTO
     
     const logoutBtn = document.getElementById('logout-btn');
     const adminBtn = document.getElementById('admin-btn');
@@ -193,14 +194,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
 
             if (data.sucesso) {
-                // Atualiza Cotação Global e Status do Sócio
                 scRate = data.scRate || 500;
                 cotacaoAtualEl.textContent = scRate;
 
-                // --- FORÇA ATUALIZAÇÃO DOS CAMPOS DE CUSTO AUTOMATICAMENTE ---
+                // INSERE O CÓDIGO DE INDICAÇÃO NA TELA
+                if(data.usuario.codigoIndicacao && codigoIndicacaoEl) {
+                    codigoIndicacaoEl.textContent = data.usuario.codigoIndicacao;
+                }
+
                 atualizarCustoDinamico(document.getElementById('gift-valor'), document.getElementById('gift-custo'));
                 atualizarCustoDinamico(document.getElementById('recharge-valor'), document.getElementById('recharge-custo'));
-                // -------------------------------------------------------------
 
                 if (!isUpdate) { 
                     nomeUsuarioEl.textContent = data.usuario.nome;
@@ -209,7 +212,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (data.usuario.isAdmin) { adminBtn.style.display = 'inline-block'; }
                     carregarExtrato(); carregarHistoricoSaques();
 
-                    // --- LÓGICA DO MARKETPLACE ---
                     const categoriasContainer = document.getElementById('marketplace-categorias');
                     const marketplaceListaEl = document.getElementById('marketplace-lista');
                     categoriasContainer.innerHTML = '';
@@ -245,7 +247,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
                 
-                // Atualiza info do Sócio Header
                 document.getElementById('status-socio').textContent = data.usuario.statusSocio || 'Inativo';
                 if(data.usuario.statusSocio === 'Inadimplente') document.getElementById('status-socio').style.color = '#e74c3c';
                 

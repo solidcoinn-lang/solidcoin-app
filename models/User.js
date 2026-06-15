@@ -12,10 +12,14 @@ const UserSchema = new mongoose.Schema({
     lastRewardClaim: { type: Date, default: Date.now },
     lastYieldApplied: { type: Date, default: Date.now },
     
-    // --- NOVOS CAMPOS PARA SÓCIOS ---
-    statusSocio: { type: String, default: 'Inativo' }, // Inativo, Ativo, Inadimplente
+    // Campos para Sócios
+    statusSocio: { type: String, default: 'Inativo' },
     planoSocio: { type: String, default: '' },
-    vencimentoSocio: { type: Date, default: null }
+    vencimentoSocio: { type: Date, default: null },
+
+    // --- NOVOS CAMPOS: SISTEMA DE INDICAÇÃO ---
+    codigoIndicacao: { type: String, unique: true, sparse: true }, // O código deste usuário (Ex: A1B2C3)
+    indicadoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null } // Quem convidou ele
 });
 
 module.exports = mongoose.model('User', UserSchema);
