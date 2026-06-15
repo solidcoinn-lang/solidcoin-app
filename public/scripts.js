@@ -149,6 +149,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Atualiza custos dinâmicos baseados na cotação SC
+    const atualizarCustoDinamico = (inputEl, spanCustoEl) => {
+        if(!inputEl || !spanCustoEl) return;
+        const v = parseFloat(inputEl.value) || 0;
+        spanCustoEl.textContent = (v * scRate).toLocaleString('pt-BR');
+    };
+
     const carregarExtrato = async () => {
         const response = await fetch('/api/extrato');
         const data = await response.json();
@@ -190,6 +197,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 scRate = data.scRate || 500;
                 cotacaoAtualEl.textContent = scRate;
 
+                // --- FORÇA ATUALIZAÇÃO DOS CAMPOS DE CUSTO AUTOMATICAMENTE ---
+                atualizarCustoDinamico(document.getElementById('gift-valor'), document.getElementById('gift-custo'));
+                atualizarCustoDinamico(document.getElementById('recharge-valor'), document.getElementById('recharge-custo'));
+                // -------------------------------------------------------------
+
                 if (!isUpdate) { 
                     nomeUsuarioEl.textContent = data.usuario.nome;
                     document.getElementById('solana-wallet').value = data.usuario.solanaWallet || '';
@@ -197,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (data.usuario.isAdmin) { adminBtn.style.display = 'inline-block'; }
                     carregarExtrato(); carregarHistoricoSaques();
 
-                    // --- LÓGICA DO MARKETPLACE ATUALIZADA ---
+                    // --- LÓGICA DO MARKETPLACE ---
                     const categoriasContainer = document.getElementById('marketplace-categorias');
                     const marketplaceListaEl = document.getElementById('marketplace-lista');
                     categoriasContainer.innerHTML = '';
@@ -217,27 +229,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     categoriasUnicas.forEach((categoria) => {
                         const btn = document.createElement('button');
-                        btn.className = 'cat-btn'; // Começa sem a classe 'active'
+                        btn.className = 'cat-btn'; 
                         btn.textContent = categoria;
                         btn.onclick = (e) => {
                             const jaEstaAtivo = e.target.classList.contains('active');
-                            
-                            // Remove a classe ativa de todos os botões de categoria
                             document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-                            
                             if (jaEstaAtivo) {
-                                // Se a categoria já estava aberta, ela fecha (limpando a tela)
                                 marketplaceListaEl.innerHTML = '';
                             } else {
-                                // Se estava fechada, ativa o botão e mostra os produtos dela
                                 e.target.classList.add('active'); 
                                 renderizarProdutos(categoria);
                             }
                         };
                         categoriasContainer.appendChild(btn);
                     });
-                    
-                    // A tela inicia com marketplaceListaEl vazio (nenhuma categoria aberta)
                 }
                 
                 // Atualiza info do Sócio Header
@@ -253,12 +258,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 atualizarUIStaking(data.usuario);
             } else if (!isUpdate) { alert(data.mensagem); }
         } catch (error) { console.error("Erro ao carregar o dashboard:", error); }
-    };
-
-    // Atualiza custos dinâmicos baseados na cotação SC
-    const atualizarCustoDinamico = (inputEl, spanCustoEl) => {
-        const v = parseFloat(inputEl.value) || 0;
-        spanCustoEl.textContent = (v * scRate).toLocaleString('pt-BR');
     };
 
     // Eventos (Formulários Básicos)
