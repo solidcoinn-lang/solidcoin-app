@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('socio-img').src = plano.img;
             document.getElementById('socio-desc').textContent = plano.desc;
             socioPagamento.style.display = 'block';
-            socioPagamento.value = ""; // Reseta pagamento
+            socioPagamento.value = ""; 
             socioInstrucoes.style.display = 'none';
             socioTxid.style.display = 'none';
             socioBtn.style.display = 'none';
@@ -197,9 +197,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (data.usuario.isAdmin) { adminBtn.style.display = 'inline-block'; }
                     carregarExtrato(); carregarHistoricoSaques();
 
+                    // --- LÓGICA DO MARKETPLACE ATUALIZADA ---
                     const categoriasContainer = document.getElementById('marketplace-categorias');
                     const marketplaceListaEl = document.getElementById('marketplace-lista');
                     categoriasContainer.innerHTML = '';
+                    
                     const categoriasUnicas = [...new Set(data.marketplace.map(p => p.categoria))];
                     
                     const renderizarProdutos = (categoriaDesejada) => {
@@ -213,17 +215,29 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     };
 
-                    categoriasUnicas.forEach((categoria, index) => {
+                    categoriasUnicas.forEach((categoria) => {
                         const btn = document.createElement('button');
-                        btn.className = `cat-btn ${index === 0 ? 'active' : ''}`;
+                        btn.className = 'cat-btn'; // Começa sem a classe 'active'
                         btn.textContent = categoria;
                         btn.onclick = (e) => {
+                            const jaEstaAtivo = e.target.classList.contains('active');
+                            
+                            // Remove a classe ativa de todos os botões de categoria
                             document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-                            e.target.classList.add('active'); renderizarProdutos(categoria);
+                            
+                            if (jaEstaAtivo) {
+                                // Se a categoria já estava aberta, ela fecha (limpando a tela)
+                                marketplaceListaEl.innerHTML = '';
+                            } else {
+                                // Se estava fechada, ativa o botão e mostra os produtos dela
+                                e.target.classList.add('active'); 
+                                renderizarProdutos(categoria);
+                            }
                         };
                         categoriasContainer.appendChild(btn);
                     });
-                    if (categoriasUnicas.length > 0) { renderizarProdutos(categoriasUnicas[0]); }
+                    
+                    // A tela inicia com marketplaceListaEl vazio (nenhuma categoria aberta)
                 }
                 
                 // Atualiza info do Sócio Header
