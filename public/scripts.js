@@ -66,12 +66,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const tronStatus = document.getElementById('tron-status');
 
     btnConnectTron.addEventListener('click', async () => {
-        if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
-            tronStatus.textContent = "✅ Conectado: " + window.tronWeb.defaultAddress.base58;
-            btnConnectTron.style.display = 'none';
-            btnClaimTron.style.display = 'block';
+        // Verifica se a extensão TronLink existe no navegador
+        if (window.tronLink || window.tronWeb) {
+            try {
+                // Força a abertura do Pop-up da TronLink para pedir permissão ao usuário
+                if (window.tronLink && window.tronLink.request) {
+                    await window.tronLink.request({ method: 'tron_requestAccounts' });
+                }
+                
+                // Dá um pequeno tempo para a carteira injetar o endereço no site
+                setTimeout(() => {
+                    if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+                        tronStatus.textContent = "✅ Conectado: " + window.tronWeb.defaultAddress.base58;
+                        btnConnectTron.style.display = 'none';
+                        btnClaimTron.style.display = 'block';
+                    } else {
+                        alert("Carteira não encontrada. Por favor, abra a extensão TronLink, digite sua senha e tente novamente.");
+                    }
+                }, 500);
+
+            } catch (error) {
+                console.error("Erro ao conectar com a TronLink:", error);
+                alert("Conexão recusada pelo usuário ou erro na extensão.");
+            }
         } else {
-            alert("Por favor, instale a extensão TronLink no seu navegador e faça login na rede de Testes (Nile/Shasta).");
+            alert("Por favor, instale a extensão TronLink no seu navegador (Chrome/Brave).");
         }
     });
 
