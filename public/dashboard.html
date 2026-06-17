@@ -15,7 +15,6 @@
             </div>
         </header>
 
-        <!-- CARD DE SALDO COM OLHINHO E COTAÇÃO -->
         <div class="card saldo-card">
             <h2 style="display: flex; align-items: center; justify-content: center; gap: 10px;">
                 Seu Saldo <span id="toggle-saldo" style="cursor: pointer; font-size: 0.9em; filter: grayscale(100%);">👁️</span>
@@ -27,7 +26,22 @@
             </p>
         </div>
 
-        <!-- --- NOVO CARD: PROGRAMA DE INDICAÇÃO --- -->
+        <div class="card" style="border-left: 5px solid #ff0013; background: linear-gradient(145deg, #1a0505, #2a0a0a);">
+            <h2 style="color: #ff4757;">🌐 Web3: Resgate na Blockchain (Tron Testnet)</h2>
+            <p style="color: #ddd; font-size: 0.95em;">Conecte sua carteira para interagir diretamente com nosso Smart Contract na rede de testes da Tron.</p>
+            <ul style="color: #aaa; font-size: 0.9em; text-align: left; margin: 10px 0; padding-left: 20px;">
+                <li>Rendimento: <strong>1% ao dia</strong> direto na carteira.</li>
+                <li>Necessário ter a extensão <strong>TronLink</strong> instalada.</li>
+                <li>Você precisará de <strong>TRX (Testnet)</strong> para pagar a taxa de gás da rede.</li>
+            </ul>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+                <button id="btn-connect-tron" style="background-color: #ff4757; color: #fff; flex: 1;">Conectar TronLink</button>
+                <button id="btn-claim-tron" style="background-color: #2ecc71; color: #000; flex: 1; display: none;">Resgatar Rendimentos</button>
+            </div>
+            <p id="tron-status" style="color: #f1c40f; font-size: 0.85em; margin-top: 10px; text-align: center;"></p>
+        </div>
+
         <div class="card" style="border-left: 5px solid #f1c40f; background: linear-gradient(145deg, #1a1a1a, #2a2a2a);">
             <h2 style="color: #f1c40f;">🤝 Programa de Indicação</h2>
             <p style="color: #ddd; font-size: 0.95em;">Convide seus amigos e ganhem juntos! Quando alguém usar seu código no cadastro:</p>
@@ -43,7 +57,7 @@
         </div>
         
         <div class="card staking-card">
-            <h2>Staking de SolidCoins (5% ao Mês)</h2>
+            <h2>Staking de SolidCoins Plataforma (5% ao Mês)</h2>
             <div class="staking-info">
                 <span>Em Staking: <strong id="staked-amount">0.00</strong></span>
                 <span>Resgate liberado em: <strong id="unstake-date">--/--/----</strong></span>
@@ -60,7 +74,6 @@
             </div>
         </div>
 
-        <!-- CARD: CLUBE DE SÓCIOS SOLIDCOIN -->
         <div class="card" style="border-left: 5px solid #9b59b6;">
             <h2>Clube de Sócios SolidCoin</h2>
             <div style="background: #111; padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; border: 1px solid #333;">
@@ -231,7 +244,6 @@
             </div>
         </div>
 
-        <!-- RODAPÉ COM REDES SOCIAIS -->
         <footer style="text-align: center; padding: 30px 20px; margin-top: 40px; border-top: 1px solid #333;">
             <p style="color: #aaa; margin-bottom: 15px; font-size: 1.1em;">Faça parte da nossa comunidade oficial:</p>
             <div style="display: flex; justify-content: center; gap: 30px; align-items: center;">

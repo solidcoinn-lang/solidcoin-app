@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const saldoReaisEl = document.getElementById('saldo-reais');
     const cotacaoAtualEl = document.getElementById('cotacao-atual');
     const toggleSaldoBtn = document.getElementById('toggle-saldo');
-    const codigoIndicacaoEl = document.getElementById('codigo-indicacao'); // <-- NOVO ELEMENTO
+    const codigoIndicacaoEl = document.getElementById('codigo-indicacao'); 
     
     const logoutBtn = document.getElementById('logout-btn');
     const adminBtn = document.getElementById('admin-btn');
@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     let isSaldoOculto = false;
     let ultimoSaldoSC = 0;
-    let scRate = 500; // Padrão, mas atualizado pela API
+    let scRate = 500; 
 
     toggleSaldoBtn.addEventListener('click', () => {
         isSaldoOculto = !isSaldoOculto;
@@ -39,7 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const atualizarUIValores = () => {
         const saldoFormatado = ultimoSaldoSC.toFixed(2);
         const saldoReaisFormatado = (ultimoSaldoSC / scRate).toFixed(2);
-        
         if (isSaldoOculto) {
             saldoUsuarioEl.textContent = '••••••';
             saldoReaisEl.textContent = '••••••';
@@ -54,14 +53,63 @@ document.addEventListener('DOMContentLoaded', () => {
         atualizarUIValores();
     };
 
-    // Staking
+    // ==========================================
+    // --- LÓGICA WEB3: TRONLINK (SMART CONTRACT) ---
+    // ==========================================
+    const CONTRATO_SOLIDCOIN = "TEyHvpEwPVoVqBDVXKnLBJPQDU7ACoikjE"; 
+    
+    // ABI simplificada contendo apenas a função que o usuário precisa chamar
+    const ABI_SIMPLIFICADA = [{"inputs":[],"name":"claimRewards","outputs":[],"stateMutability":"nonpayable","type":"function"}];
+
+    const btnConnectTron = document.getElementById('btn-connect-tron');
+    const btnClaimTron = document.getElementById('btn-claim-tron');
+    const tronStatus = document.getElementById('tron-status');
+
+    btnConnectTron.addEventListener('click', async () => {
+        if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+            tronStatus.textContent = "✅ Conectado: " + window.tronWeb.defaultAddress.base58;
+            btnConnectTron.style.display = 'none';
+            btnClaimTron.style.display = 'block';
+        } else {
+            alert("Por favor, instale a extensão TronLink no seu navegador e faça login na rede de Testes (Nile/Shasta).");
+        }
+    });
+
+    btnClaimTron.addEventListener('click', async () => {
+        if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
+            return alert("TronLink desconectado!");
+        }
+
+        try {
+            tronStatus.textContent = "⏳ Aguardando confirmação na TronLink...";
+            
+            // Instancia o contrato usando a ABI
+            const contract = await window.tronWeb.contract(ABI_SIMPLIFICADA, CONTRATO_SOLIDCOIN);
+            
+            // Chama a função resgatar. Fee limit definido para evitar erros de Out of Energy
+            const txHash = await contract.claimRewards().send({
+                feeLimit: 150000000 // 150 TRX fee limit (Testnet)
+            });
+
+            tronStatus.textContent = "✅ Resgate enviado! Hash: " + txHash;
+            alert("Sucesso! A transação foi enviada para a blockchain Tron. Os rendimentos cairão na sua carteira TronLink em instantes.");
+
+        } catch (error) {
+            console.error(error);
+            tronStatus.textContent = "❌ Falha na transação.";
+            alert("Erro ao tentar resgatar.\nVerifique se você tem saldo em TRX (Testnet) suficiente para pagar a taxa (Gás) ou se você tem rendimentos pendentes.");
+        }
+    });
+    // ==========================================
+
+    // Staking Plataforma
     const stakedAmountEl = document.getElementById('staked-amount');
     const unstakeDateEl = document.getElementById('unstake-date');
     const stakeForm = document.getElementById('stake-form');
     const unstakeBtn = document.getElementById('unstake-btn');
     const claimRewardsBtn = document.getElementById('claim-rewards-btn');
     
-    // --- LÓGICA DOS PLANOS DE SÓCIO ---
+    // Planos de Sócio
     const planosData = {
         "Socio SolidCoin para Todos": { img: "https://i.postimg.cc/DZ39CCDv/file-000000004a7c71f98e2aedb0290f8b53.png", desc: "Ao aderir a esse plano o Sócio terá 500 SolidCoins mensais.", pix: "https://invoice.infinitepay.io/plans/solidcoin/gDRbdBuXD" },
         "Iron": { img: "https://i.postimg.cc/wMCLJm33/file-000000008d0c720e8dc3a17f05318954.png", desc: "2.750 + Bônus 10% = 3.025 SolidCoins.", pix: "https://invoice.infinitepay.io/plans/solidcoin/IzqprmCRH" },
@@ -136,7 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
         alert(data.mensagem);
         if (data.sucesso) { socioForm.reset(); socioDetalhes.style.display = 'none'; socioInstrucoes.style.display = 'none'; socioTxid.style.display='none'; socioBtn.style.display='none'; }
     });
-    // --- FIM SÓCIO ---
 
     const atualizarUIStaking = (usuario) => {
         stakedAmountEl.textContent = parseFloat(usuario.stakedAmount || 0).toFixed(2);
@@ -150,7 +197,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Atualiza custos dinâmicos baseados na cotação SC
     const atualizarCustoDinamico = (inputEl, spanCustoEl) => {
         if(!inputEl || !spanCustoEl) return;
         const v = parseFloat(inputEl.value) || 0;
@@ -197,7 +243,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 scRate = data.scRate || 500;
                 cotacaoAtualEl.textContent = scRate;
 
-                // INSERE O CÓDIGO DE INDICAÇÃO NA TELA
                 if(data.usuario.codigoIndicacao && codigoIndicacaoEl) {
                     codigoIndicacaoEl.textContent = data.usuario.codigoIndicacao;
                 }
@@ -261,7 +306,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { console.error("Erro ao carregar o dashboard:", error); }
     };
 
-    // Eventos (Formulários Básicos)
     document.getElementById('carteira-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const dados = { solanaWallet: document.getElementById('solana-wallet').value, tronWallet: document.getElementById('tron-wallet').value };
@@ -280,7 +324,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.sucesso) { document.getElementById('saque-form').reset(); carregarHistoricoSaques(); }
     });
 
-    // Depósito
     const depositoForm = document.getElementById('deposito-form');
     const depositoRede = document.getElementById('deposito-rede');
     if (depositoForm) {
