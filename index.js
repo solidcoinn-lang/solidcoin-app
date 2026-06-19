@@ -5,7 +5,7 @@ const bodyParser = require("body-parser");
 const session = require("express-session");
 const bcrypt = require("bcryptjs");
 const path = require("path");
-const crypto = require('crypto'); // Necessário para gerar os códigos aleatórios
+const crypto = require('crypto');
 
 // Importa os modelos
 const User = require('./models/User');
@@ -18,6 +18,7 @@ const SolidCoinGiftCard = require('./models/SolidCoinGiftCard');
 const Deposit = require('./models/Deposit');
 const SocioOrder = require('./models/SocioOrder'); 
 const SystemSettings = require('./models/SystemSettings'); 
+const PixWithdrawal = require('./models/PixWithdrawal'); // <-- IMPORTA O SAQUE PIX
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -174,7 +175,7 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
         const produtos = await Product.find({});
         const scRate = await getSCRate();
 
-        // Retrocompatibilidade: Se um usuário antigo logar, ele ganha um código de indicação na hora
+        // Retrocompatibilidade
         if (!user.codigoIndicacao) {
             user.codigoIndicacao = crypto.randomBytes(3).toString('hex').toUpperCase();
             await user.save();
@@ -218,7 +219,7 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
                 nome: user.nome, saldo: user.saldo, stakedAmount: user.stakedAmount, canUnstakeAt: user.canUnstakeAt,
                 solanaWallet: user.solanaWallet, tronWallet: user.tronWallet, isAdmin: user.email === ADMIN_EMAIL,
                 statusSocio: user.statusSocio, planoSocio: user.planoSocio, vencimentoSocio: user.vencimentoSocio,
-                codigoIndicacao: user.codigoIndicacao // Enviando o código para o HTML
+                codigoIndicacao: user.codigoIndicacao 
             },
             marketplace: produtos.map(p => ({
                 id: p._id, nome: p.nome, preco: p.preco, imagemUrl: p.imagemUrl, categoria: p.categoria || 'Cédulas SolidCoin'
@@ -286,7 +287,7 @@ app.post('/api/depositar', checkAuthenticated, async (req, res) => {
     }
 });
 
-// Carteiras e Saques
+// Carteiras e Saques Cripto
 app.post('/api/salvar-carteira', checkAuthenticated, async (req, res) => {
     try {
         const { solanaWallet, tronWallet } = req.body;
@@ -294,7 +295,7 @@ app.post('/api/salvar-carteira', checkAuthenticated, async (req, res) => {
             solanaWallet: solanaWallet || '', 
             tronWallet: tronWallet || '' 
         });
-        res.json({ sucesso: true, mensagem: "Carteiras updated com sucesso!" });
+        res.json({ sucesso: true, mensagem: "Carteiras atualizadas com sucesso!" });
     } catch (error) { 
         res.status(500).json({ sucesso: false, mensagem: "Erro ao salvar carteiras." }); 
     }
@@ -310,6 +311,11 @@ app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
         if (user.saldo < valor) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente." });
         
         const carteiraParaSaque = user.solanaWallet ? `Solana: ${user.solanaWallet}` : `Tron: ${user.tronWallet}`;
+        
+        // DEDUZ O SALDO DO USUÁRIO NA HORA DA SOLICITAÇÃO
+        user.saldo -= valor;
+        await user.save();
+
         const novoSaque = new Withdrawal({ 
             userId: user._id, 
             nomeUsuario: user.nome, 
@@ -319,17 +325,83 @@ app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
             status: 'Pendente'
         });
         
-        await novoSaque.save();
+        const txSaque = new Transaction({ userId: user._id, tipo: 'Saque Cripto Solicitado', descricao: `Rede Cripto`, valor: -valor });
+
+        await Promise.all([novoSaque.save(), txSaque.save()]);
         res.json({ sucesso: true, mensagem: "Solicitação de saque enviada!" });
     } catch (error) { 
         res.status(500).json({ sucesso: false, mensagem: "Erro ao solicitar saque." }); 
     }
 });
 
+// --- ROTA DE SAQUE VIA PIX (EXCLUSIVO VIP) ---
+app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
+    try {
+        const { valorSC, tipoChave, chavePix } = req.body;
+        const valorNum = parseFloat(valorSC);
+
+        if (!valorNum || valorNum <= 0 || !tipoChave || !chavePix) {
+            return res.status(400).json({ sucesso: false, mensagem: "Dados inválidos." });
+        }
+
+        const user = await User.findById(req.session.user.id);
+
+        // Trava VIP
+        const planosPermitidos = ['Prata', 'Ouro', 'Diamante'];
+        if (user.statusSocio !== 'Ativo' || !planosPermitidos.includes(user.planoSocio)) {
+            return res.status(403).json({ sucesso: false, mensagem: "Saque via Pix é um benefício exclusivo para Sócios Prata, Ouro e Diamante." });
+        }
+
+        if (user.saldo < valorNum) {
+            return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente em SolidCoins." });
+        }
+
+        const scRate = await getSCRate();
+        const taxaSC = valorNum * 0.05; // 5% de taxa
+        const valorLiquidoSC = valorNum - taxaSC;
+        const valorBRL = valorLiquidoSC / scRate;
+
+        // DEDUZ O SALDO DO USUÁRIO NA HORA DA SOLICITAÇÃO
+        user.saldo -= valorNum;
+
+        const novoSaquePix = new PixWithdrawal({
+            userId: user._id, 
+            nomeUsuario: user.nome, 
+            emailUsuario: user.email,
+            chavePix: chavePix, 
+            tipoChavePix: tipoChave,
+            valorSC: valorNum, 
+            taxaSC: taxaSC, 
+            valorBRL: valorBRL, 
+            status: 'Pendente'
+        });
+
+        const txUser = new Transaction({ 
+            userId: user._id, 
+            tipo: 'Saque Pix Solicitado', 
+            descricao: `Chave: ${chavePix} | Taxa: ${taxaSC.toFixed(2)} SC`, 
+            valor: -valorNum 
+        });
+
+        await Promise.all([user.save(), novoSaquePix.save(), txUser.save()]);
+        res.json({ sucesso: true, mensagem: "Processando Saque prazo 1 dia." });
+    } catch (error) { 
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao processar saque via Pix." }); 
+    }
+});
+
 app.get('/api/meus-saques', checkAuthenticated, async (req, res) => {
     try {
-        const saques = await Withdrawal.find({ userId: req.session.user.id }).sort({ data: -1 });
-        res.json({ sucesso: true, saques });
+        const saquesCripto = await Withdrawal.find({ userId: req.session.user.id }).lean();
+        const saquesPix = await PixWithdrawal.find({ userId: req.session.user.id }).lean();
+        
+        // Mapeia para manter compatibilidade com o Frontend HTML
+        const historico = [
+            ...saquesCripto.map(s => ({ ...s, valor: s.valor, solanaWallet: s.solanaWallet })),
+            ...saquesPix.map(s => ({ ...s, valor: s.valorSC, solanaWallet: `PIX: ${s.chavePix} (Recebe R$ ${s.valorBRL.toFixed(2)})` }))
+        ].sort((a, b) => b.data - a.data);
+
+        res.json({ sucesso: true, saques: historico });
     } catch (error) { 
         res.status(500).json({ sucesso: false, mensagem: "Erro ao buscar saques." });
     }
@@ -435,6 +507,7 @@ app.post('/api/staking/claim-rewards', checkAuthenticated, async (req, res) => {
     }
 });
 
+// --- ROTA DE COMPRAR GIFT CARD EXTERNO ---
 app.post('/api/giftcard/comprar', checkAuthenticated, async (req, res) => {
     try {
         const { tipo, valorReais } = req.body;
@@ -690,14 +763,14 @@ app.get('/api/admin/pedidos-pendentes', isAdmin, async (req, res) => {
         const recharges = await RechargeOrder.find({ status: 'Pendente' }).sort({ data: 1 });
         const depositos = await Deposit.find({ status: 'Pendente' }).sort({ data: 1 });
         const socios = await SocioOrder.find({ status: 'Pendente' }).sort({ data: 1 });
+        const saquesPix = await PixWithdrawal.find({ status: 'Pendente' }).sort({ data: 1 }); // <-- BUSCA OS SAQUES PIX
         
-        res.json({ sucesso: true, saques, gifts, recharges, depositos, socios });
+        res.json({ sucesso: true, saques, gifts, recharges, depositos, socios, saquesPix });
     } catch (error) { 
         res.status(500).json({ sucesso: false, mensagem: "Erro ao buscar pedidos." }); 
     }
 });
 
-// --- ROTA ATUALIZADA: PROCESSAR SÓCIO (INCLUI 5% DE COMISSÃO DE AFILIADO) ---
 app.post('/api/admin/processar-socio', isAdmin, async (req, res) => {
     try {
         const { orderId, acao } = req.body;
@@ -715,7 +788,7 @@ app.post('/api/admin/processar-socio', isAdmin, async (req, res) => {
             user.saldo += ordem.moedasReceber;
             user.statusSocio = 'Ativo';
             user.planoSocio = ordem.plano;
-            user.vencimentoSocio = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 dias
+            user.vencimentoSocio = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); 
             ordem.status = 'Aprovado';
 
             const transacoesToSave = [
@@ -724,37 +797,29 @@ app.post('/api/admin/processar-socio', isAdmin, async (req, res) => {
             ];
             const updatesToSave = [user.save(), ordem.save()];
 
-            // Lógica de 5% de Comissão para quem convidou
             if (user.indicadoPor) {
                 const referrer = await User.findById(user.indicadoPor);
                 if (referrer) {
                     const comissao = ordem.moedasReceber * 0.05;
-                    
                     if (admin.saldo >= comissao) {
                         admin.saldo -= comissao;
                         referrer.saldo += comissao;
-                        
-                        transacoesToSave.push(new Transaction({ userId: referrer._id, tipo: 'Comissão de Indicação (Sócio)', descricao: `5% do plano de ${user.nome}`, valor: comissao }));
+                        transacoesToSave.push(new Transaction({ userId: referrer._id, tipo: 'Comissão de Indicação', descricao: `5% do plano de ${user.nome}`, valor: comissao }));
                         transacoesToSave.push(new Transaction({ userId: admin._id, tipo: 'Pagamento de Comissão', descricao: `Para ${referrer.nome}`, valor: -comissao }));
                         updatesToSave.push(referrer.save());
                     }
                 }
             }
-
             updatesToSave.push(admin.save());
             for (let tx of transacoesToSave) updatesToSave.push(tx.save());
-
             await Promise.all(updatesToSave);
 
             res.json({ sucesso: true, mensagem: `Plano aprovado! O usuário agora é Sócio ${ordem.plano}.` });
         } else {
-            ordem.status = 'Rejeitado'; 
-            await ordem.save();
+            ordem.status = 'Rejeitado'; await ordem.save();
             res.json({ sucesso: true, mensagem: "Assinatura rejeitada." });
         }
-    } catch (error) { 
-        res.status(500).json({ sucesso: false }); 
-    }
+    } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
 app.post('/api/admin/processar-deposito', isAdmin, async (req, res) => {
@@ -798,23 +863,56 @@ app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
         
         if (acao === 'aprovar') {
             const user = await User.findById(saque.userId);
-            if (user.saldo < saque.valor){
-                saque.status = 'Rejeitado';
-                await saque.save();
-                return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente. Rejeitado." });
-            }
-            user.saldo -= saque.valor;
             saque.status = 'Aprovado';
-            const transacao = new Transaction({ userId: user._id, tipo: 'Saque Aprovado', descricao: `Saque de ${saque.valor.toFixed(2)} para carteira`, valor: -saque.valor });
-            await Promise.all([user.save(), saque.save(), transacao.save()]);
-            res.json({ sucesso: true, mensagem: `Saque APROVADO.`});
+            // Saldo do usuário já foi deduzido na criação do saque
+            await Promise.all([saque.save()]);
+            res.json({ sucesso: true, mensagem: `Saque Cripto APROVADO.`});
         } else if (acao === 'rejeitar') {
+            const user = await User.findById(saque.userId);
+            user.saldo += saque.valor; // Devolve o saldo pro usuário
             saque.status = 'Rejeitado';
-            await saque.save();
-            res.json({ sucesso: true, mensagem: "Saque REJEITADO." });
+            await Promise.all([user.save(), saque.save(), new Transaction({ userId: user._id, tipo: 'Estorno de Saque', descricao: 'Cripto', valor: saque.valor }).save()]);
+            res.json({ sucesso: true, mensagem: "Saque REJEITADO e moedas devolvidas ao usuário." });
         }
     } catch (error) { 
         res.status(500).json({ sucesso: false, mensagem: "Erro ao processar saque." }); 
+    }
+});
+
+// --- ROTA: PROCESSAR SAQUE PIX NO ADM ---
+app.post('/api/admin/processar-saque-pix', isAdmin, async (req, res) => {
+    try {
+        const { withdrawalId, acao, txId } = req.body;
+        const saque = await PixWithdrawal.findById(withdrawalId);
+        
+        if (!saque || saque.status !== 'Pendente') return res.status(404).json({ sucesso: false, mensagem: "Solicitação não encontrada." });
+        
+        if (acao === 'aprovar') {
+            if(!txId) return res.status(400).json({ sucesso: false, mensagem: "O ID da transferência Pix é obrigatório." });
+            
+            saque.status = 'Aprovado';
+            saque.txId = txId;
+            
+            // Opcional: Moedas sacadas voltam pro CEO
+            const admin = await User.findOne({email: ADMIN_EMAIL});
+            admin.saldo += saque.valorSC;
+
+            const txAdmin = new Transaction({ userId: admin._id, tipo: 'Pagamento Saque Pix', descricao: `Para ${saque.nomeUsuario}`, valor: saque.valorSC }); 
+
+            await Promise.all([saque.save(), admin.save(), txAdmin.save()]);
+            res.json({ sucesso: true, mensagem: `Saque Pix APROVADO e ID salvo com sucesso.`});
+        } else if (acao === 'rejeitar') {
+            const user = await User.findById(saque.userId);
+            user.saldo += saque.valorSC; // Estorna SC para o usuário
+            saque.status = 'Rejeitado';
+            
+            const txEstorno = new Transaction({ userId: user._id, tipo: 'Estorno Saque Pix', descricao: `Saque rejeitado pelo ADM`, valor: saque.valorSC });
+            await Promise.all([user.save(), saque.save(), txEstorno.save()]);
+            
+            res.json({ sucesso: true, mensagem: "Saque Pix REJEITADO e SC estornados para o usuário." });
+        }
+    } catch (error) { 
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao processar saque pix." }); 
     }
 });
 

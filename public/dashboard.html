@@ -15,7 +15,6 @@
             </div>
         </header>
 
-        <!-- CARD DE SALDO COM OLHINHO E COTAÇÃO -->
         <div class="card saldo-card">
             <h2 style="display: flex; align-items: center; justify-content: center; gap: 10px;">
                 Seu Saldo <span id="toggle-saldo" style="cursor: pointer; font-size: 0.9em; filter: grayscale(100%);">👁️</span>
@@ -27,7 +26,6 @@
             </p>
         </div>
 
-        <!-- --- NOVO CARD: WEB3 / TRON TESTNET --- -->
         <div class="card" style="border-left: 5px solid #ff0013; background: linear-gradient(145deg, #1a0505, #2a0a0a);">
             <h2 style="color: #ff4757;">🌐 Resgate aqui suas SolidCoins de rendimento da Carteira Tron</h2>
             <p style="color: #ddd; font-size: 0.95em;">Conecte sua carteira para interagir diretamente com nosso Smart Contract na rede de testes da Tron.</p>
@@ -44,7 +42,6 @@
             <p id="tron-status" style="color: #f1c40f; font-size: 0.85em; margin-top: 10px; text-align: center;"></p>
         </div>
 
-        <!-- CARD: PROGRAMA DE INDICAÇÃO -->
         <div class="card" style="border-left: 5px solid #f1c40f; background: linear-gradient(145deg, #1a1a1a, #2a2a2a);">
             <h2 style="color: #f1c40f;">🤝 Programa de Indicação</h2>
             <p style="color: #ddd; font-size: 0.95em;">Convide seus amigos e ganhem juntos! Quando alguém usar seu código no cadastro:</p>
@@ -59,25 +56,6 @@
             </div>
         </div>
         
-        <div class="card staking-card">
-            <h2>Staking de SolidCoins Plataforma (5% ao Mês)</h2>
-            <div class="staking-info">
-                <span>Em Staking: <strong id="staked-amount">0.00</strong></span>
-                <span>Resgate liberado em: <strong id="unstake-date">--/--/----</strong></span>
-            </div>
-            <div class="card-group">
-                <form id="stake-form" class="staking-form">
-                    <input type="number" id="stake-valor" placeholder="Valor para Staking" step="0.01" required>
-                    <button type="submit">Colocar em Staking</button>
-                </form>
-                <div class="staking-actions">
-                     <button id="unstake-btn" class="secondary-btn">Resgatar Tudo</button>
-                     <button id="claim-rewards-btn">Reivindicar Recompensas</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- CARD: CLUBE DE SÓCIOS SOLIDCOIN -->
         <div class="card" style="border-left: 5px solid #9b59b6;">
             <h2>Clube de Sócios SolidCoin</h2>
             <div style="background: #111; padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; border: 1px solid #333;">
@@ -119,22 +97,61 @@
             </form>
         </div>
 
+        <div class="card staking-card">
+            <h2>Staking de SolidCoins Plataforma (5% ao Mês)</h2>
+            <div class="staking-info">
+                <span>Em Staking: <strong id="staked-amount">0.00</strong></span>
+                <span>Resgate liberado em: <strong id="unstake-date">--/--/----</strong></span>
+            </div>
+            <div class="card-group">
+                <form id="stake-form" class="staking-form">
+                    <input type="number" id="stake-valor" placeholder="Valor para Staking" step="0.01" required>
+                    <button type="submit">Colocar em Staking</button>
+                </form>
+                <div class="staking-actions">
+                     <button id="unstake-btn" class="secondary-btn">Resgatar Tudo</button>
+                     <button id="claim-rewards-btn">Reivindicar Recompensas</button>
+                </div>
+            </div>
+        </div>
+
         <div class="card-group">
-            <div class="card">
-                <h2>Minhas Carteiras para Saque</h2>
-                <form id="carteira-form">
-                    <label style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Rede Solana (SOL):</label>
-                    <input type="text" id="solana-wallet" placeholder="Endereço da sua carteira Solana">
-                    <label style="display:block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Rede Tron (TRX / TRC-20):</label>
-                    <input type="text" id="tron-wallet" placeholder="Endereço da sua carteira Tron">
-                    <button type="submit">Salvar Carteiras</button>
+            <div class="card" style="border-left: 5px solid #00b894; background: linear-gradient(145deg, #0a1a14, #1a2a24);">
+                <h2 style="color: #00b894;">Saque via Pix <span style="font-size: 0.5em; background: #d4af37; color: #000; padding: 3px 8px; border-radius: 4px; vertical-align: middle; margin-left: 5px;">VIP</span></h2>
+                <p style="font-size: 0.9em; color: #ccc; margin-top: -10px;">Exclusivo para Sócios Prata, Ouro e Diamante. Taxa de conversão: 5%.</p>
+                <form id="saque-pix-form">
+                    <input type="number" id="pix-valor-sc" placeholder="Quantidade de SolidCoins para sacar" step="0.01" required>
+                    <select id="pix-tipo-chave" required>
+                        <option value="" disabled selected>Tipo de Chave Pix</option>
+                        <option value="CPF">CPF / CNPJ</option>
+                        <option value="Celular">Celular</option>
+                        <option value="E-mail">E-mail</option>
+                        <option value="Aleatória">Chave Aleatória</option>
+                    </select>
+                    <input type="text" id="pix-chave" placeholder="Digite sua Chave Pix" required>
+                    
+                    <div style="background-color: #050f0c; padding: 10px; border-radius: 6px; margin: 10px 0; border: 1px solid #00b894;">
+                        <p style="margin: 0; font-size: 0.85em; color: #aaa;">Taxa (5%): <span id="pix-taxa-sc">0.00</span> SC</p>
+                        <p style="margin: 5px 0 0 0; font-weight: bold; color: #00b894;">Você receberá na conta: R$ <span id="pix-receber-brl">0.00</span></p>
+                    </div>
+
+                    <button type="submit" style="background-color: #00b894; color: #fff;">Solicitar Saque Pix</button>
                 </form>
             </div>
+
             <div class="card">
-                <h2>Sacar SolidCoins</h2>
+                <h2>Saque via Cripto (SOL/TRX)</h2>
+                <p style="font-size: 0.9em; color: #aaa; margin-top: -10px;">Transfira para suas carteiras salvas.</p>
                 <form id="saque-form">
                     <input type="number" id="valor-saque" placeholder="Valor do saque" step="0.01" required>
-                    <button type="submit">Solicitar Saque</button>
+                    <button type="submit">Solicitar Saque Cripto</button>
+                </form>
+                
+                <h3 style="margin-top: 20px; font-size: 1.1em;">Carteiras Salvas</h3>
+                <form id="carteira-form">
+                    <input type="text" id="solana-wallet" placeholder="Endereço Solana (SOL)">
+                    <input type="text" id="tron-wallet" placeholder="Endereço Tron (TRX / TRC-20)">
+                    <button type="submit" class="secondary-btn">Salvar Carteiras</button>
                 </form>
             </div>
         </div>
@@ -174,15 +191,6 @@
             </div>
 
             <div class="card">
-                <h2>Resgatar Gift Card SolidCoin</h2>
-                <p style="font-size: 0.9em; color: #aaa;">Ganhou um código promocional? Resgate suas moedas aqui!</p>
-                <form id="resgatar-gift-solidcoin-form">
-                    <input type="text" id="codigo-gift-solidcoin" placeholder="Ex: SOLID-ABCD1234" required style="text-transform: uppercase;">
-                    <button type="submit">Resgatar Código</button>
-                </form>
-            </div>
-
-            <div class="card">
                 <h2>Comprar Gift Card</h2>
                 <p style="font-size: 0.9em; color: #aaa;">O PIN chegará no seu extrato.</p>
                 <form id="giftcard-form">
@@ -209,6 +217,15 @@
                     <input type="text" id="recharge-celular" placeholder="Número (Ex: 11999999999)" required>
                     <p style="font-size: 0.9em; font-weight: bold; color: #d4af37;">Custo: <span id="recharge-custo">0</span> SC</p>
                     <button type="submit">Fazer Recarga</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Resgatar Gift Card SolidCoin</h2>
+                <p style="font-size: 0.9em; color: #aaa;">Ganhou um código promocional? Resgate suas moedas aqui!</p>
+                <form id="resgatar-gift-solidcoin-form">
+                    <input type="text" id="codigo-gift-solidcoin" placeholder="Ex: SOLID-ABCD1234" required style="text-transform: uppercase;">
+                    <button type="submit">Resgatar Código</button>
                 </form>
             </div>
         </div>
@@ -240,7 +257,7 @@
                 <div class="extrato-container">
                     <table id="saques-tabela">
                          <thead>
-                            <tr><th>Data</th><th>Valor</th><th>Carteira</th><th>Status</th></tr>
+                            <tr><th>Data</th><th>Valor</th><th>Detalhes do Saque</th><th>Status</th></tr>
                         </thead>
                         <tbody id="saques-lista"></tbody>
                     </table>
@@ -248,7 +265,6 @@
             </div>
         </div>
 
-        <!-- RODAPÉ COM REDES SOCIAIS -->
         <footer style="text-align: center; padding: 30px 20px; margin-top: 40px; border-top: 1px solid #333;">
             <p style="color: #aaa; margin-bottom: 15px; font-size: 1.1em;">Faça parte da nossa comunidade oficial:</p>
             <div style="display: flex; justify-content: center; gap: 30px; align-items: center;">

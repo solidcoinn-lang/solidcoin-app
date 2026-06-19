@@ -58,7 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     const CONTRATO_SOLIDCOIN = "TEyHvpEwPVoVqBDVXKnLBJPQDU7ACoikjE"; 
     
-    // ABI simplificada contendo apenas a função que o usuário precisa chamar
     const ABI_SIMPLIFICADA = [{"inputs":[],"name":"claimRewards","outputs":[],"stateMutability":"nonpayable","type":"function"}];
 
     const btnConnectTron = document.getElementById('btn-connect-tron');
@@ -66,15 +65,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const tronStatus = document.getElementById('tron-status');
 
     btnConnectTron.addEventListener('click', async () => {
-        // Verifica se a extensão TronLink existe no navegador
         if (window.tronLink || window.tronWeb) {
             try {
-                // Força a abertura do Pop-up da TronLink para pedir permissão ao usuário
                 if (window.tronLink && window.tronLink.request) {
                     await window.tronLink.request({ method: 'tron_requestAccounts' });
                 }
-                
-                // Dá um pequeno tempo para a carteira injetar o endereço no site
                 setTimeout(() => {
                     if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
                         tronStatus.textContent = "✅ Conectado: " + window.tronWeb.defaultAddress.base58;
@@ -101,15 +96,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             tronStatus.textContent = "⏳ Aguardando confirmação na TronLink...";
-            
-            // Instancia o contrato usando a ABI
             const contract = await window.tronWeb.contract(ABI_SIMPLIFICADA, CONTRATO_SOLIDCOIN);
-            
-            // Chama a função resgatar. Fee limit definido para evitar erros de Out of Energy
-            const txHash = await contract.claimRewards().send({
-                feeLimit: 150000000 // 150 TRX fee limit (Testnet)
-            });
-
+            const txHash = await contract.claimRewards().send({ feeLimit: 150000000 });
             tronStatus.textContent = "✅ Resgate enviado! Hash: " + txHash;
             alert("Sucesso! A transação foi enviada para a blockchain Tron. Os rendimentos cairão na sua carteira TronLink em instantes.");
 
@@ -119,16 +107,54 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("Erro ao tentar resgatar.\nVerifique se você tem saldo em TRX (Testnet) suficiente para pagar a taxa (Gás) ou se você tem rendimentos pendentes.");
         }
     });
-    // ==========================================
 
-    // Staking Plataforma
+    // --- NOVA LÓGICA: SAQUE PIX VIP ---
+    const pixValInput = document.getElementById('pix-valor-sc');
+    const pixTaxaSc = document.getElementById('pix-taxa-sc');
+    const pixReceberBrl = document.getElementById('pix-receber-brl');
+    
+    const atualizarCalculoPix = () => {
+        const v = parseFloat(pixValInput.value) || 0;
+        const taxa = v * 0.05;
+        const liquido = v - taxa;
+        pixTaxaSc.textContent = taxa.toFixed(2);
+        pixReceberBrl.textContent = (liquido / scRate).toFixed(2);
+    };
+
+    if (pixValInput) {
+        pixValInput.addEventListener('input', atualizarCalculoPix);
+    }
+
+    document.getElementById('saque-pix-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const valorSC = document.getElementById('pix-valor-sc').value;
+        const tipoChave = document.getElementById('pix-tipo-chave').value;
+        const chavePix = document.getElementById('pix-chave').value;
+        
+        if (!confirm(`Confirmar Saque Pix?\nValor Bruto: ${valorSC} SC\nTaxa: 5%\nChave: ${chavePix}`)) return;
+        
+        const response = await fetch('/api/solicitar-saque-pix', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ valorSC, tipoChave, chavePix })
+        });
+        const data = await response.json();
+        alert(data.mensagem);
+        if (data.sucesso) { 
+            document.getElementById('saque-pix-form').reset(); 
+            atualizarCalculoPix();
+            carregarHistoricoSaques(); 
+            carregarDashboard(true); // Atualiza saldo
+        }
+    });
+    // ---------------------------------
+
     const stakedAmountEl = document.getElementById('staked-amount');
     const unstakeDateEl = document.getElementById('unstake-date');
     const stakeForm = document.getElementById('stake-form');
     const unstakeBtn = document.getElementById('unstake-btn');
     const claimRewardsBtn = document.getElementById('claim-rewards-btn');
     
-    // Planos de Sócio
     const planosData = {
         "Socio SolidCoin para Todos": { img: "https://i.postimg.cc/DZ39CCDv/file-000000004a7c71f98e2aedb0290f8b53.png", desc: "Ao aderir a esse plano o Sócio terá 500 SolidCoins mensais.", pix: "https://invoice.infinitepay.io/plans/solidcoin/gDRbdBuXD" },
         "Iron": { img: "https://i.postimg.cc/wMCLJm33/file-000000008d0c720e8dc3a17f05318954.png", desc: "2.750 + Bônus 10% = 3.025 SolidCoins.", pix: "https://invoice.infinitepay.io/plans/solidcoin/IzqprmCRH" },
@@ -246,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
             data.saques.forEach(s => {
                 const tr = document.createElement('tr');
                 const dataFormatada = new Date(s.data).toLocaleString('pt-BR');
-                tr.innerHTML = `<td>${dataFormatada}</td><td>${s.valor.toFixed(2)}</td><td><small>${s.solanaWallet}</small></td><td><span class="status-${s.status.toLowerCase()}">${s.status}</span></td>`;
+                tr.innerHTML = `<td>${dataFormatada}</td><td>${s.valor.toFixed(2)} SC</td><td style="font-size: 0.85em; word-break: break-all;">${s.solanaWallet}</td><td><span class="status-${s.status.toLowerCase()}">${s.status}</span></td>`;
                 saquesListaEl.appendChild(tr);
             });
         } else { saquesListaEl.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhum saque solicitado.</td></tr>'; }
@@ -262,12 +288,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 scRate = data.scRate || 500;
                 cotacaoAtualEl.textContent = scRate;
 
+                atualizarCalculoPix(); // Força update do Pix VIP
+                atualizarCustoDinamico(document.getElementById('gift-valor'), document.getElementById('gift-custo'));
+                atualizarCustoDinamico(document.getElementById('recharge-valor'), document.getElementById('recharge-custo'));
+
                 if(data.usuario.codigoIndicacao && codigoIndicacaoEl) {
                     codigoIndicacaoEl.textContent = data.usuario.codigoIndicacao;
                 }
-
-                atualizarCustoDinamico(document.getElementById('gift-valor'), document.getElementById('gift-custo'));
-                atualizarCustoDinamico(document.getElementById('recharge-valor'), document.getElementById('recharge-custo'));
 
                 if (!isUpdate) { 
                     nomeUsuarioEl.textContent = data.usuario.nome;
@@ -340,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!sol && !tron) return alert('Salve pelo menos uma carteira primeiro.');
         const response = await fetch('/api/solicitar-saque', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valor }) });
         const data = await response.json(); alert(data.mensagem);
-        if (data.sucesso) { document.getElementById('saque-form').reset(); carregarHistoricoSaques(); }
+        if (data.sucesso) { document.getElementById('saque-form').reset(); carregarHistoricoSaques(); carregarDashboard(true); }
     });
 
     const depositoForm = document.getElementById('deposito-form');

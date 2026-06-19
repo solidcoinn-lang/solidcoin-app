@@ -1,4 +1,4 @@
-let todosUsuarios = []; // Variável global para guardar a lista e permitir a pesquisa rápida
+let todosUsuarios = []; 
 
 document.addEventListener('DOMContentLoaded', () => {
     const logoutBtn = document.getElementById('logout-btn');
@@ -9,7 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Evento de Pesquisa de Usuários em Tempo Real
     const pesquisaInput = document.getElementById('pesquisa-usuario');
     if (pesquisaInput) {
         pesquisaInput.addEventListener('input', (e) => {
@@ -27,7 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.carregarUsuarios();
 });
 
-// --- FUNÇÕES DE USUÁRIOS E PESQUISA ---
 window.carregarUsuarios = async () => {
     try {
         const res = await fetch('/api/admin/usuarios');
@@ -38,9 +36,7 @@ window.carregarUsuarios = async () => {
             document.getElementById('total-usuarios').textContent = todosUsuarios.length;
             renderizarListaUsuarios(todosUsuarios);
         }
-    } catch (e) {
-        console.error("Erro ao carregar lista de usuários:", e);
-    }
+    } catch (e) { console.error("Erro ao carregar lista de usuários:", e); }
 };
 
 const renderizarListaUsuarios = (usuarios) => {
@@ -82,21 +78,48 @@ window.alterarSenhaUsuario = async (userId, nomeUser) => {
         });
         const data = await res.json();
         alert(data.mensagem);
-    } catch (e) {
-        alert("Erro ao redefinir a senha do usuário.");
-    }
+    } catch (e) { alert("Erro ao redefinir a senha do usuário."); }
 };
 
-// --- FUNÇÕES DOS OUTROS PAINÉIS ---
 window.carregarPendentes = async () => {
     try {
         const res = await fetch('/api/admin/pedidos-pendentes');
         if (res.status === 401 || res.status === 403) { window.location.href = '/index.html'; return; }
-        
         const data = await res.json();
         
         if (data.sucesso) {
-            // SÓCIOS PENDENTES
+            
+            // --- SAQUES PIX VIP ---
+            const saquesPixList = document.getElementById('saques-pix-lista');
+            if (saquesPixList) {
+                saquesPixList.innerHTML = '';
+                if (data.saquesPix && data.saquesPix.length === 0) {
+                    saquesPixList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #888;">Nenhum saque Pix pendente.</td></tr>';
+                } else if (data.saquesPix) {
+                    data.saquesPix.forEach(saq => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${new Date(saq.data).toLocaleString('pt-BR')}</td>
+                            <td>${saq.nomeUsuario} <br><small style="color: #888;">${saq.emailUsuario}</small></td>
+                            <td><strong style="color:#00b894">${saq.tipoChavePix}</strong><br>${saq.chavePix}</td>
+                            <td style="font-size: 0.9em;">
+                                Bruto: ${saq.valorSC.toFixed(2)} SC<br>
+                                Taxa: -${saq.taxaSC.toFixed(2)} SC<br>
+                                <strong style="color: #00b894;">Depositar: R$ ${saq.valorBRL.toFixed(2)}</strong>
+                            </td>
+                            <td>
+                                <input type="text" id="txid-pix-${saq._id}" placeholder="ID da Transação" class="input-admin" style="margin-bottom: 5px; width: 100%; box-sizing: border-box; font-size: 0.85em; padding: 8px;">
+                                <div style="display: flex; gap: 5px;">
+                                    <button class="aprovar-btn" style="flex: 1;" onclick="processarSaquePix('${saq._id}', 'aprovar')">Aprovar</button>
+                                    <button class="rejeitar-btn" style="flex: 1;" onclick="processarSaquePix('${saq._id}', 'rejeitar')">Rejeitar</button>
+                                </div>
+                            </td>
+                        `;
+                        saquesPixList.appendChild(tr);
+                    });
+                }
+            }
+
             const sociosList = document.getElementById('socios-lista');
             if (sociosList) {
                 sociosList.innerHTML = '';
@@ -124,7 +147,6 @@ window.carregarPendentes = async () => {
                 }
             }
 
-            // DEPÓSITOS PENDENTES
             const depositosList = document.getElementById('depositos-lista');
             if (depositosList) {
                 depositosList.innerHTML = '';
@@ -149,7 +171,6 @@ window.carregarPendentes = async () => {
                 }
             }
 
-            // SAQUES
             const saquesList = document.getElementById('saques-lista');
             if (saquesList) {
                 saquesList.innerHTML = '';
@@ -172,7 +193,6 @@ window.carregarPendentes = async () => {
                 }
             }
 
-            // GIFT CARDS
             const giftsList = document.getElementById('gifts-lista');
             if (giftsList) {
                 giftsList.innerHTML = '';
@@ -199,7 +219,6 @@ window.carregarPendentes = async () => {
                 }
             }
 
-            // RECARGAS
             const rechargesList = document.getElementById('recharges-lista');
             if (rechargesList) {
                 rechargesList.innerHTML = '';
@@ -310,9 +329,34 @@ window.processarDeposito = async (id, acao) => {
 };
 
 window.processarSaque = async (id, acao) => {
-    if (acao === 'rejeitar' && !confirm('Tem certeza que deseja rejeitar este saque? (As moedas NÃO são devolvidas automaticamente neste caso)')) return;
+    if (acao === 'rejeitar' && !confirm('Tem certeza que deseja rejeitar este saque? (As moedas serão devolvidas para o usuário)')) return;
     const res = await fetch('/api/admin/processar-saque', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ withdrawalId: id, acao }) });
     const data = await res.json(); alert(data.mensagem); if(data.sucesso) window.carregarPendentes();
+};
+
+// --- NOVA FUNÇÃO: PROCESSAR SAQUE PIX ---
+window.processarSaquePix = async (id, acao) => {
+    let txId = '';
+    if (acao === 'aprovar') {
+        txId = document.getElementById(`txid-pix-${id}`).value;
+        if (!txId) return alert('Você precisa digitar o ID da Transferência / Comprovante Pix antes de aprovar!');
+        if (!confirm('Confirma que o Pix foi enviado e deseja aprovar este saque?')) return;
+    } else {
+        if (!confirm('Tem certeza que deseja rejeitar este saque Pix? As SolidCoins retornarão para o usuário.')) return;
+    }
+
+    try {
+        const res = await fetch('/api/admin/processar-saque-pix', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ withdrawalId: id, acao, txId })
+        });
+        const data = await res.json();
+        alert(data.mensagem);
+        if (data.sucesso) window.carregarPendentes();
+    } catch (e) {
+        alert('Erro ao processar saque pix.');
+    }
 };
 
 window.processarGiftCard = async (id, acao) => {
