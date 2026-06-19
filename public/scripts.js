@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cotacaoAtualEl = document.getElementById('cotacao-atual');
     const toggleSaldoBtn = document.getElementById('toggle-saldo');
     const codigoIndicacaoEl = document.getElementById('codigo-indicacao'); 
+    const limiteSaqueUsuarioEl = document.getElementById('limite-saque-usuario'); // <-- NOVO ELEMENTO DO LIMITE
     
     const logoutBtn = document.getElementById('logout-btn');
     const adminBtn = document.getElementById('admin-btn');
@@ -28,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     let isSaldoOculto = false;
     let ultimoSaldoSC = 0;
+    let ultimoLimiteSaqueSC = 0; // <-- NOVA INTEGRACAO
     let scRate = 500; 
 
     toggleSaldoBtn.addEventListener('click', () => {
@@ -39,17 +41,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const atualizarUIValores = () => {
         const saldoFormatado = ultimoSaldoSC.toFixed(2);
         const saldoReaisFormatado = (ultimoSaldoSC / scRate).toFixed(2);
+        
         if (isSaldoOculto) {
             saldoUsuarioEl.textContent = '••••••';
             saldoReaisEl.textContent = '••••••';
+            limiteSaqueUsuarioEl.textContent = '••••••'; // <-- OCULTA O LIMITE NO OLHINHO
         } else {
             saldoUsuarioEl.textContent = saldoFormatado;
             saldoReaisEl.textContent = saldoReaisFormatado;
+            limiteSaqueUsuarioEl.textContent = ultimoLimiteSaqueSC.toFixed(2); // <-- REVELA O LIMITE
         }
     };
 
-    const atualizarSaldo = (novoSaldo) => { 
+    const atualizarSaldo = (novoSaldo, novoLimite) => { 
         ultimoSaldoSC = parseFloat(novoSaldo || 0);
+        ultimoLimiteSaqueSC = parseFloat(novoLimite || 0); // <-- ATUALIZA O LIMITE
         atualizarUIValores();
     };
 
@@ -108,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- NOVA LÓGICA: SAQUE PIX VIP ---
+    // --- LÓGICA: SAQUE PIX VIP ---
     const pixValInput = document.getElementById('pix-valor-sc');
     const pixTaxaSc = document.getElementById('pix-taxa-sc');
     const pixReceberBrl = document.getElementById('pix-receber-brl');
@@ -131,6 +137,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const tipoChave = document.getElementById('pix-tipo-chave').value;
         const chavePix = document.getElementById('pix-chave').value;
         
+        if (parseFloat(valorSC) > ultimoLimiteSaqueSC) {
+            return alert(`Saque Bloqueado!\n\nSeu limite de saque disponível no momento é de ${ultimoLimiteSaqueSC.toFixed(2)} SC.`);
+        }
+        
         if (!confirm(`Confirmar Saque Pix?\nValor Bruto: ${valorSC} SC\nTaxa: 5%\nChave: ${chavePix}`)) return;
         
         const response = await fetch('/api/solicitar-saque-pix', {
@@ -144,17 +154,19 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('saque-pix-form').reset(); 
             atualizarCalculoPix();
             carregarHistoricoSaques(); 
-            carregarDashboard(true); // Atualiza saldo
+            carregarDashboard(true); 
         }
     });
     // ---------------------------------
 
+    // Staking Plataforma
     const stakedAmountEl = document.getElementById('staked-amount');
     const unstakeDateEl = document.getElementById('unstake-date');
     const stakeForm = document.getElementById('stake-form');
     const unstakeBtn = document.getElementById('unstake-btn');
     const claimRewardsBtn = document.getElementById('claim-rewards-btn');
     
+    // Planos de Sócio
     const planosData = {
         "Socio SolidCoin para Todos": { img: "https://i.postimg.cc/DZ39CCDv/file-000000004a7c71f98e2aedb0290f8b53.png", desc: "Ao aderir a esse plano o Sócio terá 500 SolidCoins mensais.", pix: "https://invoice.infinitepay.io/plans/solidcoin/gDRbdBuXD" },
         "Iron": { img: "https://i.postimg.cc/wMCLJm33/file-000000008d0c720e8dc3a17f05318954.png", desc: "2.750 + Bônus 10% = 3.025 SolidCoins.", pix: "https://invoice.infinitepay.io/plans/solidcoin/IzqprmCRH" },
@@ -242,12 +254,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const atualizarCustoDinamico = (inputEl, spanCustoEl) => {
-        if(!inputEl || !spanCustoEl) return;
-        const v = parseFloat(inputEl.value) || 0;
-        spanCustoEl.textContent = (v * scRate).toLocaleString('pt-BR');
-    };
-
     const carregarExtrato = async () => {
         const response = await fetch('/api/extrato');
         const data = await response.json();
@@ -288,7 +294,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 scRate = data.scRate || 500;
                 cotacaoAtualEl.textContent = scRate;
 
-                atualizarCalculoPix(); // Força update do Pix VIP
+                // ATUALIZA SALDO E ENVIAR LIMITE AO MOTOR CENTRAL
+                atualizarSaldo(data.usuario.saldo, data.usuario.limiteDeSaque); 
+
                 atualizarCustoDinamico(document.getElementById('gift-valor'), document.getElementById('gift-custo'));
                 atualizarCustoDinamico(document.getElementById('recharge-valor'), document.getElementById('recharge-custo'));
 
@@ -303,10 +311,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (data.usuario.isAdmin) { adminBtn.style.display = 'inline-block'; }
                     carregarExtrato(); carregarHistoricoSaques();
 
-                    const categoriasContainer = document.getElementById('marketplace-categorias');
                     const marketplaceListaEl = document.getElementById('marketplace-lista');
+                    const categoriasContainer = document.getElementById('marketplace-categorias');
                     categoriasContainer.innerHTML = '';
-                    
                     const categoriasUnicas = [...new Set(data.marketplace.map(p => p.categoria))];
                     
                     const renderizarProdutos = (categoriaDesejada) => {
@@ -346,7 +353,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('vencimento-socio').textContent = new Date(data.usuario.vencimentoSocio).toLocaleDateString('pt-BR');
                 }
 
-                atualizarSaldo(data.usuario.saldo); 
                 atualizarUIStaking(data.usuario);
             } else if (!isUpdate) { alert(data.mensagem); }
         } catch (error) { console.error("Erro ao carregar o dashboard:", error); }
@@ -364,6 +370,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const valor = document.getElementById('valor-saque').value;
         const sol = document.getElementById('solana-wallet').value;
         const tron = document.getElementById('tron-wallet').value;
+        
+        if (parseFloat(valor) > ultimoLimiteSaqueSC) {
+            return alert(`Saque Bloqueado!\n\nSeu limite de saque disponível no momento é de ${ultimoLimiteSaqueSC.toFixed(2)} SC.`);
+        }
+        
         if (!sol && !tron) return alert('Salve pelo menos uma carteira primeiro.');
         const response = await fetch('/api/solicitar-saque', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valor }) });
         const data = await response.json(); alert(data.mensagem);

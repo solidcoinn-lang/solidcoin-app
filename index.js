@@ -5,7 +5,7 @@ const bodyParser = require("body-parser");
 const session = require("express-session");
 const bcrypt = require("bcryptjs");
 const path = require("path");
-const crypto = require('crypto');
+const crypto = require('crypto'); // Necessário para gerar os códigos aleatórios
 
 // Importa os modelos
 const User = require('./models/User');
@@ -73,6 +73,52 @@ async function getSCRate() {
     }
     return settings.scPorReal;
 }
+
+// =========================================================================
+// --- NOVO MOTOR DE CÁLCULO DE LIMITE DE SAQUE SAUDÁVEL (VESTING 25%) ---
+// =========================================================================
+async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
+    if (userEmail === ADMIN_EMAIL) return currentSaldo; // O CEO não tem limites de saque
+
+    const txs = await Transaction.find({ userId: userId });
+    let limiteBruto = 0;
+    let saquesEfetuados = 0;
+
+    // Transações que geram saldo 100% livre imediatamente
+    const tiposLivres = [
+        'Depósito Aprovado', 'Transferência Recebida', 'Venda no Marketplace',
+        'Recompensa de Staking', 'Rendimento Automático', 'Bônus de Indicação',
+        'Comissão de Indicação', 'Comissão de Indicação (Sócio)', 'Bônus de Boas-Vindas',
+        'Resgate Gift Card SC', 'Estorno Saque Pix', 'Estorno de Saque'
+    ];
+
+    const agora = Date.now();
+
+    txs.forEach(tx => {
+        if (tiposLivres.includes(tx.tipo)) {
+            limiteBruto += tx.valor;
+        } else if (tx.tipo === 'Assinatura Sócio SolidCoin') {
+            // Regra de Liberação: 25% a cada 30 dias passados
+            const diasPassados = (agora - new Date(tx.data).getTime()) / (1000 * 60 * 60 * 24);
+            const mesesPassados = Math.floor(diasPassados / 30);
+            
+            if (mesesPassados > 0) {
+                const porcentagem = Math.min(mesesPassados * 0.25, 1.0); // Máximo de 100% (4 meses)
+                limiteBruto += (tx.valor * porcentagem);
+            }
+        } else if (tx.tipo === 'Saque Cripto Solicitado' || tx.tipo === 'Saque Pix Solicitado') {
+            saquesEfetuados += Math.abs(tx.valor);
+        }
+    });
+
+    let limiteDisponivel = limiteBruto - saquesEfetuados;
+    if (limiteDisponivel < 0) limiteDisponivel = 0;
+    
+    // O usuário não pode sacar mais do que o saldo atual dele (caso tenha gasto no marketplace)
+    return Math.min(currentSaldo, limiteDisponivel);
+}
+// =========================================================================
+
 
 // Rotas de Página e Autenticação
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
@@ -175,7 +221,7 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
         const produtos = await Product.find({});
         const scRate = await getSCRate();
 
-        // Retrocompatibilidade
+        // Retrocompatibilidade: Se um usuário antigo logar, ele ganha um código de indicação na hora
         if (!user.codigoIndicacao) {
             user.codigoIndicacao = crypto.randomBytes(3).toString('hex').toUpperCase();
             await user.save();
@@ -212,6 +258,9 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
             }
         }
 
+        // NOVO: Busca o limite de saque aprovado
+        const limiteSaqueAprovado = await calcularLimiteSaque(user._id, user.saldo, user.email);
+
         res.json({
             sucesso: true,
             scRate: scRate,
@@ -219,7 +268,8 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
                 nome: user.nome, saldo: user.saldo, stakedAmount: user.stakedAmount, canUnstakeAt: user.canUnstakeAt,
                 solanaWallet: user.solanaWallet, tronWallet: user.tronWallet, isAdmin: user.email === ADMIN_EMAIL,
                 statusSocio: user.statusSocio, planoSocio: user.planoSocio, vencimentoSocio: user.vencimentoSocio,
-                codigoIndicacao: user.codigoIndicacao 
+                codigoIndicacao: user.codigoIndicacao,
+                limiteDeSaque: limiteSaqueAprovado // NOVO: Passado para o FrontEnd
             },
             marketplace: produtos.map(p => ({
                 id: p._id, nome: p.nome, preco: p.preco, imagemUrl: p.imagemUrl, categoria: p.categoria || 'Cédulas SolidCoin'
@@ -310,6 +360,12 @@ app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
         if (!user.solanaWallet && !user.tronWallet) return res.status(400).json({ sucesso: false, mensagem: "Você precisa salvar pelo menos uma carteira de saque."});
         if (user.saldo < valor) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente." });
         
+        // Bloqueio de Economia Saudável
+        const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
+        if (valor > limiteDisponivel) {
+            return res.status(400).json({ sucesso: false, mensagem: `Saque Bloqueado.\n\nSeu limite de saque liberado no momento é de: ${limiteDisponivel.toFixed(2)} SC.\n\nLembre-se: Moedas de Sócio liberam apenas 25% a cada 30 dias.` });
+        }
+
         const carteiraParaSaque = user.solanaWallet ? `Solana: ${user.solanaWallet}` : `Tron: ${user.tronWallet}`;
         
         // DEDUZ O SALDO DO USUÁRIO NA HORA DA SOLICITAÇÃO
@@ -334,7 +390,7 @@ app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
     }
 });
 
-// --- ROTA DE SAQUE VIA PIX (EXCLUSIVO VIP) ---
+// --- ROTA DE SAQUE VIA PIX (EXCLUSIVO VIP E COM TRAVA DE 25%) ---
 app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
     try {
         const { valorSC, tipoChave, chavePix } = req.body;
@@ -354,6 +410,12 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
 
         if (user.saldo < valorNum) {
             return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente em SolidCoins." });
+        }
+
+        // Bloqueio de Economia Saudável
+        const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
+        if (valorNum > limiteDisponivel) {
+            return res.status(400).json({ sucesso: false, mensagem: `Saque Bloqueado.\n\nSeu limite de saque liberado no momento é de: ${limiteDisponivel.toFixed(2)} SC.\n\nLembre-se: Moedas de Sócio liberam apenas 25% a cada 30 dias.` });
         }
 
         const scRate = await getSCRate();
@@ -456,14 +518,12 @@ app.post('/api/staking/unstake', checkAuthenticated, async (req, res) => {
             admin.saldo -= recompensaCalculada;
         }
 
-        const transacao = new Transaction({ 
-            userId: user._id, 
-            tipo: 'Resgate de Staking', 
-            descricao: `Capital: ${valorResgatado.toFixed(2)} SC | Rendimento: ${recompensaCalculada.toFixed(2)} SC`, 
-            valor: (valorResgatado + recompensaCalculada)
-        });
+        const transacoesToSave = [new Transaction({ userId: user._id, tipo: 'Retorno de Staking', descricao: `Resgate do Capital`, valor: valorResgatado })];
+        if (recompensaCalculada > 0) {
+            transacoesToSave.push(new Transaction({ userId: user._id, tipo: 'Recompensa de Staking', descricao: `Rendimento do Staking`, valor: recompensaCalculada }));
+        }
 
-        await Promise.all([user.save(), admin.save(), transacao.save()]);
+        await Promise.all([user.save(), admin.save(), ...transacoesToSave.map(t => t.save())]);
 
         res.json({ 
             sucesso: true, 
@@ -763,7 +823,7 @@ app.get('/api/admin/pedidos-pendentes', isAdmin, async (req, res) => {
         const recharges = await RechargeOrder.find({ status: 'Pendente' }).sort({ data: 1 });
         const depositos = await Deposit.find({ status: 'Pendente' }).sort({ data: 1 });
         const socios = await SocioOrder.find({ status: 'Pendente' }).sort({ data: 1 });
-        const saquesPix = await PixWithdrawal.find({ status: 'Pendente' }).sort({ data: 1 }); // <-- BUSCA OS SAQUES PIX
+        const saquesPix = await PixWithdrawal.find({ status: 'Pendente' }).sort({ data: 1 }); 
         
         res.json({ sucesso: true, saques, gifts, recharges, depositos, socios, saquesPix });
     } catch (error) { 
@@ -771,6 +831,7 @@ app.get('/api/admin/pedidos-pendentes', isAdmin, async (req, res) => {
     }
 });
 
+// --- ROTA ATUALIZADA: PROCESSAR SÓCIO (INCLUI 5% DE COMISSÃO DE AFILIADO) ---
 app.post('/api/admin/processar-socio', isAdmin, async (req, res) => {
     try {
         const { orderId, acao } = req.body;
@@ -788,7 +849,7 @@ app.post('/api/admin/processar-socio', isAdmin, async (req, res) => {
             user.saldo += ordem.moedasReceber;
             user.statusSocio = 'Ativo';
             user.planoSocio = ordem.plano;
-            user.vencimentoSocio = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); 
+            user.vencimentoSocio = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 dias
             ordem.status = 'Aprovado';
 
             const transacoesToSave = [
@@ -797,29 +858,37 @@ app.post('/api/admin/processar-socio', isAdmin, async (req, res) => {
             ];
             const updatesToSave = [user.save(), ordem.save()];
 
+            // Lógica de 5% de Comissão para quem convidou
             if (user.indicadoPor) {
                 const referrer = await User.findById(user.indicadoPor);
                 if (referrer) {
                     const comissao = ordem.moedasReceber * 0.05;
+                    
                     if (admin.saldo >= comissao) {
                         admin.saldo -= comissao;
                         referrer.saldo += comissao;
-                        transacoesToSave.push(new Transaction({ userId: referrer._id, tipo: 'Comissão de Indicação', descricao: `5% do plano de ${user.nome}`, valor: comissao }));
+                        
+                        transacoesToSave.push(new Transaction({ userId: referrer._id, tipo: 'Comissão de Indicação (Sócio)', descricao: `5% do plano de ${user.nome}`, valor: comissao }));
                         transacoesToSave.push(new Transaction({ userId: admin._id, tipo: 'Pagamento de Comissão', descricao: `Para ${referrer.nome}`, valor: -comissao }));
                         updatesToSave.push(referrer.save());
                     }
                 }
             }
+
             updatesToSave.push(admin.save());
             for (let tx of transacoesToSave) updatesToSave.push(tx.save());
+
             await Promise.all(updatesToSave);
 
             res.json({ sucesso: true, mensagem: `Plano aprovado! O usuário agora é Sócio ${ordem.plano}.` });
         } else {
-            ordem.status = 'Rejeitado'; await ordem.save();
+            ordem.status = 'Rejeitado'; 
+            await ordem.save();
             res.json({ sucesso: true, mensagem: "Assinatura rejeitada." });
         }
-    } catch (error) { res.status(500).json({ sucesso: false }); }
+    } catch (error) { 
+        res.status(500).json({ sucesso: false }); 
+    }
 });
 
 app.post('/api/admin/processar-deposito', isAdmin, async (req, res) => {
