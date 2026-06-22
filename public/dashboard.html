@@ -4,6 +4,62 @@
     <meta charset="UTF-8">
     <title>Dashboard - SolidCoin</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        /* ESTILOS DO NOVO MENU DE BOTÕES */
+        .feature-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); 
+            gap: 15px; 
+            margin: 30px 0; 
+        }
+        .feature-btn { 
+            background: linear-gradient(145deg, #1a1a1a, #222); 
+            border: 1px solid #333; 
+            border-radius: 12px; 
+            padding: 25px 15px; 
+            color: #fff; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: flex-start; 
+            text-align: center; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5); 
+        }
+        .feature-btn:hover { 
+            transform: translateY(-5px); 
+            background: linear-gradient(145deg, #222, #2a2a2a);
+            box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3); 
+            border-color: #d4af37;
+        }
+        .feature-btn .icon { font-size: 2.5em; margin-bottom: 15px; }
+        .feature-btn .text { font-size: 0.9em; font-weight: bold; line-height: 1.3; }
+        
+        /* Cores de destaque para cada botão */
+        .btn-tron { border-bottom: 4px solid #ff4757; }
+        .btn-ind { border-bottom: 4px solid #f1c40f; }
+        .btn-stake { border-bottom: 4px solid #e67e22; }
+        .btn-socio { border-bottom: 4px solid #9b59b6; }
+        .btn-pix { border-bottom: 4px solid #00b894; }
+        .btn-cripto { border-bottom: 4px solid #3498db; }
+        .btn-dep { border-bottom: 4px solid #2ecc71; }
+        .btn-trans { border-bottom: 4px solid #e74c3c; }
+        .btn-buygift { border-bottom: 4px solid #ff9f43; }
+        .btn-recarga { border-bottom: 4px solid #1abc9c; }
+        .btn-resgift { border-bottom: 4px solid #95a5a6; }
+
+        .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .voltar-btn { 
+            background-color: #222; color: #d4af37; border: 1px solid #d4af37; 
+            padding: 10px 20px; border-radius: 6px; cursor: pointer; 
+            margin-bottom: 10px; display: inline-flex; align-items: center; 
+            gap: 8px; font-weight: bold; transition: 0.3s;
+        }
+        .voltar-btn:hover { background-color: #d4af37; color: #000; }
+    </style>
 </head>
 <body>
     <div class="container dashboard">
@@ -31,96 +87,139 @@
             </p>
         </div>
 
-        <div class="card" style="border-left: 5px solid #ff0013; background: linear-gradient(145deg, #1a0505, #2a0a0a);">
-            <h2 style="color: #ff4757;">🌐 Resgate aqui suas SolidCoins de rendimento da Carteira Tron</h2>
-            <p style="color: #ddd; font-size: 0.95em;">Conecte sua carteira para interagir diretamente com nosso Smart Contract na rede de testes da Tron.</p>
-            <ul style="color: #aaa; font-size: 0.9em; text-align: left; margin: 10px 0; padding-left: 20px;">
-                <li>Rendimento: <strong>1% ao dia</strong> direto na carteira.</li>
-                <li>Necessário ter a extensão <strong>TronLink</strong> instalada.</li>
-                <li>Você precisará de <strong>TRX (Testnet)</strong> para pagar a taxa de gás da rede.</li>
-            </ul>
-            
-            <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
-                <button id="btn-connect-tron" style="background-color: #ff4757; color: #fff; flex: 1;">Conectar TronLink</button>
-                <button id="btn-claim-tron" style="background-color: #2ecc71; color: #000; flex: 1; display: none;">Resgatar Rendimentos</button>
-            </div>
-            <p id="tron-status" style="color: #f1c40f; font-size: 0.85em; margin-top: 10px; text-align: center;"></p>
+        <div id="menu-botoes" class="feature-grid">
+            <button class="feature-btn btn-tron" onclick="abrirSecao('sec-tron')">
+                <span class="icon">🌐</span><span class="text">Resgate Tron (Rendimento)</span>
+            </button>
+            <button class="feature-btn btn-ind" onclick="abrirSecao('sec-indicacao')">
+                <span class="icon">🤝</span><span class="text">Programa de Indicação</span>
+            </button>
+            <button class="feature-btn btn-stake" onclick="abrirSecao('sec-staking')">
+                <span class="icon">📈</span><span class="text">Staking SolidCoin (5% a.m)</span>
+            </button>
+            <button class="feature-btn btn-socio" onclick="abrirSecao('sec-socio')">
+                <span class="icon">💎</span><span class="text">Clube de Sócios SolidCoin</span>
+            </button>
+            <button class="feature-btn btn-pix" onclick="abrirSecao('sec-saque-pix')">
+                <span class="icon">⚡</span><span class="text">Saque via Pix VIP</span>
+            </button>
+            <button class="feature-btn btn-cripto" onclick="abrirSecao('sec-saque-cripto')">
+                <span class="icon">🪙</span><span class="text">Saque via Cripto (SOL/TRX)</span>
+            </button>
+            <button class="feature-btn btn-dep" onclick="abrirSecao('sec-depositar')">
+                <span class="icon">📥</span><span class="text">Depositar SolidCoins</span>
+            </button>
+            <button class="feature-btn btn-trans" onclick="abrirSecao('sec-transferir')">
+                <span class="icon">💸</span><span class="text">Transferir SolidCoins</span>
+            </button>
+            <button class="feature-btn btn-buygift" onclick="abrirSecao('sec-comprar-gift')">
+                <span class="icon">🎁</span><span class="text">Comprar Gift Card</span>
+            </button>
+            <button class="feature-btn btn-recarga" onclick="abrirSecao('sec-recarga')">
+                <span class="icon">📱</span><span class="text">Recarga de Celular</span>
+            </button>
+            <button class="feature-btn btn-resgift" onclick="abrirSecao('sec-resgatar-gift')">
+                <span class="icon">🎟️</span><span class="text">Resgatar Gift SolidCoin</span>
+            </button>
         </div>
 
-        <div class="card" style="border-left: 5px solid #f1c40f; background: linear-gradient(145deg, #1a1a1a, #2a2a2a);">
-            <h2 style="color: #f1c40f;">🤝 Programa de Indicação</h2>
-            <p style="color: #ddd; font-size: 0.95em;">Convide seus amigos e ganhem juntos! Quando alguém usar seu código no cadastro:</p>
-            <ul style="color: #aaa; font-size: 0.9em; text-align: left; margin: 10px 0; padding-left: 20px;">
-                <li>Você ganha <strong>250 SolidCoins</strong></li>
-                <li>Seu amigo ganha <strong>250 SolidCoins</strong></li>
-                <li>Se ele assinar um plano de Sócio, você ganha <strong>5% de Comissão</strong> do valor do plano na hora!</li>
-            </ul>
-            <div style="background-color: #111; padding: 15px; border-radius: 8px; border: 1px dashed #f1c40f; margin-top: 15px;">
-                <p style="margin: 0 0 5px 0; color: #aaa; font-size: 0.85em;">Compartilhe seu código único:</p>
-                <strong id="codigo-indicacao" style="font-size: 1.5em; letter-spacing: 2px; color: #d4af37;">CARREGANDO...</strong>
+        <div id="sec-tron" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
+            <div class="card" style="border-left: 5px solid #ff0013; background: linear-gradient(145deg, #1a0505, #2a0a0a);">
+                <h2 style="color: #ff4757;">🌐 Resgate aqui suas SolidCoins de rendimento da Carteira Tron</h2>
+                <p style="color: #ddd; font-size: 0.95em;">Conecte sua carteira para interagir diretamente com nosso Smart Contract na rede de testes da Tron.</p>
+                <ul style="color: #aaa; font-size: 0.9em; text-align: left; margin: 10px 0; padding-left: 20px;">
+                    <li>Rendimento: <strong>1% ao dia</strong> direto na carteira.</li>
+                    <li>Necessário ter a extensão <strong>TronLink</strong> instalada.</li>
+                    <li>Você precisará de <strong>TRX (Testnet)</strong> para pagar a taxa de gás da rede.</li>
+                </ul>
+                <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+                    <button id="btn-connect-tron" style="background-color: #ff4757; color: #fff; flex: 1;">Conectar TronLink</button>
+                    <button id="btn-claim-tron" style="background-color: #2ecc71; color: #000; flex: 1; display: none;">Resgatar Rendimentos</button>
+                </div>
+                <p id="tron-status" style="color: #f1c40f; font-size: 0.85em; margin-top: 10px; text-align: center;"></p>
             </div>
         </div>
-        
-        <div class="card staking-card">
-            <h2>Staking de SolidCoins Plataforma (5% ao Mês)</h2>
-            <div class="staking-info">
-                <span>Em Staking: <strong id="staked-amount">0.00</strong></span>
-                <span>Resgate liberado em: <strong id="unstake-date">--/--/----</strong></span>
+
+        <div id="sec-indicacao" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
+            <div class="card" style="border-left: 5px solid #f1c40f; background: linear-gradient(145deg, #1a1a1a, #2a2a2a);">
+                <h2 style="color: #f1c40f;">🤝 Programa de Indicação</h2>
+                <p style="color: #ddd; font-size: 0.95em;">Convide seus amigos e ganhem juntos! Quando alguém usar seu código no cadastro:</p>
+                <ul style="color: #aaa; font-size: 0.9em; text-align: left; margin: 10px 0; padding-left: 20px;">
+                    <li>Você ganha <strong>250 SolidCoins</strong></li>
+                    <li>Seu amigo ganha <strong>250 SolidCoins</strong></li>
+                    <li>Se ele assinar um plano de Sócio, você ganha <strong>5% de Comissão</strong> do valor do plano na hora!</li>
+                </ul>
+                <div style="background-color: #111; padding: 15px; border-radius: 8px; border: 1px dashed #f1c40f; margin-top: 15px;">
+                    <p style="margin: 0 0 5px 0; color: #aaa; font-size: 0.85em;">Compartilhe seu código único:</p>
+                    <strong id="codigo-indicacao" style="font-size: 1.5em; letter-spacing: 2px; color: #d4af37;">CARREGANDO...</strong>
+                </div>
             </div>
-            <div class="card-group">
-                <form id="stake-form" class="staking-form">
-                    <input type="number" id="stake-valor" placeholder="Valor para Staking" step="0.01" required>
-                    <button type="submit">Colocar em Staking</button>
+        </div>
+
+        <div id="sec-staking" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
+            <div class="card staking-card">
+                <h2>Staking de SolidCoins Plataforma (5% ao Mês)</h2>
+                <div class="staking-info">
+                    <span>Em Staking: <strong id="staked-amount">0.00</strong></span>
+                    <span>Resgate liberado em: <strong id="unstake-date">--/--/----</strong></span>
+                </div>
+                <div class="card-group">
+                    <form id="stake-form" class="staking-form">
+                        <input type="number" id="stake-valor" placeholder="Valor para Staking" step="0.01" required>
+                        <button type="submit">Colocar em Staking</button>
+                    </form>
+                    <div class="staking-actions">
+                        <button id="unstake-btn" class="secondary-btn">Resgatar Tudo</button>
+                        <button id="claim-rewards-btn">Reivindicar Recompensas</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="sec-socio" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
+            <div class="card" style="border-left: 5px solid #9b59b6;">
+                <h2>Clube de Sócios SolidCoin</h2>
+                <div style="background: #111; padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; border: 1px solid #333;">
+                    <span style="font-size: 0.9em; color: #aaa;">Status: <strong id="status-socio" style="color: #d4af37;">...</strong></span>
+                    <span id="vencimento-socio-box" style="font-size: 0.9em; color: #aaa; display: none;">Renovação: <strong id="vencimento-socio" style="color: #e74c3c;">--/--/----</strong></span>
+                </div>
+                <form id="socio-form">
+                    <select id="socio-plano" required>
+                        <option value="" disabled selected>Escolha o seu Plano de Sócio</option>
+                        <option value="Socio SolidCoin para Todos">Socio SolidCoin para Todos (R$ 1,00/mês)</option>
+                        <option value="Iron">Iron (R$ 5,00/mês)</option>
+                        <option value="Bronze">Bronze (R$ 10,00/mês)</option>
+                        <option value="Prata">Prata (R$ 20,00/mês)</option>
+                        <option value="Ouro">Ouro (R$ 50,00/mês)</option>
+                        <option value="Diamante">Diamante (R$ 100,00/mês)</option>
+                    </select>
+                    <div id="socio-detalhes" style="display:none; text-align: center; margin: 15px 0; background: #0a0a0a; padding: 15px; border-radius: 8px;">
+                        <img id="socio-img" src="" style="width: 140px; height: 140px; object-fit: contain; margin-bottom: 10px; border-radius: 8px;">
+                        <p id="socio-desc" style="font-size: 0.95em; color: #d4af37; font-weight: bold; margin: 0;"></p>
+                    </div>
+                    <select id="socio-pagamento" required style="display: none;">
+                        <option value="" disabled selected>Forma de Pagamento</option>
+                        <option value="Pix">Pix (InfinitePay)</option>
+                        <option value="Solana">USDC (Rede Solana)</option>
+                        <option value="Tron">USDT (Rede Tron)</option>
+                    </select>
+                    <div id="socio-instrucoes" style="display: none; background-color: #111; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px dashed #d4af37; text-align: center; word-break: break-all;">
+                        <p style="margin: 0 0 5px 0; font-size: 0.85em; color: #aaa;" id="socio-instrucao-texto">...</p>
+                        <strong id="socio-instrucao-dado" style="color: #d4af37; user-select: all; font-size: 1.1em; letter-spacing: 1px;"></strong>
+                        <a id="socio-link-pix" href="#" target="_blank" style="display:none; background-color: #2ecc71; color: #000; font-weight: bold; text-decoration: none; margin-top: 10px; padding: 10px; border-radius: 6px;">🔗 Clicar para pagar via Pix</a>
+                    </div>
+                    <input type="text" id="socio-txid" placeholder="Cole aqui a ID da Transação ou Hash" required style="display: none;">
+                    <button type="submit" id="socio-btn" style="background-color: #9b59b6; color: #fff; display: none;">Assinar / Renovar Plano</button>
                 </form>
-                <div class="staking-actions">
-                     <button id="unstake-btn" class="secondary-btn">Resgatar Tudo</button>
-                     <button id="claim-rewards-btn">Reivindicar Recompensas</button>
-                </div>
             </div>
         </div>
 
-        <div class="card" style="border-left: 5px solid #9b59b6;">
-            <h2>Clube de Sócios SolidCoin</h2>
-            <div style="background: #111; padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; border: 1px solid #333;">
-                <span style="font-size: 0.9em; color: #aaa;">Status: <strong id="status-socio" style="color: #d4af37;">...</strong></span>
-                <span id="vencimento-socio-box" style="font-size: 0.9em; color: #aaa; display: none;">Renovação: <strong id="vencimento-socio" style="color: #e74c3c;">--/--/----</strong></span>
-            </div>
-            
-            <form id="socio-form">
-                <select id="socio-plano" required>
-                    <option value="" disabled selected>Escolha o seu Plano de Sócio</option>
-                    <option value="Socio SolidCoin para Todos">Socio SolidCoin para Todos (R$ 1,00/mês)</option>
-                    <option value="Iron">Iron (R$ 5,00/mês)</option>
-                    <option value="Bronze">Bronze (R$ 10,00/mês)</option>
-                    <option value="Prata">Prata (R$ 20,00/mês)</option>
-                    <option value="Ouro">Ouro (R$ 50,00/mês)</option>
-                    <option value="Diamante">Diamante (R$ 100,00/mês)</option>
-                </select>
-
-                <div id="socio-detalhes" style="display:none; text-align: center; margin: 15px 0; background: #0a0a0a; padding: 15px; border-radius: 8px;">
-                    <img id="socio-img" src="" style="width: 140px; height: 140px; object-fit: contain; margin-bottom: 10px; border-radius: 8px;">
-                    <p id="socio-desc" style="font-size: 0.95em; color: #d4af37; font-weight: bold; margin: 0;"></p>
-                </div>
-
-                <select id="socio-pagamento" required style="display: none;">
-                    <option value="" disabled selected>Forma de Pagamento</option>
-                    <option value="Pix">Pix (InfinitePay)</option>
-                    <option value="Solana">USDC (Rede Solana)</option>
-                    <option value="Tron">USDT (Rede Tron)</option>
-                </select>
-
-                <div id="socio-instrucoes" style="display: none; background-color: #111; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px dashed #d4af37; text-align: center; word-break: break-all;">
-                    <p style="margin: 0 0 5px 0; font-size: 0.85em; color: #aaa;" id="socio-instrucao-texto">...</p>
-                    <strong id="socio-instrucao-dado" style="color: #d4af37; user-select: all; font-size: 1.1em; letter-spacing: 1px;"></strong>
-                    <a id="socio-link-pix" href="#" target="_blank" style="display:none; background-color: #2ecc71; color: #000; font-weight: bold; text-decoration: none; margin-top: 10px; padding: 10px; border-radius: 6px;">🔗 Clicar para pagar via Pix</a>
-                </div>
-
-                <input type="text" id="socio-txid" placeholder="Cole aqui a ID da Transação ou Hash" required style="display: none;">
-                <button type="submit" id="socio-btn" style="background-color: #9b59b6; color: #fff; display: none;">Assinar / Renovar Plano</button>
-            </form>
-        </div>
-
-        <div class="card-group">
+        <div id="sec-saque-pix" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #00b894; background: linear-gradient(145deg, #0a1a14, #1a2a24);">
                 <h2 style="color: #00b894;">Saque via Pix <span style="font-size: 0.5em; background: #d4af37; color: #000; padding: 3px 8px; border-radius: 4px; vertical-align: middle; margin-left: 5px;">VIP</span></h2>
                 <p style="font-size: 0.9em; color: #ccc; margin-top: -10px;">Exclusivo para Sócios Prata, Ouro e Diamante. Taxa de conversão: 5%.</p>
@@ -141,11 +240,13 @@
                     </div>
                     
                     <p style="font-size: 0.78em; color: #888; margin-bottom: 10px; line-height: 1.3;">⚠️ *Nota de Sustentabilidade: Moedas recebidas por Planos de Sócio liberam 25% do saque a cada 30 dias de conta ativa. Ganhos de depósitos, staking e indicações são 100% livres.*</p>
-
                     <button type="submit" style="background-color: #00b894; color: #fff;">Solicitar Saque Pix</button>
                 </form>
             </div>
+        </div>
 
+        <div id="sec-saque-cripto" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card">
                 <h2>Saque via Cripto (SOL/TRX)</h2>
                 <p style="font-size: 0.9em; color: #aaa; margin-top: -10px;">Transfira para suas carteiras salvas seguindo os mesmos limites de vesting saudáveis da plataforma.</p>
@@ -163,30 +264,32 @@
             </div>
         </div>
 
-        <div class="card" style="border-left: 5px solid #2ecc71;">
-            <h2>Depositar SolidCoins</h2>
-            <p style="font-size: 0.9em; color: #aaa;">Selecione a rede, envie suas SolidCoins e cole o Hash/Link da transação para o ADM aprovar.</p>
-            <form id="deposito-form">
-                <select id="deposito-rede" required>
-                    <option value="" disabled selected>Selecione a Rede para envio</option>
-                    <option value="Solana">Rede Solana (SOL)</option>
-                    <option value="Tron">Rede Tron (TRC-20)</option>
-                </select>
-                
-                <div id="deposito-carteira-box" style="display: none; background-color: #111; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px dashed #d4af37; word-break: break-all; text-align: center;">
-                    <p style="margin: 0 0 5px 0; font-size: 0.85em; color: #aaa;">Copie nossa carteira e faça o envio:</p>
-                    <strong id="deposito-carteira-texto" style="color: #d4af37; user-select: all; font-size: 1.1em; letter-spacing: 1px;"></strong>
-                </div>
-
-                <div style="display: flex; gap: 10px;">
-                    <input type="number" id="deposito-valor" placeholder="Valor enviado (Ex: 5000)" step="0.01" required style="flex: 1;">
-                    <input type="text" id="deposito-link" placeholder="Link/Hash da Transação" required style="flex: 2;">
-                </div>
-                <button type="submit" style="background-color: #2ecc71; color: #000;">Avisar Depósito</button>
-            </form>
+        <div id="sec-depositar" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
+            <div class="card" style="border-left: 5px solid #2ecc71;">
+                <h2>Depositar SolidCoins</h2>
+                <p style="font-size: 0.9em; color: #aaa;">Selecione a rede, envie suas SolidCoins e cole o Hash/Link da transação para o ADM aprovar.</p>
+                <form id="deposito-form">
+                    <select id="deposito-rede" required>
+                        <option value="" disabled selected>Selecione a Rede para envio</option>
+                        <option value="Solana">Rede Solana (SOL)</option>
+                        <option value="Tron">Rede Tron (TRC-20)</option>
+                    </select>
+                    <div id="deposito-carteira-box" style="display: none; background-color: #111; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px dashed #d4af37; word-break: break-all; text-align: center;">
+                        <p style="margin: 0 0 5px 0; font-size: 0.85em; color: #aaa;">Copie nossa carteira e faça o envio:</p>
+                        <strong id="deposito-carteira-texto" style="color: #d4af37; user-select: all; font-size: 1.1em; letter-spacing: 1px;"></strong>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="deposito-valor" placeholder="Valor enviado (Ex: 5000)" step="0.01" required style="flex: 1;">
+                        <input type="text" id="deposito-link" placeholder="Link/Hash da Transação" required style="flex: 2;">
+                    </div>
+                    <button type="submit" style="background-color: #2ecc71; color: #000;">Avisar Depósito</button>
+                </form>
+            </div>
         </div>
 
-        <div class="card-group">
+        <div id="sec-transferir" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card">
                 <h2>Transferir SolidCoins</h2>
                 <p style="font-size: 0.9em; color: #aaa;">Envie saldo para outros usuários da plataforma.</p>
@@ -196,7 +299,10 @@
                     <button type="submit">Enviar</button>
                 </form>
             </div>
+        </div>
 
+        <div id="sec-comprar-gift" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card">
                 <h2>Comprar Gift Card</h2>
                 <p style="font-size: 0.9em; color: #aaa;">O PIN chegará no seu extrato.</p>
@@ -210,7 +316,10 @@
                     <button type="submit">Comprar Gift Card</button>
                 </form>
             </div>
+        </div>
 
+        <div id="sec-recarga" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card">
                 <h2>Recarga de Celular</h2>
                 <p style="font-size: 0.9em; color: #aaa;">O comprovante (NSU) irá para o extrato.</p>
@@ -226,7 +335,10 @@
                     <button type="submit">Fazer Recarga</button>
                 </form>
             </div>
+        </div>
 
+        <div id="sec-resgatar-gift" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card">
                 <h2>Resgatar Gift Card SolidCoin</h2>
                 <p style="font-size: 0.9em; color: #aaa;">Ganhou um código promocional? Resgate suas moedas aqui!</p>
@@ -285,6 +397,23 @@
         </footer>
 
     </div>
+    
+    <script>
+        // Funções para controle de abertura das seções
+        window.abrirSecao = function(idSecao) {
+            document.getElementById('menu-botoes').style.display = 'none';
+            const secoes = document.querySelectorAll('.feature-section');
+            secoes.forEach(sec => sec.style.display = 'none');
+            document.getElementById(idSecao).style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        window.voltarMenu = function() {
+            const secoes = document.querySelectorAll('.feature-section');
+            secoes.forEach(sec => sec.style.display = 'none');
+            document.getElementById('menu-botoes').style.display = 'grid';
+        };
+    </script>
     <script src="scripts.js"></script>
 </body>
 </html>
