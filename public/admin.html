@@ -6,9 +6,9 @@
     <link rel="stylesheet" href="styles.css">
     <style>
         .admin-container { max-width: 1200px; margin: 0 auto; padding: 20px; width: 100%; }
-        .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background-color: #1a1a1a; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5); border: 1px solid rgba(212, 175, 55, 0.15); }
+        .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background-color: #1a1a1a; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5); border: 1px solid rgba(212, 175, 55, 0.15); flex-wrap: wrap; gap: 15px;}
         .admin-header h1 { margin: 0; color: #d4af37; }
-        .admin-header button { width: auto; padding: 10px 20px; margin-left: 10px; background-color: #333; color: #d4af37; border: 1px solid #d4af37; }
+        .admin-header button { width: auto; padding: 10px 20px; background-color: #333; color: #d4af37; border: 1px solid #d4af37; cursor: pointer; border-radius: 6px; font-weight: bold; transition: 0.3s;}
         .admin-header button:hover { background-color: #d4af37; color: #000; }
         .section-card { background-color: #1a1a1a; padding: 25px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5); margin-bottom: 30px; overflow-x: auto; border: 1px solid rgba(212, 175, 55, 0.15); }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; min-width: 800px; }
@@ -17,7 +17,60 @@
         tr:hover { background-color: #2a2a2a; }
         .input-admin { background-color: #0a0a0a; color: #fff; border: 1px solid #333; padding: 12px; border-radius: 6px; }
         .input-admin:focus { outline: none; border-color: #d4af37; }
-        .btn-admin { background-color: #d4af37; color: #000; width: auto; font-weight: bold; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; }
+        .btn-admin { background-color: #d4af37; color: #000; width: auto; font-weight: bold; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; transition: 0.3s;}
+
+        /* ESTILOS DA GRADE DE APLICATIVOS (BOTÕES) */
+        .feature-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
+            gap: 15px; 
+            margin: 20px 0 40px 0; 
+        }
+        .feature-btn { 
+            background: linear-gradient(145deg, #1a1a1a, #222); 
+            border: 1px solid #333; 
+            border-radius: 12px; 
+            padding: 25px 15px; 
+            color: #fff; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: flex-start; 
+            text-align: center; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5); 
+        }
+        .feature-btn:hover { 
+            transform: translateY(-5px); 
+            background: linear-gradient(145deg, #222, #2a2a2a);
+            box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3); 
+        }
+        .feature-btn .icon { font-size: 2.5em; margin-bottom: 15px; }
+        .feature-btn .text { font-size: 0.9em; font-weight: bold; line-height: 1.3; }
+        
+        /* CORES DAS BORDAS DOS BOTÕES ADM */
+        .btn-users { border-bottom: 4px solid #9b59b6; }
+        .btn-cotacao { border-bottom: 4px solid #3498db; }
+        .btn-gerargift { border-bottom: 4px solid #d4af37; }
+        .btn-sociosaprov { border-bottom: 4px solid #8e44ad; }
+        .btn-inad { border-bottom: 4px solid #e74c3c; }
+        .btn-saquepix { border-bottom: 4px solid #00b894; }
+        .btn-depositos { border-bottom: 4px solid #2ecc71; }
+        .btn-saquecripto { border-bottom: 4px solid #f39c12; }
+        .btn-gifts { border-bottom: 4px solid #27ae60; }
+        .btn-recargas { border-bottom: 4px solid #0984e3; }
+
+        .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .voltar-btn { 
+            background-color: #222; color: #d4af37; border: 1px solid #d4af37; 
+            padding: 10px 20px; border-radius: 6px; cursor: pointer; 
+            margin-bottom: 15px; display: inline-flex; align-items: center; 
+            gap: 8px; font-weight: bold; transition: 0.3s;
+        }
+        .voltar-btn:hover { background-color: #d4af37; color: #000; }
     </style>
 </head>
 <body>
@@ -25,198 +78,293 @@
         
         <div class="admin-header">
             <h1>Painel do Administrador (CEO)</h1>
-            <div>
+            <div style="display: flex; gap: 10px;">
                 <button onclick="window.location.href='/dashboard.html'">Voltar ao Dashboard</button>
                 <button id="logout-btn" style="border-color: #e74c3c; color: #e74c3c;">Sair</button>
             </div>
         </div>
 
-        <div class="section-card" style="border-left: 5px solid #9b59b6;">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
-                <div>
-                    <h2 style="margin: 0;">Lista Geral de Usuários</h2>
-                    <p style="color: #aaa; font-size: 0.9em; margin: 5px 0 0 0;">Total de cadastrados: <strong id="total-usuarios" style="color: #d4af37; font-size: 1.2em;">0</strong></p>
+        <!-- MENU DE BOTÕES DO ADM -->
+        <div id="menu-botoes" class="feature-grid">
+            <button class="feature-btn btn-users" onclick="abrirSecao('sec-usuarios')">
+                <span class="icon">👥</span><span class="text">Gerenciar Usuários</span>
+            </button>
+            <button class="feature-btn btn-saquepix" onclick="abrirSecao('sec-saques-pix')">
+                <span class="icon">⚡</span><span class="text">Aprovar Saques PIX</span>
+            </button>
+            <button class="feature-btn btn-depositos" onclick="abrirSecao('sec-depositos')">
+                <span class="icon">📥</span><span class="text">Aprovar Depósitos</span>
+            </button>
+            <button class="feature-btn btn-saquecripto" onclick="abrirSecao('sec-saques-cripto')">
+                <span class="icon">🪙</span><span class="text">Aprovar Saques Cripto</span>
+            </button>
+            <button class="feature-btn btn-sociosaprov" onclick="abrirSecao('sec-socios')">
+                <span class="icon">💎</span><span class="text">Aprovar Planos Sócio</span>
+            </button>
+            <button class="feature-btn btn-inad" onclick="abrirSecao('sec-inadimplentes')">
+                <span class="icon">🚫</span><span class="text">Sócios Inadimplentes</span>
+            </button>
+            <button class="feature-btn btn-cotacao" onclick="abrirSecao('sec-cotacao')">
+                <span class="icon">📈</span><span class="text">Cotação SolidCoin</span>
+            </button>
+            <button class="feature-btn btn-gerargift" onclick="abrirSecao('sec-gerar-gift')">
+                <span class="icon">🎟️</span><span class="text">Gerar Gift Card Interno</span>
+            </button>
+            <button class="feature-btn btn-gifts" onclick="abrirSecao('sec-pedidos-gift')">
+                <span class="icon">🛍️</span><span class="text">Pedidos de Gift Cards</span>
+            </button>
+            <button class="feature-btn btn-recargas" onclick="abrirSecao('sec-recargas')">
+                <span class="icon">📱</span><span class="text">Pedidos de Recargas</span>
+            </button>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SEÇÕES OCULTAS DO ADM                      -->
+        <!-- ========================================== -->
+
+        <!-- 1. USUÁRIOS -->
+        <div id="sec-usuarios" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #9b59b6;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <h2 style="margin: 0;">Lista Geral de Usuários</h2>
+                        <p style="color: #aaa; font-size: 0.9em; margin: 5px 0 0 0;">Total de cadastrados: <strong id="total-usuarios" style="color: #d4af37; font-size: 1.2em;">0</strong></p>
+                    </div>
+                    <input type="text" id="pesquisa-usuario" class="input-admin" placeholder="🔍 Pesquisar por nome ou e-mail..." style="max-width: 300px; margin-bottom: 0; width: 100%;">
                 </div>
-                <input type="text" id="pesquisa-usuario" class="input-admin" placeholder="🔍 Pesquisar por nome ou e-mail..." style="max-width: 300px; margin-bottom: 0; width: 100%;">
+                
+                <div style="max-height: 350px; overflow-y: auto; border: 1px solid #333; border-radius: 6px;">
+                    <table style="margin-top: 0; width: 100%; border-collapse: collapse;">
+                        <thead style="position: sticky; top: 0; z-index: 10;">
+                            <tr>
+                                <th>Nome</th>
+                                <th>E-mail</th>
+                                <th>Status Sócio</th>
+                                <th>Plano</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usuarios-lista">
+                            <tr><td colspan="5" style="text-align: center;">Carregando usuários...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            
-            <div style="max-height: 350px; overflow-y: auto; border: 1px solid #333; border-radius: 6px;">
-                <table style="margin-top: 0; width: 100%; border-collapse: collapse;">
-                    <thead style="position: sticky; top: 0; z-index: 10;">
+        </div>
+
+        <!-- 2. APROVAR SAQUES PIX -->
+        <div id="sec-saques-pix" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #00b894;">
+                <h2 style="margin-top: 0;">Saques Pendentes (PIX VIP)</h2>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Faça a transferência Pix e cole o ID do Comprovante para aprovar e fechar o pedido.</p>
+                <table>
+                    <thead>
                         <tr>
-                            <th>Nome</th>
-                            <th>E-mail</th>
-                            <th>Status Sócio</th>
-                            <th>Plano</th>
-                            <th>Ações</th>
+                            <th>Data</th>
+                            <th>Usuário</th>
+                            <th>Chave Pix</th>
+                            <th>Valores</th>
+                            <th>Comprovante & Ações</th>
                         </tr>
                     </thead>
-                    <tbody id="usuarios-lista">
-                        <tr><td colspan="5" style="text-align: center;">Carregando usuários...</td></tr>
+                    <tbody id="saques-pix-lista">
+                        <tr><td colspan="5" style="text-align: center;">Carregando...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <div class="section-card" style="border-left: 5px solid #3498db; display: flex; align-items: center; justify-content: space-between;">
-            <div>
-                <h2 style="margin-top: 0;">Cotação da SolidCoin</h2>
-                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Defina quantas SolidCoins equivalem a R$ 1,00 no sistema inteiro.</p>
+        <!-- 3. APROVAR DEPÓSITOS -->
+        <div id="sec-depositos" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #2ecc71;">
+                <h2 style="margin-top: 0;">Avisos de Depósito Pendentes</h2>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Verifique o Hash na blockchain e libere as SolidCoins (serão debitadas do saldo do CEO).</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Rede</th>
+                            <th>Hash / TXID (Link Transação)</th>
+                            <th>Valor Requerido</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="depositos-lista">
+                        <tr><td colspan="6" style="text-align: center;">Carregando...</td></tr>
+                    </tbody>
+                </table>
             </div>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <span style="color: #d4af37; font-weight: bold;">R$ 1,00 = </span>
-                <input type="number" id="valor-cotacao" class="input-admin" placeholder="Ex: 500" style="max-width: 150px; margin-bottom: 0;">
-                <span style="color: #d4af37; font-weight: bold;">SC</span>
-                <button onclick="atualizarCotacao()" class="btn-admin" style="background-color: #3498db; color: #fff;">Atualizar Cotação</button>
+        </div>
+
+        <!-- 4. APROVAR SAQUES CRIPTO -->
+        <div id="sec-saques-cripto" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #f39c12;">
+                <h2 style="margin-top: 0;">Saques Pendentes (Cripto)</h2>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Aprove transferências para as carteiras Solana ou Tron dos usuários.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Usuário</th>
+                            <th>Valor (SC)</th>
+                            <th>Carteira Informada</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="saques-lista">
+                        <tr><td colspan="5" style="text-align: center;">Carregando...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <div class="section-card" style="border-left: 5px solid #d4af37;">
-            <h2>Gerar Gift Card SolidCoin</h2>
-            <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Crie um código promocional. O valor será descontado do saldo do CEO.</p>
-            <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center;">
-                <input type="number" id="valor-gerar-gift" class="input-admin" placeholder="Valor em SolidCoins (Ex: 5000)" style="max-width: 300px; margin-bottom: 0;">
-                <button onclick="gerarGiftCardSolidCoin()" class="btn-admin">Gerar Código</button>
+        <!-- 5. APROVAR PLANOS SÓCIO -->
+        <div id="sec-socios" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #8e44ad;">
+                <h2 style="margin-top: 0;">Assinaturas de Sócio SolidCoin</h2>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Verifique o pagamento na Blockchain/InfinitePay e libere as moedas do plano Sócio.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Usuário</th>
+                            <th>Plano</th>
+                            <th>Método & TxID/Hash</th>
+                            <th>Liberar (SC)</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="socios-lista">
+                        <tr><td colspan="6" style="text-align: center;">Carregando...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <div class="section-card" style="border-left: 5px solid #8e44ad;">
-            <h2>Assinaturas de Sócio SolidCoin</h2>
-            <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Verifique o pagamento na Blockchain/InfinitePay e libere as moedas do plano Sócio.</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Usuário</th>
-                        <th>Plano</th>
-                        <th>Método & TxID/Hash</th>
-                        <th>Liberar (SC)</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="socios-lista">
-                    <tr><td colspan="6" style="text-align: center;">Carregando...</td></tr>
-                </tbody>
-            </table>
+        <!-- 6. INADIMPLENTES -->
+        <div id="sec-inadimplentes" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #e74c3c;">
+                <h2 style="margin-top: 0;">Sócios Inadimplentes</h2>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Usuários que o plano de 30 dias venceu e não renovaram. Você pode cancelar os benefícios deles.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Usuário</th>
+                            <th>E-mail</th>
+                            <th>Plano Atual</th>
+                            <th>Vencido em</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inadimplentes-lista">
+                        <tr><td colspan="5" style="text-align: center;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <div class="section-card" style="border-left: 5px solid #e74c3c;">
-            <h2>Sócios Inadimplentes</h2>
-            <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Usuários que o plano de 30 dias venceu e não renovaram. Você pode cancelar os benefícios deles.</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Usuário</th>
-                        <th>E-mail</th>
-                        <th>Plano Atual</th>
-                        <th>Vencido em</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="inadimplentes-lista">
-                    <tr><td colspan="5" style="text-align: center;">Carregando...</td></tr>
-                </tbody>
-            </table>
+        <!-- 7. COTAÇÃO SC -->
+        <div id="sec-cotacao" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #3498db; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+                <div>
+                    <h2 style="margin-top: 0;">Cotação da SolidCoin</h2>
+                    <p style="color: #aaa; font-size: 0.9em; margin-top: -10px; margin-bottom: 0;">Defina quantas SolidCoins equivalem a R$ 1,00 no sistema inteiro.</p>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <span style="color: #d4af37; font-weight: bold;">R$ 1,00 = </span>
+                    <input type="number" id="valor-cotacao" class="input-admin" placeholder="Ex: 500" style="max-width: 150px; margin-bottom: 0;">
+                    <span style="color: #d4af37; font-weight: bold;">SC</span>
+                    <button onclick="atualizarCotacao()" class="btn-admin" style="background-color: #3498db; color: #fff;">Atualizar Cotação</button>
+                </div>
+            </div>
         </div>
 
-        <div class="section-card" style="border-left: 5px solid #00b894;">
-            <h2>Saques Pendentes (PIX VIP)</h2>
-            <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Faça a transferência Pix e cole o ID do Comprovante para aprovar e fechar o pedido.</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Usuário</th>
-                        <th>Chave Pix</th>
-                        <th>Valores</th>
-                        <th>Comprovante & Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="saques-pix-lista">
-                    <tr><td colspan="5" style="text-align: center;">Carregando...</td></tr>
-                </tbody>
-            </table>
+        <!-- 8. GERAR GIFT SC -->
+        <div id="sec-gerar-gift" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #d4af37;">
+                <h2 style="margin-top: 0;">Gerar Gift Card SolidCoin</h2>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Crie um código promocional. O valor será descontado do saldo do CEO.</p>
+                <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center; flex-wrap: wrap;">
+                    <input type="number" id="valor-gerar-gift" class="input-admin" placeholder="Valor em SolidCoins (Ex: 5000)" style="max-width: 300px; margin-bottom: 0; width: 100%;">
+                    <button onclick="gerarGiftCardSolidCoin()" class="btn-admin">Gerar Código Promocional</button>
+                </div>
+            </div>
         </div>
 
-        <div class="section-card" style="border-left: 5px solid #2ecc71;">
-            <h2>Avisos de Depósito Pendentes</h2>
-            <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Verifique o Hash na blockchain e libere as SolidCoins (serão debitadas do saldo do CEO).</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Rede</th>
-                        <th>Hash / TXID (Link Transação)</th>
-                        <th>Valor Requerido</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="depositos-lista">
-                    <tr><td colspan="6" style="text-align: center;">Carregando...</td></tr>
-                </tbody>
-            </table>
+        <!-- 9. PEDIDOS DE GIFT CARDS -->
+        <div id="sec-pedidos-gift" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #27ae60;">
+                <h2 style="margin-top: 0;">Pedidos de Gift Cards Externos</h2>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Ao aprovar, o sistema pedirá que você digite o PIN para enviar ao usuário.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Usuário</th>
+                            <th>Loja</th>
+                            <th>Valor (R$)</th>
+                            <th>Custo Pago (SC)</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gifts-lista">
+                        <tr><td colspan="6" style="text-align: center;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <div class="section-card" style="border-left: 5px solid #f39c12;">
-            <h2>Saques Pendentes (Cripto)</h2>
-            <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Aprove transferências para as carteiras Solana ou Tron dos usuários.</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Usuário</th>
-                        <th>Valor (SC)</th>
-                        <th>Carteira Informada</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="saques-lista">
-                    <tr><td colspan="5" style="text-align: center;">Carregando...</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <div class="section-card" style="border-left: 5px solid #27ae60;">
-            <h2>Pedidos de Gift Cards Externos</h2>
-            <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Ao aprovar, o sistema pedirá que você digite o PIN para enviar ao usuário.</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Usuário</th>
-                        <th>Loja</th>
-                        <th>Valor (R$)</th>
-                        <th>Custo Pago (SC)</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="gifts-lista">
-                    <tr><td colspan="6" style="text-align: center;">Carregando...</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <div class="section-card" style="border-left: 5px solid #3498db;">
-            <h2>Pedidos de Recarga de Celular</h2>
-            <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Faça a recarga e clique em Aprovar para inserir o comprovante (NSU/Transação).</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Usuário</th>
-                        <th>Operadora</th>
-                        <th>Número (Celular)</th>
-                        <th>Valor (R$)</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="recharges-lista">
-                    <tr><td colspan="6" style="text-align: center;">Carregando...</td></tr>
-                </tbody>
-            </table>
+        <!-- 10. PEDIDOS DE RECARGAS -->
+        <div id="sec-recargas" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #0984e3;">
+                <h2 style="margin-top: 0;">Pedidos de Recarga de Celular</h2>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Faça a recarga e clique em Aprovar para inserir o comprovante (NSU/Transação).</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Usuário</th>
+                            <th>Operadora</th>
+                            <th>Número (Celular)</th>
+                            <th>Valor (R$)</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recharges-lista">
+                        <tr><td colspan="6" style="text-align: center;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
     </div>
+
+    <script>
+        // Funções para controle de abertura das seções
+        window.abrirSecao = function(idSecao) {
+            document.getElementById('menu-botoes').style.display = 'none';
+            const secoes = document.querySelectorAll('.feature-section');
+            secoes.forEach(sec => sec.style.display = 'none');
+            document.getElementById(idSecao).style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        window.voltarMenu = function() {
+            const secoes = document.querySelectorAll('.feature-section');
+            secoes.forEach(sec => sec.style.display = 'none');
+            document.getElementById('menu-botoes').style.display = 'grid';
+        };
+    </script>
     <script src="admin-scripts.js"></script>
 </body>
 </html>
