@@ -18,7 +18,7 @@ if (process.env.EFI_CERT_BASE64) {
     fs.writeFileSync(certPath, Buffer.from(process.env.EFI_CERT_BASE64, 'base64'));
 }
 
-// CHECAGEM DE SEGURANÇA (Isso vai mostrar o erro no log da Render)
+// CHECAGEM DE SEGURANÇA (Isso vai mostrar o erro no log da Render se faltar variável)
 if (!process.env.EFI_CLIENT_ID || !process.env.EFI_CLIENT_SECRET || !process.env.EFI_PIX_KEY) {
     console.error("🚨 ERRO CRÍTICO: Variáveis da Efí faltando no painel da Render!");
 }
@@ -30,7 +30,8 @@ const optionsEfi = {
     sandbox: isSandbox,
     client_id: process.env.EFI_CLIENT_ID,
     client_secret: process.env.EFI_CLIENT_SECRET,
-    certificate: certPath
+    certificate: certPath,
+    scope: 'gn.pix.write gn.pix.read' // GARANTE PERMISSÃO DE ESCRITA E LEITURA
 };
 
 const efipay = new EfiPay(optionsEfi);
@@ -242,7 +243,9 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
             };
 
             const cobResponse = await efipay.pixCreateImmediateCharge({}, bodyCob);
-            const qrCodeResponse = await efipay.pixGenerateQRCode({ locId: cobResponse.loc.id });
+            
+            // 🔥 CORREÇÃO: O parâmetro correto é { id: ... } e não { locId: ... }
+            const qrCodeResponse = await efipay.pixGenerateQRCode({ id: cobResponse.loc.id });
 
             const novaOrdem = new SocioOrder({
                 userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email,
@@ -259,7 +262,7 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
                 txid: cobResponse.txid
             });
         } else {
-            // Método Cripto Manual (continua igual, aguardando txId do front)
+            // Método Cripto Manual
             const novaOrdem = new SocioOrder({
                 userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, plano: plano, 
                 valorReais: configPlano.valorReais, moedasReceber: configPlano.sc, metodoPagamento: metodoPagamento, txId: req.body.txId || 'Manual'
@@ -268,8 +271,8 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
             res.json({ sucesso: true, mensagem: `Aviso enviado! O ADM irá verificar a transação Cripto e liberar suas SolidCoins.` });
         }
     } catch (error) { 
-        console.error("Erro Efi Gerar Pix:", error);
-        res.status(500).json({ sucesso: false, mensagem: "Erro ao gerar cobrança Pix. Verifique a configuração da Efí." }); 
+        console.error("Erro Efi Gerar Pix:", JSON.stringify(error, null, 2));
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao gerar cobrança Pix. Verifique as configurações da Efí." }); 
     }
 });
 
@@ -395,7 +398,6 @@ app.post('/api/webhook/pix', async (req, res) => {
 });
 
 // --- ROTA MANUAL DE CHECAGEM PIX PARA O ADM (POLLING FALLBACK) ---
-// Caso o webhook do Render falhe (Render bloqueia mTLS), o ADM pode clicar num botão para "Forçar Checagem".
 app.post('/api/admin/verificar-pix-efi', isAdmin, async (req, res) => {
     try {
         const ordensPendentes = await SocioOrder.find({ status: 'Pendente', metodoPagamento: 'Pix Efí' });
@@ -405,7 +407,6 @@ app.post('/api/admin/verificar-pix-efi', isAdmin, async (req, res) => {
             try {
                 const cob = await efipay.pixDetailCharge({ txid: ordem.txId });
                 if (cob.status === 'CONCLUIDA') {
-                    // Executa a mesma lógica do webhook acima
                     const user = await User.findById(ordem.userId);
                     const admin = await User.findOne({ email: ADMIN_EMAIL });
                     if (admin && admin.saldo >= ordem.moedasReceber) {
