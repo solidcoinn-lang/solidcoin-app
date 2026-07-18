@@ -26,12 +26,12 @@ if (!process.env.EFI_CLIENT_ID || !process.env.EFI_CLIENT_SECRET || !process.env
 const isSandbox = process.env.EFI_ENV !== 'producao';
 console.log(`🌍 MODO EFÍ: ${isSandbox ? 'HOMOLOGAÇÃO (TESTES)' : 'PRODUÇÃO (REAL)'}`);
 
+// CORREÇÃO: Removido o 'scope' para a Efí puxar todas as permissões automaticamente do seu painel!
 const optionsEfi = {
     sandbox: isSandbox,
     client_id: process.env.EFI_CLIENT_ID,
     client_secret: process.env.EFI_CLIENT_SECRET,
-    certificate: certPath,
-    scope: 'gn.pix.write gn.pix.read' // GARANTE PERMISSÃO DE ESCRITA E LEITURA
+    certificate: certPath
 };
 
 const efipay = new EfiPay(optionsEfi);
@@ -244,7 +244,7 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
 
             const cobResponse = await efipay.pixCreateImmediateCharge({}, bodyCob);
             
-            // 🔥 CORREÇÃO: O parâmetro correto é { id: ... } e não { locId: ... }
+            // CORREÇÃO: O parâmetro correto é { id: ... } (Antes estava locId e quebrava)
             const qrCodeResponse = await efipay.pixGenerateQRCode({ id: cobResponse.loc.id });
 
             const novaOrdem = new SocioOrder({
