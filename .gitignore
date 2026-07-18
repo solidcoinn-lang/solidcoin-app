@@ -1,5 +1,14 @@
 # Dependências
 node_modules/
+npm-debug.log*
 
 # Arquivo de Ambiente (contém senhas)
 .env
+
+# Certificados de Segurança da API (Muito importante para a Efí)
+*.p12
+*.pem
+
+# Arquivos temporários de sistema operacional (Windows/Mac)
+.DS_Store
+Thumbs.db
