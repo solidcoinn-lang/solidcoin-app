@@ -10,18 +10,33 @@ const fs = require('fs');
 
 // --- INTEGRAÇÃO EFÍ (API PIX) ---
 const EfiPay = require('sdk-node-apis-efi');
+const fs = require('fs');
+const path = require('path');
 
-// Começa apontando para o arquivo local
 let certPath = path.join(__dirname, 'certificado.p12');
 
-// Se estiver na nuvem (Render), transforma o texto Base64 de volta em um arquivo de verdade
+// Se estiver na nuvem (Render), cria o arquivo temporário a partir da variável Base64
 if (process.env.EFI_CERT_BASE64) {
     certPath = path.join(__dirname, 'certificado_render.p12');
-    fs.writeFileSync(certPath, Buffer.from(process.env.EFI_CERT_BASE64, 'base64'));
+    try {
+        fs.writeFileSync(certPath, Buffer.from(process.env.EFI_CERT_BASE64, 'base64'));
+        const stats = fs.statSync(certPath);
+        console.log(`✅ Certificado recriado na Render com sucesso! Tamanho: ${stats.size} bytes`);
+    } catch (err) {
+        console.error("❌ Erro ao criar arquivo do certificado na Render:", err);
+    }
 }
 
+// Verifica se o arquivo realmente existe antes de chamar a Efí
+if (!fs.existsSync(certPath)) {
+    console.error("🚨 ALERTA CRÍTICO: Arquivo do certificado não encontrado em:", certPath);
+}
+
+const isSandbox = process.env.EFI_ENV !== 'producao';
+console.log(`🌍 Modo Efí (Sandbox/Homologação): ${isSandbox ? 'SIM (Testes)' : 'NÃO (Produção Real)'}`);
+
 const optionsEfi = {
-    sandbox: process.env.EFI_ENV !== 'producao', // true para homologação, false para produção
+    sandbox: isSandbox,
     client_id: process.env.EFI_CLIENT_ID,
     client_secret: process.env.EFI_CLIENT_SECRET,
     certificate: certPath
