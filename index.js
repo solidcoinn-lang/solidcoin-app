@@ -15,10 +15,14 @@ let certPath = path.join(__dirname, 'certificado.p12');
 // Se estiver na nuvem (Render), cria o arquivo temporário
 if (process.env.EFI_CERT_BASE64) {
     certPath = path.join(__dirname, 'certificado_render.p12');
-    fs.writeFileSync(certPath, Buffer.from(process.env.EFI_CERT_BASE64, 'base64'));
+    try {
+        fs.writeFileSync(certPath, Buffer.from(process.env.EFI_CERT_BASE64, 'base64'));
+    } catch (err) {
+        console.error("❌ Erro ao criar arquivo do certificado na Render:", err);
+    }
 }
 
-// CHECAGEM DE SEGURANÇA (Isso vai mostrar o erro no log da Render se faltar variável)
+// CHECAGEM DE SEGURANÇA
 if (!process.env.EFI_CLIENT_ID || !process.env.EFI_CLIENT_SECRET || !process.env.EFI_PIX_KEY) {
     console.error("🚨 ERRO CRÍTICO: Variáveis da Efí faltando no painel da Render!");
 }
@@ -26,7 +30,6 @@ if (!process.env.EFI_CLIENT_ID || !process.env.EFI_CLIENT_SECRET || !process.env
 const isSandbox = process.env.EFI_ENV !== 'producao';
 console.log(`🌍 MODO EFÍ: ${isSandbox ? 'HOMOLOGAÇÃO (TESTES)' : 'PRODUÇÃO (REAL)'}`);
 
-// CORREÇÃO: Removido o 'scope' para a Efí puxar todas as permissões automaticamente do seu painel!
 const optionsEfi = {
     sandbox: isSandbox,
     client_id: process.env.EFI_CLIENT_ID,
@@ -342,7 +345,7 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
 });
 
 // =====================================================================
-// --- WEBHOOK EFÍ (AVISO DE PAGAMENTO RECEBIDO) ---
+// --- WEBHOOK EFÍ (AVISO DE PAGAMENTO RECEBIDO) - ROTA DE BACKUP ---
 // =====================================================================
 app.post('/api/webhook/pix', async (req, res) => {
     // A Efí exige que o servidor responda 200 OK imediatamente.
@@ -369,7 +372,7 @@ app.post('/api/webhook/pix', async (req, res) => {
                         ordem.status = 'Aprovado';
 
                         const transacoesToSave = [
-                            new Transaction({ userId: user._id, tipo: 'Assinatura Sócio SolidCoin', descricao: `Plano ${ordem.plano} (Pix Automático)`, valor: ordem.moedasReceber }),
+                            new Transaction({ userId: user._id, tipo: 'Assinatura Sócio SolidCoin', descricao: `Plano ${ordem.plano} (Pix Automático Webhook)`, valor: ordem.moedasReceber }),
                             new Transaction({ userId: admin._id, tipo: 'Pagamento Sócio', descricao: `Para ${user.nome}`, valor: -ordem.moedasReceber })
                         ];
                         const updatesToSave = [user.save(), ordem.save()];
@@ -826,5 +829,72 @@ async function setupInicial() {
         if (!(await SystemSettings.findOne())) { await new SystemSettings({ scPorReal: 500 }).save(); }
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }
+
+// =========================================================================
+// --- ROBÔ AUTOMÁTICO DE VERIFICAÇÃO DE PIX (SUBSTITUTO DO WEBHOOK) ---
+// =========================================================================
+async function verificarPixPendentesAutomatizado() {
+    try {
+        // Busca todos os planos que estão aguardando pagamento Pix
+        const ordensPendentes = await SocioOrder.find({ status: 'Pendente', metodoPagamento: 'Pix Efí' });
+        
+        if (ordensPendentes.length > 0) {
+            console.log(`🤖 Verificando ${ordensPendentes.length} pagamento(s) Pix pendente(s)...`);
+        }
+
+        for (let ordem of ordensPendentes) {
+            try {
+                // Pergunta para a Efí o status exato deste QRCode
+                const cob = await efipay.pixDetailCharge({ txid: ordem.txId });
+                
+                if (cob.status === 'CONCLUIDA') {
+                    const user = await User.findById(ordem.userId);
+                    const admin = await User.findOne({ email: ADMIN_EMAIL });
+                    
+                    if (admin && admin.saldo >= ordem.moedasReceber) {
+                        admin.saldo -= ordem.moedasReceber; 
+                        user.saldo += ordem.moedasReceber;
+                        user.statusSocio = 'Ativo'; 
+                        user.planoSocio = ordem.plano; 
+                        user.vencimentoSocio = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); 
+                        ordem.status = 'Aprovado';
+                        
+                        const transacoesToSave = [
+                            new Transaction({ userId: user._id, tipo: 'Assinatura Sócio SolidCoin', descricao: `Pix Automático (Robô)`, valor: ordem.moedasReceber }),
+                            new Transaction({ userId: admin._id, tipo: 'Pagamento Sócio', descricao: `Para ${user.nome}`, valor: -ordem.moedasReceber })
+                        ];
+                        const updatesToSave = [user.save(), ordem.save()];
+
+                        // Paga afiliado se houver
+                        if (user.indicadoPor) {
+                            const referrer = await User.findById(user.indicadoPor);
+                            if (referrer) {
+                                const comissao = ordem.moedasReceber * 0.05;
+                                if (admin.saldo >= comissao) {
+                                    admin.saldo -= comissao; referrer.saldo += comissao;
+                                    transacoesToSave.push(new Transaction({ userId: referrer._id, tipo: 'Comissão de Indicação (Sócio)', descricao: `Robô: 5% de ${user.nome}`, valor: comissao }));
+                                    transacoesToSave.push(new Transaction({ userId: admin._id, tipo: 'Pagamento de Comissão', descricao: `Para ${referrer.nome}`, valor: -comissao }));
+                                    updatesToSave.push(referrer.save());
+                                }
+                            }
+                        }
+                        updatesToSave.push(admin.save());
+                        for (let tx of transacoesToSave) updatesToSave.push(tx.save());
+                        
+                        await Promise.all(updatesToSave);
+                        console.log(`✅ Pagamento de ${user.nome} confirmado pelo robô e moedas liberadas!`);
+                    }
+                }
+            } catch (e) { 
+                // Ignora erro de uma ordem específica e pula pra próxima
+            }
+        }
+    } catch (e) {
+        console.error("Erro no Robô de Pix:", e);
+    }
+}
+
+// Inicia o robô para rodar automaticamente a cada 60 segundos (60000 ms)
+setInterval(verificarPixPendentesAutomatizado, 60000);
 
 app.listen(PORT, () => { console.log(`\n🚀 SolidCoin App rodando na porta ${PORT}`); });
