@@ -11,11 +11,20 @@ const fs = require('fs');
 // --- INTEGRAÇÃO EFÍ (API PIX) ---
 const EfiPay = require('sdk-node-apis-efi');
 
+// Começa apontando para o arquivo local
+let certPath = path.join(__dirname, 'certificado.p12');
+
+// Se estiver na nuvem (Render), transforma o texto Base64 de volta em um arquivo de verdade
+if (process.env.EFI_CERT_BASE64) {
+    certPath = path.join(__dirname, 'certificado_render.p12');
+    fs.writeFileSync(certPath, Buffer.from(process.env.EFI_CERT_BASE64, 'base64'));
+}
+
 const optionsEfi = {
     sandbox: process.env.EFI_ENV !== 'producao', // true para homologação, false para produção
     client_id: process.env.EFI_CLIENT_ID,
     client_secret: process.env.EFI_CLIENT_SECRET,
-    certificate: path.join(__dirname, process.env.EFI_CERTIFICATE || 'certificado.p12')
+    certificate: certPath
 };
 const efipay = new EfiPay(optionsEfi);
 
