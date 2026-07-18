@@ -7,12 +7,9 @@ const bcrypt = require("bcryptjs");
 const path = require("path");
 const crypto = require('crypto');
 const fs = require('fs');
+const EfiPay = require('sdk-node-apis-efi');
 
 // --- INTEGRAÇÃO EFÍ (API PIX) ---
-const EfiPay = require('sdk-node-apis-efi');
-const fs = require('fs');
-const path = require('path');
-
 let certPath = path.join(__dirname, 'certificado.p12');
 
 // Se estiver na nuvem (Render), cria o arquivo temporário a partir da variável Base64
