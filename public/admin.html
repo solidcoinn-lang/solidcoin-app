@@ -61,6 +61,7 @@
         .btn-saquecripto { border-bottom: 4px solid #f39c12; }
         .btn-gifts { border-bottom: 4px solid #27ae60; }
         .btn-recargas { border-bottom: 4px solid #0984e3; }
+        .btn-nfc { border-bottom: 4px solid #00cec9; } /* NOVO BOTAO NFC */
 
         .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -101,6 +102,10 @@
             </button>
             <button class="feature-btn btn-sociosaprov" onclick="abrirSecao('sec-socios')">
                 <span class="icon">💎</span><span class="text">Aprovar Planos Sócio</span>
+            </button>
+            <!-- NOVO BOTAO NFC AQUI -->
+            <button class="feature-btn btn-nfc" onclick="abrirSecao('sec-pedidos-nfc')">
+                <span class="icon">💳</span><span class="text">Pedidos Cartão NFC</span>
             </button>
             <button class="feature-btn btn-inad" onclick="abrirSecao('sec-inadimplentes')">
                 <span class="icon">🚫</span><span class="text">Sócios Inadimplentes</span>
@@ -151,6 +156,29 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
+        <!-- NOVA SECAO: PEDIDOS DE CARTÃO NFC -->
+        <div id="sec-pedidos-nfc" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #00cec9;">
+                <h2 style="margin-top: 0;">Pedidos de Cartão Físico NFC</h2>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Grave o "Código NFC" no chip físico e envie para o endereço do usuário.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Usuário</th>
+                            <th>Endereço de Entrega</th>
+                            <th>Código NFC (Gravar)</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="nfc-lista">
+                        <tr><td colspan="5" style="text-align: center;">Carregando...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 

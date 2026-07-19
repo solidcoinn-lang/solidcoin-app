@@ -794,7 +794,12 @@ app.get('/api/admin/pedidos-pendentes', isAdmin, async (req, res) => {
         const depositos = await Deposit.find({ status: 'Pendente' }).sort({ data: 1 });
         const socios = await SocioOrder.find({ status: 'Pendente' }).sort({ data: 1 });
         const saquesPix = await PixWithdrawal.find({ status: 'Pendente' }).sort({ data: 1 }); 
-        res.json({ sucesso: true, saques, gifts, recharges, depositos, socios, saquesPix });
+        
+        // ADICIONAMOS A BUSCA DE CARTÕES NFC AQUI:
+        const NfcOrder = mongoose.model('NfcOrder');
+        const cartoesNfc = await NfcOrder.find({ status: 'Pendente' }).sort({ data: 1 });
+
+        res.json({ sucesso: true, saques, gifts, recharges, depositos, socios, saquesPix, cartoesNfc });
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
@@ -921,7 +926,31 @@ app.post('/api/admin/processar-recharge', isAdmin, async (req, res) => {
         }
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
+app.post('/api/admin/processar-nfc', isAdmin, async (req, res) => {
+    try {
+        const { orderId, acao } = req.body;
+        const NfcOrder = mongoose.model('NfcOrder');
+        const order = await NfcOrder.findById(orderId);
+        if (!order || order.status !== 'Pendente') return res.status(404).json({ sucesso: false });
 
+        if (acao === 'aprovar') {
+            // Aprovar significa que o ADM gravou o cartão e já enviou pro correio
+            order.status = 'Concluido'; 
+            await order.save();
+            res.json({ sucesso: true, mensagem: "Cartão marcado como Gravado e Enviado!" });
+        } else {
+            // Rejeitar: Estorna os 1600 SC do usuário
+            const user = await User.findById(order.userId); 
+            const admin = await User.findOne({ email: ADMIN_EMAIL });
+            user.saldo += 1600; admin.saldo -= 1600; order.status = 'Rejeitado';
+            await Promise.all([
+                user.save(), admin.save(), order.save(), 
+                new Transaction({ userId: user._id, tipo: 'Estorno Cartão NFC', descricao: `Cancelado pelo ADM`, valor: 1600 }).save()
+            ]);
+            res.json({ sucesso: true, mensagem: "Pedido Cancelado. 1.600 SC estornados ao usuário." });
+        }
+    } catch (error) { res.status(500).json({ sucesso: false }); }
+});
 async function setupInicial() {
     try {
         let ceo = await User.findOne({ email: ADMIN_EMAIL });

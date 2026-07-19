@@ -120,6 +120,30 @@ window.carregarPendentes = async () => {
                 }
             }
 
+            // --- PEDIDOS NFC ---
+            const nfcList = document.getElementById('nfc-lista');
+            if (nfcList) {
+                nfcList.innerHTML = '';
+                if (data.cartoesNfc && data.cartoesNfc.length === 0) {
+                    nfcList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #888;">Nenhum pedido de Cartão NFC pendente.</td></tr>';
+                } else if (data.cartoesNfc) {
+                    data.cartoesNfc.forEach(nfc => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${new Date(nfc.data).toLocaleString('pt-BR')}</td>
+                            <td>${nfc.nomeUsuario} <br><small style="color: #888;">${nfc.emailUsuario}</small></td>
+                            <td style="font-size: 0.85em; max-width: 250px; word-break: break-word;">${nfc.enderecoEntrega}</td>
+                            <td><strong style="color:#00cec9; letter-spacing: 1px; user-select: all; font-size: 1.1em;">${nfc.nfcToken}</strong></td>
+                            <td>
+                                <button class="aprovar-btn" onclick="processarNfc('${nfc._id}', 'aprovar')" style="margin-bottom: 5px; width: 100%;">Aprovar (Enviado)</button>
+                                <button class="rejeitar-btn" onclick="processarNfc('${nfc._id}', 'rejeitar')" style="width: 100%;">Cancelar & Estornar</button>
+                            </td>
+                        `;
+                        nfcList.appendChild(tr);
+                    });
+                }
+            }
+
             const sociosList = document.getElementById('socios-lista');
             if (sociosList) {
                 sociosList.innerHTML = '';
@@ -334,7 +358,6 @@ window.processarSaque = async (id, acao) => {
     const data = await res.json(); alert(data.mensagem); if(data.sucesso) window.carregarPendentes();
 };
 
-// --- NOVA FUNÇÃO: PROCESSAR SAQUE PIX ---
 window.processarSaquePix = async (id, acao) => {
     let txId = '';
     if (acao === 'aprovar') {
@@ -392,4 +415,23 @@ window.gerarGiftCardSolidCoin = async () => {
         const data = await res.json(); alert(data.mensagem);
         if(data.sucesso && valorInput) { valorInput.value = ''; }
     } catch(e) { console.error(e); alert("Erro ao tentar gerar o código. Verifique a conexão."); }
+};
+
+// --- NOVA FUNÇÃO: PROCESSAR PEDIDOS DE CARTÃO NFC ---
+window.processarNfc = async (id, acao) => {
+    if (acao === 'aprovar' && !confirm('Você já gravou o código no chip NFC e realizou o envio do cartão físico para o endereço do cliente?')) return;
+    if (acao === 'rejeitar' && !confirm('Tem certeza que deseja cancelar o pedido de cartão? Os 1.600 SC serão devolvidos ao usuário.')) return;
+    
+    try {
+        const res = await fetch('/api/admin/processar-nfc', {
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ orderId: id, acao })
+        });
+        const data = await res.json();
+        alert(data.mensagem);
+        if (data.sucesso) window.carregarPendentes();
+    } catch (e) {
+        alert("Erro ao processar pedido NFC.");
+    }
 };
