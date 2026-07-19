@@ -69,6 +69,119 @@ const PLANOS_SOCIO = {
     "Ouro": { valorReais: 50, sc: 34375 },
     "Diamante": { valorReais: 100, sc: 71500 }
 };
+// =========================================================================
+// --- MÓDULO NFC SOLIDCOIN (CARTÕES E TRANSFERÊNCIA POR APROXIMAÇÃO) ---
+// =========================================================================
+
+// Modelo para gerenciar os pedidos de cartões físicos
+const NfcOrderSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    nomeUsuario: String,
+    emailUsuario: String,
+    enderecoEntrega: String,
+    nfcToken: String, // O código exclusivo que você gravará no chip físico
+    status: { type: String, default: 'Pendente' }, // Pendente, Gravado, Enviado
+    data: { type: Date, default: Date.now }
+});
+const NfcOrder = mongoose.model('NfcOrder', NfcOrderSchema);
+
+// 1. Rota para solicitar o Cartão NFC (Custo: 1.600 SC)
+app.post('/api/nfc/solicitar-cartao', checkAuthenticated, async (req, res) => {
+    try {
+        const { endereco } = req.body;
+        if (!endereco || endereco.trim().length < 5) {
+            return res.status(400).json({ sucesso: false, mensagem: "Informe um endereço de entrega válido." });
+        }
+
+        const CUSTO_CARTAO = 1600;
+        const user = await User.findById(req.session.user.id);
+        const admin = await User.findOne({ email: ADMIN_EMAIL });
+
+        if (user.saldo < CUSTO_CARTAO) {
+            return res.status(400).json({ sucesso: false, mensagem: `Saldo insuficiente. O cartão exclusivo custa ${CUSTO_CARTAO} SC.` });
+        }
+
+        // Gera um Token único para ser gravado no chip NFC (Ex: SOLID-8F3A2B1C)
+        const tokenExclusivo = 'SOLID-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+
+        // Desconta do usuário e envia para o CEO
+        user.saldo -= CUSTO_CARTAO;
+        admin.saldo += CUSTO_CARTAO;
+        user.nfcToken = tokenExclusivo; // Salva o token no perfil do usuário
+
+        const novoPedido = new NfcOrder({
+            userId: user._id,
+            nomeUsuario: user.nome,
+            emailUsuario: user.email,
+            enderecoEntrega: endereco,
+            nfcToken: tokenExclusivo,
+            status: 'Pendente'
+        });
+
+        await Promise.all([
+            user.save(),
+            admin.save(),
+            novoPedido.save(),
+            new Transaction({ userId: user._id, tipo: 'Emissão Cartão NFC', descricao: `Cartão SolidCoin Exclusivo`, valor: -CUSTO_CARTAO }).save(),
+            new Transaction({ userId: admin._id, tipo: 'Venda Cartão NFC', descricao: `Para ${user.nome}`, valor: CUSTO_CARTAO }).save()
+        ]);
+
+        res.json({ 
+            sucesso: true, 
+            mensagem: "Cartão NFC Solicitado com Sucesso! Descontamos 1.600 SC. O ADM irá gravar seu chip e enviar para o endereço cadastrado.",
+            novoSaldo: user.saldo 
+        });
+
+    } catch (error) {
+        console.error("Erro NFC:", error);
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao solicitar cartão." });
+    }
+});
+
+// 2. Rota para transferir SolidCoins via aproximação (Lendo o chip NFC)
+app.post('/api/nfc/transferir-aproximacao', checkAuthenticated, async (req, res) => {
+    try {
+        const { nfcTokenDestino, valor } = req.body;
+        const valorNum = parseFloat(valor);
+
+        if (!nfcTokenDestino || !valorNum || valorNum <= 0) {
+            return res.status(400).json({ sucesso: false, mensagem: "Dados ou valor de transferência inválidos." });
+        }
+
+        const remetente = await User.findById(req.session.user.id);
+        const destinatario = await User.findOne({ nfcToken: nfcTokenDestino });
+
+        if (!destinatario) {
+            return res.status(404).json({ sucesso: false, mensagem: "Cartão NFC não reconhecido ou não ativado no sistema SolidCoin." });
+        }
+        if (remetente._id.toString() === destinatario._id.toString()) {
+            return res.status(400).json({ sucesso: false, mensagem: "Você não pode transferir para o seu próprio cartão NFC." });
+        }
+        if (remetente.saldo < valorNum) {
+            return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente para realizar este pagamento." });
+        }
+
+        remetente.saldo -= valorNum;
+        destinatario.saldo += valorNum;
+
+        await Promise.all([
+            remetente.save(),
+            destinatario.save(),
+            new Transaction({ userId: remetente._id, tipo: 'Pagamento NFC (Enviado)', descricao: `Aproximação para ${destinatario.nome}`, valor: -valorNum }).save(),
+            new Transaction({ userId: destinatario._id, tipo: 'Recebimento NFC (Lido)', descricao: `Aproximação de ${remetente.nome}`, valor: valorNum }).save()
+        ]);
+
+        res.json({ 
+            sucesso: true, 
+            mensagem: `⚡ Pagamento por Aproximação Concluído! ${valorNum} SC enviados para ${destinatario.nome}.`,
+            novoSaldo: remetente.saldo 
+        });
+
+    } catch (error) {
+        console.error("Erro transferência NFC:", error);
+        res.status(500).json({ sucesso: false, mensagem: "Erro na transferência NFC." });
+    }
+});
 
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => {

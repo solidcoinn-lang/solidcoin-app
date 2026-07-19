@@ -49,6 +49,7 @@
         .btn-buygift { border-bottom: 4px solid #ff9f43; }
         .btn-recarga { border-bottom: 4px solid #1abc9c; }
         .btn-resgift { border-bottom: 4px solid #95a5a6; }
+        .btn-nfc { border-bottom: 4px solid #00cec9; } /* Cor do botão NFC */
 
         .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -113,6 +114,10 @@
             <button class="feature-btn btn-trans" onclick="abrirSecao('sec-transferir')">
                 <span class="icon">💸</span><span class="text">Transferir SolidCoins</span>
             </button>
+            <!-- NOVO BOTÃO NFC AQUI -->
+            <button class="feature-btn btn-nfc" onclick="abrirSecao('sec-nfc')">
+                <span class="icon">💳</span><span class="text">Tecnologia NFC SolidCoin</span>
+            </button>
             <button class="feature-btn btn-buygift" onclick="abrirSecao('sec-comprar-gift')">
                 <span class="icon">🎁</span><span class="text">Comprar Gift Card</span>
             </button>
@@ -123,6 +128,39 @@
                 <span class="icon">🎟️</span><span class="text">Resgatar Gift SolidCoin</span>
             </button>
         </div>
+
+        <!-- --- NOVA SEÇÃO NFC --- -->
+        <div id="sec-nfc" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
+            <div class="card" style="border-left: 5px solid #00cec9; background: linear-gradient(145deg, #0d1a1a, #1a2a2a);">
+                <h2 style="color: #00cec9;">Tecnologia NFC SolidCoin</h2>
+                
+                <!-- BLOCO 1: TRANSFERIR POR APROXIMAÇÃO -->
+                <div class="card-box" style="background: linear-gradient(135deg, #111, #1a1a1a); border: 1px solid #d4af37; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                    <h3 style="color: #d4af37; margin-top: 0;">📡 Pagamento por Aproximação (NFC)</h3>
+                    <p style="font-size: 0.9em; color: #ccc;">Encoste seu celular no Cartão NFC ou celular de outro Sócio para transferir SolidCoins instantaneamente.</p>
+                    
+                    <button id="btn-ler-nfc" style="background: #d4af37; color: #000; font-weight: bold; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 1em;">
+                        📲 Aproximar Cartão / Celular
+                    </button>
+                    <p id="status-nfc" style="color: #00ff88; font-weight: bold; text-align: center; margin-top: 10px; display: none;"></p>
+                </div>
+
+                <!-- BLOCO 2: PEDIR CARTÃO FÍSICO -->
+                <div class="card-box" style="background: #151515; border: 1px solid #333; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                    <h3 style="color: #fff; margin-top: 0;">💳 Solicitar Cartão Físico SolidCoin</h3>
+                    <p style="font-size: 0.9em; color: #aaa;">Receba em casa o cartão Black exclusivo com chip NFC para transações presenciais na nossa rede. <strong style="color: #d4af37;">Emissão: 1.600 SC</strong></p>
+                    
+                    <form id="form-solicitar-cartao">
+                        <textarea id="nfc-endereco" placeholder="Digite seu endereço completo com CEP para entrega..." required style="width: 100%; height: 70px; background: #222; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 6px; margin-bottom: 10px;"></textarea>
+                        <button type="submit" style="background: #fff; color: #000; font-weight: bold; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; width: 100%;">
+                            Pedido Exclusivo (Descontar 1.600 SC)
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <!-- --- FIM SEÇÃO NFC --- -->
 
         <div id="sec-tron" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>

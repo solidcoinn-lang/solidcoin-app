@@ -62,6 +62,98 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ==========================================
+    // --- LÓGICA: TECNOLOGIA NFC SOLIDCOIN ---
+    // ==========================================
+    const btnLerNfc = document.getElementById('btn-ler-nfc');
+    const statusNfc = document.getElementById('status-nfc');
+
+    if (btnLerNfc) {
+        btnLerNfc.addEventListener('click', async () => {
+            // Verifica se o celular/navegador é compatível com Web NFC
+            if (!("NDEFReader" in window)) {
+                return alert("⚠️ Seu navegador ou dispositivo não possui suporte a leitura NFC. Use o Google Chrome no Android e ligue o NFC do celular.");
+            }
+
+            try {
+                const ndef = new NDEFReader();
+                await ndef.scan();
+                
+                btnLerNfc.style.background = "#00ff88";
+                btnLerNfc.textContent = "⌛ Aproxime o Cartão SolidCoin da traseira do celular...";
+                if(statusNfc) {
+                    statusNfc.style.display = 'block';
+                    statusNfc.textContent = "Buscando sinal NFC...";
+                }
+
+                // Quando o chip encosta no celular:
+                ndef.addEventListener("reading", async ({ message }) => {
+                    const decoder = new TextDecoder();
+                    let tokenLido = "";
+
+                    // Lê a mensagem gravada dentro do chip
+                    for (const record of message.records) {
+                        if (record.recordType === "text") {
+                            tokenLido = decoder.decode(record.data);
+                        }
+                    }
+
+                    // Verifica se o chip tem um código da SolidCoin
+                    if (!tokenLido.startsWith("SOLID-")) {
+                        alert("❌ Cartão inválido! Este chip não pertence ao ecossistema SolidCoin.");
+                        return;
+                    }
+
+                    btnLerNfc.textContent = "📲 Aproximar Cartão / Celular";
+                    btnLerNfc.style.background = "#d4af37";
+                    if(statusNfc) statusNfc.style.display = 'none';
+
+                    // Pergunta quanto o usuário quer enviar
+                    const valor = prompt(`✅ Cartão SolidCoin Identificado (${tokenLido})!\n\nQuanto em SolidCoins (SC) você deseja transferir para este usuário?`);
+                    if (!valor || isNaN(valor) || parseFloat(valor) <= 0) return;
+
+                    if (confirm(`Confirmar transferência de ${valor} SC por aproximação?`)) {
+                        const res = await fetch('/api/nfc/transferir-aproximacao', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ nfcTokenDestino: tokenLido, valor: valor })
+                        });
+                        const data = await res.json();
+                        alert(data.mensagem);
+                        if (data.sucesso) {
+                            carregarDashboard(true); // Atualiza o saldo instantaneamente
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error("Erro NFC:", error);
+                alert("Erro ao ativar o leitor NFC. Verifique se a permissão foi concedida no navegador.");
+            }
+        });
+    }
+
+    const formNfc = document.getElementById('form-solicitar-cartao');
+    if (formNfc) {
+        formNfc.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const endereco = document.getElementById('nfc-endereco').value;
+            if (!confirm("Atenção: A emissão do Cartão NFC Exclusivo custa 1.600 SolidCoins, que serão descontados do seu saldo agora. Confirmar pedido?")) return;
+
+            const res = await fetch('/api/nfc/solicitar-cartao', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ endereco })
+            });
+            const data = await res.json();
+            alert(data.mensagem);
+            if (data.sucesso) {
+                formNfc.reset();
+                carregarDashboard(true);
+            }
+        });
+    }
+
+    // ==========================================
     // --- LÓGICA WEB3: TRONLINK (SMART CONTRACT) ---
     // ==========================================
     const CONTRATO_SOLIDCOIN = "TEyHvpEwPVoVqBDVXKnLBJPQDU7ACoikjE"; 
@@ -261,7 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const metodo = socioPagamento.value;
             const txId = socioTxid.value;
 
-            // Evita submissão se for Pix, pois a Efí resolve via webhook
+            // Evita submissão se for Pix, pois a Efí resolve via webhook ou robô
             if (metodo === 'Pix') return; 
 
             if (!confirm(`Confirmar envio de assinatura do plano ${plano} pago via ${metodo}?`)) return;
