@@ -187,13 +187,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 3. GERAR TOKEN NFC GRÁTIS
+    // 3. GERAR TOKEN NFC GRÁTIS (COM BLINDAGEM DE ERRO)
     if (btnGerarTokenNfc) {
         btnGerarTokenNfc.addEventListener('click', async () => {
-            const res = await fetch('/api/nfc/gerar-meu-token', { method: 'POST' });
-            const data = await res.json();
-            alert(data.mensagem);
-            if (data.sucesso) carregarDashboard(true);
+            try {
+                btnGerarTokenNfc.textContent = "⏳ Gerando...";
+                btnGerarTokenNfc.disabled = true;
+
+                const res = await fetch('/api/nfc/gerar-meu-token', { method: 'POST' });
+                
+                if (!res.ok) {
+                    throw new Error("Falha na comunicação com a rota de geração do token.");
+                }
+
+                const data = await res.json();
+                alert(data.mensagem);
+                if (data.sucesso) {
+                    carregarDashboard(true);
+                }
+            } catch (error) {
+                console.error("Erro no clique:", error);
+                alert("❌ Erro ao gerar o token. Verifique se o backend na nuvem já foi atualizado com a última versão do index.js!");
+                btnGerarTokenNfc.textContent = "⚡ Gerar Meu Token Grátis";
+                btnGerarTokenNfc.disabled = false;
+            }
         });
     }
 
@@ -375,12 +392,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const linkPix = document.getElementById('socio-link-pix');
 
             if (metodo === 'Pix') {
-                // Lógica Nova: Efí (QR Code Automático)
                 textoEl.textContent = "Gerando seu Pix automático...";
                 dadoEl.innerHTML = "";
                 linkPix.style.display = 'none';
                 socioTxid.style.display = 'none'; 
-                socioBtn.style.display = 'none'; // Some o botão, a Efí faz tudo via webhook
+                socioBtn.style.display = 'none'; 
 
                 try {
                     const res = await fetch('/api/socio/assinar', {
@@ -419,7 +435,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const metodo = socioPagamento.value;
             const txId = socioTxid.value;
 
-            // Evita submissão se for Pix, pois a Efí resolve via webhook ou robô
             if (metodo === 'Pix') return; 
 
             if (!confirm(`Confirmar envio de assinatura do plano ${plano} pago via ${metodo}?`)) return;
@@ -494,14 +509,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 scRate = data.scRate || 500;
                 if(cotacaoAtualEl) cotacaoAtualEl.textContent = scRate;
 
-                // ATUALIZA SALDO E ENVIAR LIMITE AO MOTOR CENTRAL
                 atualizarSaldo(data.usuario.saldo, data.usuario.limiteDeSaque); 
 
                 atualizarCustoDinamico(document.getElementById('gift-valor'), document.getElementById('gift-custo'));
                 atualizarCustoDinamico(document.getElementById('recharge-valor'), document.getElementById('recharge-custo'));
 
                 // ========================================================
-                // --- ATUALIZAÇÃO AUTOMÁTICA DO TOKEN NFC DO USUÁRIO ---
+                // --- ATUALIZAÇÃO DO TOKEN NFC DA CONTA ---
                 // ========================================================
                 const meuTokenEl = document.getElementById('meu-token-nfc');
                 const btnGerarTokenEl = document.getElementById('btn-gerar-token-nfc');
@@ -561,7 +575,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             categoriasContainer.appendChild(btn);
                         });
 
-                        // CORREÇÃO MÁGICA: Renderiza o Marketplace na tela imediatamente!
                         if (categoriasUnicas.length > 0) {
                             const primeiroBotao = categoriasContainer.querySelector('.cat-btn');
                             if (primeiroBotao) {

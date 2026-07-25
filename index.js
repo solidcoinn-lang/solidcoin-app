@@ -69,6 +69,7 @@ const PLANOS_SOCIO = {
     "Ouro": { valorReais: 50, sc: 34375 },
     "Diamante": { valorReais: 100, sc: 71500 }
 };
+
 // =========================================================================
 // --- MÓDULO NFC SOLIDCOIN (CARTÕES E TRANSFERÊNCIA POR APROXIMAÇÃO) ---
 // =========================================================================
@@ -101,13 +102,11 @@ app.post('/api/nfc/solicitar-cartao', checkAuthenticated, async (req, res) => {
             return res.status(400).json({ sucesso: false, mensagem: `Saldo insuficiente. O cartão exclusivo custa ${CUSTO_CARTAO} SC.` });
         }
 
-        // Gera um Token único para ser gravado no chip NFC (Ex: SOLID-8F3A2B1C)
         const tokenExclusivo = 'SOLID-' + crypto.randomBytes(4).toString('hex').toUpperCase();
 
-        // Desconta do usuário e envia para o CEO
         user.saldo -= CUSTO_CARTAO;
         admin.saldo += CUSTO_CARTAO;
-        user.nfcToken = tokenExclusivo; // Salva o token no perfil do usuário
+        user.nfcToken = tokenExclusivo; 
 
         const novoPedido = new NfcOrder({
             userId: user._id,
@@ -182,6 +181,7 @@ app.post('/api/nfc/transferir-aproximacao', checkAuthenticated, async (req, res)
         res.status(500).json({ sucesso: false, mensagem: "Erro na transferência NFC." });
     }
 });
+
 // 3. Rota para RECEBER / COBRAR via aproximação (Modo Maquininha SolidCoin)
 app.post('/api/nfc/cobrar-aproximacao', checkAuthenticated, async (req, res) => {
     try {
@@ -205,7 +205,6 @@ app.post('/api/nfc/cobrar-aproximacao', checkAuthenticated, async (req, res) => 
             return res.status(400).json({ sucesso: false, mensagem: `❌ Venda Recusada: Saldo insuficiente no cartão de ${pagador.nome}.` });
         }
 
-        // Efetua a transferência: debita do pagador e credita no recebedor (comerciante)
         pagador.saldo -= valorNum;
         recebedor.saldo += valorNum;
 
@@ -228,7 +227,7 @@ app.post('/api/nfc/cobrar-aproximacao', checkAuthenticated, async (req, res) => 
     }
 });
 
-// 4. Rota para o usuário gerar seu próprio Token NFC grátis (Para usar em adesivos caseiros)
+// 4. Rota para o usuário gerar seu próprio Token NFC grátis
 app.post('/api/nfc/gerar-meu-token', checkAuthenticated, async (req, res) => {
     try {
         const user = await User.findById(req.session.user.id);
@@ -238,7 +237,8 @@ app.post('/api/nfc/gerar-meu-token', checkAuthenticated, async (req, res) => {
         }
         res.json({ sucesso: true, token: user.nfcToken, mensagem: "Seu Token NFC foi gerado! Agora você pode gravá-lo em qualquer tag ou adesivo NFC." });
     } catch (error) {
-        res.status(500).json({ sucesso: false, mensagem: "Erro ao gerar token." });
+        console.error("Erro ao gerar token NFC:", error);
+        res.status(500).json({ sucesso: false, mensagem: "Erro interno ao gerar token." });
     }
 });
 
@@ -390,7 +390,19 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
         res.json({
             sucesso: true, scRate: scRate,
             usuario: { 
-                nome: user.nome, saldo: user.saldo, stakedAmount: user.stakedAmount, canUnstakeAt: user.canUnstakeAt, solanaWallet: user.solanaWallet, tronWallet: user.tronWallet, isAdmin: user.email === ADMIN_EMAIL, statusSocio: user.statusSocio, planoSocio: user.planoSocio, vencimentoSocio: user.vencimentoSocio, codigoIndicacao: user.codigoIndicacao, limiteDeSaque: limiteSaqueAprovado 
+                nome: user.nome, 
+                saldo: user.saldo, 
+                stakedAmount: user.stakedAmount, 
+                canUnstakeAt: user.canUnstakeAt, 
+                solanaWallet: user.solanaWallet, 
+                tronWallet: user.tronWallet, 
+                isAdmin: user.email === ADMIN_EMAIL, 
+                statusSocio: user.statusSocio, 
+                planoSocio: user.planoSocio, 
+                vencimentoSocio: user.vencimentoSocio, 
+                codigoIndicacao: user.codigoIndicacao, 
+                limiteDeSaque: limiteSaqueAprovado,
+                nfcToken: user.nfcToken || '' // <--- CRÍTICO: Agora enviamos o nfcToken para a tela!
             },
             marketplace: produtos.map(p => ({ id: p._id, nome: p.nome, preco: p.preco, imagemUrl: p.imagemUrl, categoria: p.categoria || 'Cédulas SolidCoin' }))
         });
@@ -409,17 +421,14 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
         const user = await User.findById(req.session.user.id);
 
         if (metodoPagamento === 'Pix') {
-            // CRIA COBRANÇA NA EFÍ
             let bodyCob = {
                 calendario: { expiracao: 3600 },
                 valor: { original: configPlano.valorReais.toFixed(2) },
-                chave: process.env.EFI_PIX_KEY, // A chave pix da sua conta Efí
+                chave: process.env.EFI_PIX_KEY, 
                 solicitacaoPagador: `Assinatura Plano ${plano} - SolidCoin`
             };
 
             const cobResponse = await efipay.pixCreateImmediateCharge({}, bodyCob);
-            
-            // CORREÇÃO: O parâmetro correto é { id: ... } (Antes estava locId e quebrava)
             const qrCodeResponse = await efipay.pixGenerateQRCode({ id: cobResponse.loc.id });
 
             const novaOrdem = new SocioOrder({
@@ -437,7 +446,6 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
                 txid: cobResponse.txid
             });
         } else {
-            // Método Cripto Manual
             const novaOrdem = new SocioOrder({
                 userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, plano: plano, 
                 valorReais: configPlano.valorReais, moedasReceber: configPlano.sc, metodoPagamento: metodoPagamento, txId: req.body.txId || 'Manual'
@@ -479,25 +487,23 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
         const valorLiquidoSC = valorNum - taxaSC;
         const valorBRL = valorLiquidoSC / scRate;
 
-        // TENTA ENVIAR O PIX AUTOMATICAMENTE VIA EFÍ
         let bodyEnvioPix = {
             valor: valorBRL.toFixed(2),
-            pagador: { chave: process.env.EFI_PIX_KEY }, // Chave de saída do CEO
-            favorecido: { chave: chavePix } // Chave do Usuário VIP
+            pagador: { chave: process.env.EFI_PIX_KEY }, 
+            favorecido: { chave: chavePix } 
         };
 
         try {
             const envioResponse = await efipay.pixSend({}, bodyEnvioPix);
             
-            // SE O PIX PASSAR COM SUCESSO:
             user.saldo -= valorNum;
             const admin = await User.findOne({email: ADMIN_EMAIL});
-            admin.saldo += valorNum; // Volta o valor pro CEO (Economia circular)
+            admin.saldo += valorNum; 
 
             const novoSaquePix = new PixWithdrawal({
                 userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, chavePix: chavePix, tipoChavePix: tipoChave,
                 valorSC: valorNum, taxaSC: taxaSC, valorBRL: valorBRL, 
-                status: 'Aprovado', txId: envioResponse.e2eId // Guarda o comprovante do banco
+                status: 'Aprovado', txId: envioResponse.e2eId 
             });
 
             await Promise.all([
@@ -520,15 +526,12 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
 // --- WEBHOOK EFÍ (AVISO DE PAGAMENTO RECEBIDO) - ROTA DE BACKUP ---
 // =====================================================================
 app.post('/api/webhook/pix', async (req, res) => {
-    // A Efí exige que o servidor responda 200 OK imediatamente.
     res.status(200).send('OK');
 
     try {
         if (req.body.pix && req.body.pix.length > 0) {
             for (let pagamento of req.body.pix) {
                 const txid_pago = pagamento.txid;
-                
-                // Procura se esse pagamento pertence a um plano de Sócio pendente
                 const ordem = await SocioOrder.findOne({ txId: txid_pago, status: 'Pendente' });
                 
                 if (ordem) {
@@ -549,7 +552,6 @@ app.post('/api/webhook/pix', async (req, res) => {
                         ];
                         const updatesToSave = [user.save(), ordem.save()];
 
-                        // Paga afiliado se houver
                         if (user.indicadoPor) {
                             const referrer = await User.findById(user.indicadoPor);
                             if (referrer) {
@@ -572,7 +574,6 @@ app.post('/api/webhook/pix', async (req, res) => {
     } catch (e) { console.error("Erro ao processar Webhook Pix Efí:", e); }
 });
 
-// --- ROTA MANUAL DE CHECAGEM PIX PARA O ADM (POLLING FALLBACK) ---
 app.post('/api/admin/verificar-pix-efi', isAdmin, async (req, res) => {
     try {
         const ordensPendentes = await SocioOrder.find({ status: 'Pendente', metodoPagamento: 'Pix Efí' });
@@ -595,14 +596,13 @@ app.post('/api/admin/verificar-pix-efi', isAdmin, async (req, res) => {
                         aprovadas++;
                     }
                 }
-            } catch (e) { /* Ignora se der erro num txid específico e tenta o próximo */ }
+            } catch (e) { }
         }
         res.json({ sucesso: true, mensagem: `Sincronização concluída. ${aprovadas} pagamentos Pix foram identificados e aprovados automaticamente.` });
     } catch (e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao comunicar com a Efí." }); }
 });
 
-
-// OUTRAS ROTAS GERAIS (Depósito, Saque Cripto, etc) MANTIDAS
+// Outras rotas gerais
 app.post('/api/depositar', checkAuthenticated, async (req, res) => {
     try {
         const { rede, linkTransacao, valor } = req.body;
@@ -657,7 +657,6 @@ app.get('/api/meus-saques', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao buscar saques." }); }
 });
 
-// Staking, Marketplace, Giftcards
 app.post('/api/staking/stake', checkAuthenticated, async (req, res) => {
     try {
         const valor = parseFloat(req.body.valor);
@@ -854,7 +853,6 @@ app.get('/api/admin/pedidos-pendentes', isAdmin, async (req, res) => {
         const socios = await SocioOrder.find({ status: 'Pendente' }).sort({ data: 1 });
         const saquesPix = await PixWithdrawal.find({ status: 'Pendente' }).sort({ data: 1 }); 
         
-        // ADICIONAMOS A BUSCA DE CARTÕES NFC AQUI:
         const NfcOrder = mongoose.model('NfcOrder');
         const cartoesNfc = await NfcOrder.find({ status: 'Pendente' }).sort({ data: 1 });
 
@@ -985,6 +983,7 @@ app.post('/api/admin/processar-recharge', isAdmin, async (req, res) => {
         }
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
+
 app.post('/api/admin/processar-nfc', isAdmin, async (req, res) => {
     try {
         const { orderId, acao } = req.body;
@@ -993,12 +992,10 @@ app.post('/api/admin/processar-nfc', isAdmin, async (req, res) => {
         if (!order || order.status !== 'Pendente') return res.status(404).json({ sucesso: false });
 
         if (acao === 'aprovar') {
-            // Aprovar significa que o ADM gravou o cartão e já enviou pro correio
             order.status = 'Concluido'; 
             await order.save();
             res.json({ sucesso: true, mensagem: "Cartão marcado como Gravado e Enviado!" });
         } else {
-            // Rejeitar: Estorna os 1600 SC do usuário
             const user = await User.findById(order.userId); 
             const admin = await User.findOne({ email: ADMIN_EMAIL });
             user.saldo += 1600; admin.saldo -= 1600; order.status = 'Rejeitado';
@@ -1010,6 +1007,7 @@ app.post('/api/admin/processar-nfc', isAdmin, async (req, res) => {
         }
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
+
 async function setupInicial() {
     try {
         let ceo = await User.findOne({ email: ADMIN_EMAIL });
@@ -1036,7 +1034,6 @@ async function setupInicial() {
 // =========================================================================
 async function verificarPixPendentesAutomatizado() {
     try {
-        // Busca todos os planos que estão aguardando pagamento Pix
         const ordensPendentes = await SocioOrder.find({ status: 'Pendente', metodoPagamento: 'Pix Efí' });
         
         if (ordensPendentes.length > 0) {
@@ -1045,7 +1042,6 @@ async function verificarPixPendentesAutomatizado() {
 
         for (let ordem of ordensPendentes) {
             try {
-                // Pergunta para a Efí o status exato deste QRCode
                 const cob = await efipay.pixDetailCharge({ txid: ordem.txId });
                 
                 if (cob.status === 'CONCLUIDA') {
@@ -1066,7 +1062,6 @@ async function verificarPixPendentesAutomatizado() {
                         ];
                         const updatesToSave = [user.save(), ordem.save()];
 
-                        // Paga afiliado se houver
                         if (user.indicadoPor) {
                             const referrer = await User.findById(user.indicadoPor);
                             if (referrer) {
@@ -1087,7 +1082,7 @@ async function verificarPixPendentesAutomatizado() {
                     }
                 }
             } catch (e) { 
-                // Ignora erro de uma ordem específica e pula pra próxima
+                // Ignora erro de uma ordem específica
             }
         }
     } catch (e) {
@@ -1095,7 +1090,6 @@ async function verificarPixPendentesAutomatizado() {
     }
 }
 
-// Inicia o robô para rodar automaticamente a cada 60 segundos (60000 ms)
 setInterval(verificarPixPendentesAutomatizado, 60000);
 
 app.listen(PORT, () => { console.log(`\n🚀 SolidCoin App rodando na porta ${PORT}`); });
