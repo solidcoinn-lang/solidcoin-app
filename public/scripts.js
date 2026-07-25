@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 3. GERAR TOKEN NFC GRÁTIS (COM BLINDAGEM DE ERRO)
+    // 3. GERAR TOKEN NFC GRÁTIS
     if (btnGerarTokenNfc) {
         btnGerarTokenNfc.addEventListener('click', async () => {
             try {
@@ -195,19 +195,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnGerarTokenNfc.disabled = true;
 
                 const res = await fetch('/api/nfc/gerar-meu-token', { method: 'POST' });
-                
-                if (!res.ok) {
-                    throw new Error("Falha na comunicação com a rota de geração do token.");
-                }
-
                 const data = await res.json();
+                
                 alert(data.mensagem);
                 if (data.sucesso) {
                     carregarDashboard(true);
+                } else {
+                    btnGerarTokenNfc.textContent = "⚡ Gerar Meu Token Grátis";
+                    btnGerarTokenNfc.disabled = false;
                 }
             } catch (error) {
                 console.error("Erro no clique:", error);
-                alert("❌ Erro ao gerar o token. Verifique se o backend na nuvem já foi atualizado com a última versão do index.js!");
+                alert("❌ Erro de conexão ao tentar gerar o token. Verifique o servidor.");
                 btnGerarTokenNfc.textContent = "⚡ Gerar Meu Token Grátis";
                 btnGerarTokenNfc.disabled = false;
             }
@@ -515,12 +514,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 atualizarCustoDinamico(document.getElementById('recharge-valor'), document.getElementById('recharge-custo'));
 
                 // ========================================================
-                // --- ATUALIZAÇÃO DO TOKEN NFC DA CONTA ---
+                // --- ATUALIZAÇÃO AUTOMÁTICA DO TOKEN NFC DA CONTA ---
                 // ========================================================
                 const meuTokenEl = document.getElementById('meu-token-nfc');
                 const btnGerarTokenEl = document.getElementById('btn-gerar-token-nfc');
                 if (meuTokenEl) {
-                    if (data.usuario.nfcToken) {
+                    if (data.usuario.nfcToken && data.usuario.nfcToken !== '') {
                         meuTokenEl.textContent = data.usuario.nfcToken;
                         if (btnGerarTokenEl) btnGerarTokenEl.style.display = 'none';
                     } else {

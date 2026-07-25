@@ -70,178 +70,21 @@ const PLANOS_SOCIO = {
     "Diamante": { valorReais: 100, sc: 71500 }
 };
 
-// =========================================================================
-// --- MÓDULO NFC SOLIDCOIN (CARTÕES E TRANSFERÊNCIA POR APROXIMAÇÃO) ---
-// =========================================================================
-
-// Modelo para gerenciar os pedidos de cartões físicos
+// Modelo para gerenciar os pedidos de cartões físicos NFC
 const NfcOrderSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     nomeUsuario: String,
     emailUsuario: String,
     enderecoEntrega: String,
-    nfcToken: String, // O código exclusivo que você gravará no chip físico
-    status: { type: String, default: 'Pendente' }, // Pendente, Gravado, Enviado
+    nfcToken: String,
+    status: { type: String, default: 'Pendente' },
     data: { type: Date, default: Date.now }
 });
 const NfcOrder = mongoose.model('NfcOrder', NfcOrderSchema);
 
-// 1. Rota para solicitar o Cartão NFC (Custo: 1.600 SC)
-app.post('/api/nfc/solicitar-cartao', checkAuthenticated, async (req, res) => {
-    try {
-        const { endereco } = req.body;
-        if (!endereco || endereco.trim().length < 5) {
-            return res.status(400).json({ sucesso: false, mensagem: "Informe um endereço de entrega válido." });
-        }
-
-        const CUSTO_CARTAO = 1600;
-        const user = await User.findById(req.session.user.id);
-        const admin = await User.findOne({ email: ADMIN_EMAIL });
-
-        if (user.saldo < CUSTO_CARTAO) {
-            return res.status(400).json({ sucesso: false, mensagem: `Saldo insuficiente. O cartão exclusivo custa ${CUSTO_CARTAO} SC.` });
-        }
-
-        const tokenExclusivo = 'SOLID-' + crypto.randomBytes(4).toString('hex').toUpperCase();
-
-        user.saldo -= CUSTO_CARTAO;
-        admin.saldo += CUSTO_CARTAO;
-        user.nfcToken = tokenExclusivo; 
-
-        const novoPedido = new NfcOrder({
-            userId: user._id,
-            nomeUsuario: user.nome,
-            emailUsuario: user.email,
-            enderecoEntrega: endereco,
-            nfcToken: tokenExclusivo,
-            status: 'Pendente'
-        });
-
-        await Promise.all([
-            user.save(),
-            admin.save(),
-            novoPedido.save(),
-            new Transaction({ userId: user._id, tipo: 'Emissão Cartão NFC', descricao: `Cartão SolidCoin Exclusivo`, valor: -CUSTO_CARTAO }).save(),
-            new Transaction({ userId: admin._id, tipo: 'Venda Cartão NFC', descricao: `Para ${user.nome}`, valor: CUSTO_CARTAO }).save()
-        ]);
-
-        res.json({ 
-            sucesso: true, 
-            mensagem: "Cartão NFC Solicitado com Sucesso! Descontamos 1.600 SC. O ADM irá gravar seu chip e enviar para o endereço cadastrado.",
-            novoSaldo: user.saldo 
-        });
-
-    } catch (error) {
-        console.error("Erro NFC:", error);
-        res.status(500).json({ sucesso: false, mensagem: "Erro ao solicitar cartão." });
-    }
-});
-
-// 2. Rota para transferir SolidCoins via aproximação (Lendo o chip NFC)
-app.post('/api/nfc/transferir-aproximacao', checkAuthenticated, async (req, res) => {
-    try {
-        const { nfcTokenDestino, valor } = req.body;
-        const valorNum = parseFloat(valor);
-
-        if (!nfcTokenDestino || !valorNum || valorNum <= 0) {
-            return res.status(400).json({ sucesso: false, mensagem: "Dados ou valor de transferência inválidos." });
-        }
-
-        const remetente = await User.findById(req.session.user.id);
-        const destinatario = await User.findOne({ nfcToken: nfcTokenDestino });
-
-        if (!destinatario) {
-            return res.status(404).json({ sucesso: false, mensagem: "Cartão NFC não reconhecido ou não ativado no sistema SolidCoin." });
-        }
-        if (remetente._id.toString() === destinatario._id.toString()) {
-            return res.status(400).json({ sucesso: false, mensagem: "Você não pode transferir para o seu próprio cartão NFC." });
-        }
-        if (remetente.saldo < valorNum) {
-            return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente para realizar este pagamento." });
-        }
-
-        remetente.saldo -= valorNum;
-        destinatario.saldo += valorNum;
-
-        await Promise.all([
-            remetente.save(),
-            destinatario.save(),
-            new Transaction({ userId: remetente._id, tipo: 'Pagamento NFC (Enviado)', descricao: `Aproximação para ${destinatario.nome}`, valor: -valorNum }).save(),
-            new Transaction({ userId: destinatario._id, tipo: 'Recebimento NFC (Lido)', descricao: `Aproximação de ${remetente.nome}`, valor: valorNum }).save()
-        ]);
-
-        res.json({ 
-            sucesso: true, 
-            mensagem: `⚡ Pagamento por Aproximação Concluído! ${valorNum} SC enviados para ${destinatario.nome}.`,
-            novoSaldo: remetente.saldo 
-        });
-
-    } catch (error) {
-        console.error("Erro transferência NFC:", error);
-        res.status(500).json({ sucesso: false, mensagem: "Erro na transferência NFC." });
-    }
-});
-
-// 3. Rota para RECEBER / COBRAR via aproximação (Modo Maquininha SolidCoin)
-app.post('/api/nfc/cobrar-aproximacao', checkAuthenticated, async (req, res) => {
-    try {
-        const { nfcTokenPagador, valor } = req.body;
-        const valorNum = parseFloat(valor);
-
-        if (!nfcTokenPagador || !valorNum || valorNum <= 0) {
-            return res.status(400).json({ sucesso: false, mensagem: "Dados ou valor da cobrança inválidos." });
-        }
-
-        const recebedor = await User.findById(req.session.user.id);
-        const pagador = await User.findOne({ nfcToken: nfcTokenPagador });
-
-        if (!pagador) {
-            return res.status(404).json({ sucesso: false, mensagem: "Cartão NFC do pagador não reconhecido no sistema SolidCoin." });
-        }
-        if (recebedor._id.toString() === pagador._id.toString()) {
-            return res.status(400).json({ sucesso: false, mensagem: "Você não pode cobrar de si mesmo." });
-        }
-        if (pagador.saldo < valorNum) {
-            return res.status(400).json({ sucesso: false, mensagem: `❌ Venda Recusada: Saldo insuficiente no cartão de ${pagador.nome}.` });
-        }
-
-        pagador.saldo -= valorNum;
-        recebedor.saldo += valorNum;
-
-        await Promise.all([
-            pagador.save(),
-            recebedor.save(),
-            new Transaction({ userId: pagador._id, tipo: 'Pagamento NFC (Cobrado)', descricao: `Pago na maquininha de ${recebedor.nome}`, valor: -valorNum }).save(),
-            new Transaction({ userId: recebedor._id, tipo: 'Venda NFC (Recebido)', descricao: `Recebido por aproximação de ${pagador.nome}`, valor: valorNum }).save()
-        ]);
-
-        res.json({ 
-            sucesso: true, 
-            mensagem: `⚡ Venda Aprovada! ${valorNum} SC recebidos com sucesso de ${pagador.nome}.`,
-            novoSaldo: recebedor.saldo 
-        });
-
-    } catch (error) {
-        console.error("Erro cobrança NFC:", error);
-        res.status(500).json({ sucesso: false, mensagem: "Erro ao processar cobrança NFC." });
-    }
-});
-
-// 4. Rota para o usuário gerar seu próprio Token NFC grátis
-app.post('/api/nfc/gerar-meu-token', checkAuthenticated, async (req, res) => {
-    try {
-        const user = await User.findById(req.session.user.id);
-        if (!user.nfcToken) {
-            user.nfcToken = 'SOLID-' + crypto.randomBytes(4).toString('hex').toUpperCase();
-            await user.save();
-        }
-        res.json({ sucesso: true, token: user.nfcToken, mensagem: "Seu Token NFC foi gerado! Agora você pode gravá-lo em qualquer tag ou adesivo NFC." });
-    } catch (error) {
-        console.error("Erro ao gerar token NFC:", error);
-        res.status(500).json({ sucesso: false, mensagem: "Erro interno ao gerar token." });
-    }
-});
-
+// =========================================================================
+// --- CONFIGURAÇÃO DO SERVIDOR E MIDDLEWARES (ORDEM CORRETA!) ---
+// =========================================================================
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => {
         console.log("✅ Conectado ao MongoDB Atlas!");
@@ -256,12 +99,12 @@ app.use(session({
 }));
 
 function checkAuthenticated(req, res, next) {
-    if (req.session.user) return next();
+    if (req.session && req.session.user) return next();
     res.status(401).json({ sucesso: false, mensagem: "Acesso não autorizado." });
 }
 
 function isAdmin(req, res, next) {
-    if (req.session.user && req.session.user.email === ADMIN_EMAIL) return next();
+    if (req.session && req.session.user && req.session.user.email === ADMIN_EMAIL) return next();
     res.status(403).send('Acesso negado. Apenas para administradores.');
 }
 
@@ -271,9 +114,6 @@ async function getSCRate() {
     return settings.scPorReal;
 }
 
-// =========================================================================
-// --- MOTOR DE CÁLCULO DE LIMITE DE SAQUE SAUDÁVEL (VESTING 25%) ---
-// =========================================================================
 async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
     if (userEmail === ADMIN_EMAIL) return currentSaldo;
 
@@ -310,7 +150,9 @@ async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
     return Math.min(currentSaldo, limiteDisponivel);
 }
 
-// Rotas de Autenticação
+// =========================================================================
+// --- ROTAS DO SISTEMA ---
+// =========================================================================
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
 app.post('/cadastrar', async (req, res) => {
@@ -402,16 +244,178 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
                 vencimentoSocio: user.vencimentoSocio, 
                 codigoIndicacao: user.codigoIndicacao, 
                 limiteDeSaque: limiteSaqueAprovado,
-                nfcToken: user.nfcToken || '' // <--- CRÍTICO: Agora enviamos o nfcToken para a tela!
+                nfcToken: user.nfcToken || ''
             },
             marketplace: produtos.map(p => ({ id: p._id, nome: p.nome, preco: p.preco, imagemUrl: p.imagemUrl, categoria: p.categoria || 'Cédulas SolidCoin' }))
         });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao buscar dados." }); }
 });
 
-// =====================================================================
-// --- ROTA DE ASSINATURA DE SÓCIO VIA API EFÍ (GERA QR CODE) ---
-// =====================================================================
+// =========================================================================
+// --- ROTAS DO MÓDULO NFC (POSICIONADAS DEPOIS DA SESSÃO!) ---
+// =========================================================================
+
+// 1. Rota para o usuário gerar seu próprio Token NFC grátis
+app.post('/api/nfc/gerar-meu-token', checkAuthenticated, async (req, res) => {
+    try {
+        const user = await User.findById(req.session.user.id);
+        if (!user) return res.status(404).json({ sucesso: false, mensagem: "Usuário não encontrado no banco." });
+
+        if (!user.nfcToken || user.nfcToken === '') {
+            user.nfcToken = 'SOLID-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+            await user.save();
+        }
+        res.json({ sucesso: true, token: user.nfcToken, mensagem: "Seu Token NFC foi gerado com sucesso! Agora você pode gravá-lo em qualquer tag ou adesivo NFC." });
+    } catch (error) {
+        console.error("Erro ao gerar token NFC:", error);
+        res.status(500).json({ sucesso: false, mensagem: "Erro interno no servidor ao gerar token." });
+    }
+});
+
+// 2. Rota para solicitar o Cartão NFC (Custo: 1.600 SC)
+app.post('/api/nfc/solicitar-cartao', checkAuthenticated, async (req, res) => {
+    try {
+        const { endereco } = req.body;
+        if (!endereco || endereco.trim().length < 5) {
+            return res.status(400).json({ sucesso: false, mensagem: "Informe um endereço de entrega válido." });
+        }
+
+        const CUSTO_CARTAO = 1600;
+        const user = await User.findById(req.session.user.id);
+        const admin = await User.findOne({ email: ADMIN_EMAIL });
+
+        if (user.saldo < CUSTO_CARTAO) {
+            return res.status(400).json({ sucesso: false, mensagem: `Saldo insuficiente. O cartão exclusivo custa ${CUSTO_CARTAO} SC.` });
+        }
+
+        const tokenExclusivo = 'SOLID-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+
+        user.saldo -= CUSTO_CARTAO;
+        admin.saldo += CUSTO_CARTAO;
+        user.nfcToken = tokenExclusivo; 
+
+        const novoPedido = new NfcOrder({
+            userId: user._id,
+            nomeUsuario: user.nome,
+            emailUsuario: user.email,
+            enderecoEntrega: endereco,
+            nfcToken: tokenExclusivo,
+            status: 'Pendente'
+        });
+
+        await Promise.all([
+            user.save(),
+            admin.save(),
+            novoPedido.save(),
+            new Transaction({ userId: user._id, tipo: 'Emissão Cartão NFC', descricao: `Cartão SolidCoin Exclusivo`, valor: -CUSTO_CARTAO }).save(),
+            new Transaction({ userId: admin._id, tipo: 'Venda Cartão NFC', descricao: `Para ${user.nome}`, valor: CUSTO_CARTAO }).save()
+        ]);
+
+        res.json({ 
+            sucesso: true, 
+            mensagem: "Cartão NFC Solicitado com Sucesso! Descontamos 1.600 SC. O ADM irá gravar seu chip e enviar para o endereço cadastrado.",
+            novoSaldo: user.saldo 
+        });
+
+    } catch (error) {
+        console.error("Erro NFC:", error);
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao solicitar cartão." });
+    }
+});
+
+// 3. Rota para transferir SolidCoins via aproximação (Lendo o chip NFC)
+app.post('/api/nfc/transferir-aproximacao', checkAuthenticated, async (req, res) => {
+    try {
+        const { nfcTokenDestino, valor } = req.body;
+        const valorNum = parseFloat(valor);
+
+        if (!nfcTokenDestino || !valorNum || valorNum <= 0) {
+            return res.status(400).json({ sucesso: false, mensagem: "Dados ou valor de transferência inválidos." });
+        }
+
+        const remetente = await User.findById(req.session.user.id);
+        const destinatario = await User.findOne({ nfcToken: nfcTokenDestino });
+
+        if (!destinatario) {
+            return res.status(404).json({ sucesso: false, mensagem: "Cartão NFC não reconhecido ou não ativado no sistema SolidCoin." });
+        }
+        if (remetente._id.toString() === destinatario._id.toString()) {
+            return res.status(400).json({ sucesso: false, mensagem: "Você não pode transferir para o seu próprio cartão NFC." });
+        }
+        if (remetente.saldo < valorNum) {
+            return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente para realizar este pagamento." });
+        }
+
+        remetente.saldo -= valorNum;
+        destinatario.saldo += valorNum;
+
+        await Promise.all([
+            remetente.save(),
+            destinatario.save(),
+            new Transaction({ userId: remetente._id, tipo: 'Pagamento NFC (Enviado)', descricao: `Aproximação para ${destinatario.nome}`, valor: -valorNum }).save(),
+            new Transaction({ userId: destinatario._id, tipo: 'Recebimento NFC (Lido)', descricao: `Aproximação de ${remetente.nome}`, valor: valorNum }).save()
+        ]);
+
+        res.json({ 
+            sucesso: true, 
+            mensagem: `⚡ Pagamento por Aproximação Concluído! ${valorNum} SC enviados para ${destinatario.nome}.`,
+            novoSaldo: remetente.saldo 
+        });
+
+    } catch (error) {
+        console.error("Erro transferência NFC:", error);
+        res.status(500).json({ sucesso: false, mensagem: "Erro na transferência NFC." });
+    }
+});
+
+// 4. Rota para RECEBER / COBRAR via aproximação (Modo Maquininha SolidCoin)
+app.post('/api/nfc/cobrar-aproximacao', checkAuthenticated, async (req, res) => {
+    try {
+        const { nfcTokenPagador, valor } = req.body;
+        const valorNum = parseFloat(valor);
+
+        if (!nfcTokenPagador || !valorNum || valorNum <= 0) {
+            return res.status(400).json({ sucesso: false, mensagem: "Dados ou valor da cobrança inválidos." });
+        }
+
+        const recebedor = await User.findById(req.session.user.id);
+        const pagador = await User.findOne({ nfcToken: nfcTokenPagador });
+
+        if (!pagador) {
+            return res.status(404).json({ sucesso: false, mensagem: "Cartão NFC do pagador não reconhecido no sistema SolidCoin." });
+        }
+        if (recebedor._id.toString() === pagador._id.toString()) {
+            return res.status(400).json({ sucesso: false, mensagem: "Você não pode cobrar de si mesmo." });
+        }
+        if (pagador.saldo < valorNum) {
+            return res.status(400).json({ sucesso: false, mensagem: `❌ Venda Recusada: Saldo insuficiente no cartão de ${pagador.nome}.` });
+        }
+
+        pagador.saldo -= valorNum;
+        recebedor.saldo += valorNum;
+
+        await Promise.all([
+            pagador.save(),
+            recebedor.save(),
+            new Transaction({ userId: pagador._id, tipo: 'Pagamento NFC (Cobrado)', descricao: `Pago na maquininha de ${recebedor.nome}`, valor: -valorNum }).save(),
+            new Transaction({ userId: recebedor._id, tipo: 'Venda NFC (Recebido)', descricao: `Recebido por aproximação de ${pagador.nome}`, valor: valorNum }).save()
+        ]);
+
+        res.json({ 
+            sucesso: true, 
+            mensagem: `⚡ Venda Aprovada! ${valorNum} SC recebidos com sucesso de ${pagador.nome}.`,
+            novoSaldo: recebedor.saldo 
+        });
+
+    } catch (error) {
+        console.error("Erro cobrança NFC:", error);
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao processar cobrança NFC." });
+    }
+});
+
+// =========================================================================
+// --- OUTRAS ROTAS GERAIS ---
+// =========================================================================
 app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
     try {
         const { plano, metodoPagamento } = req.body;
@@ -459,9 +463,6 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
     }
 });
 
-// =====================================================================
-// --- ROTA DE SAQUE AUTOMATIZADO VIA API EFÍ (ENVIO DE PIX) ---
-// =====================================================================
 app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
     try {
         const { valorSC, tipoChave, chavePix } = req.body;
@@ -522,9 +523,6 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro geral ao processar saque." }); }
 });
 
-// =====================================================================
-// --- WEBHOOK EFÍ (AVISO DE PAGAMENTO RECEBIDO) - ROTA DE BACKUP ---
-// =====================================================================
 app.post('/api/webhook/pix', async (req, res) => {
     res.status(200).send('OK');
 
@@ -602,7 +600,6 @@ app.post('/api/admin/verificar-pix-efi', isAdmin, async (req, res) => {
     } catch (e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao comunicar com a Efí." }); }
 });
 
-// Outras rotas gerais
 app.post('/api/depositar', checkAuthenticated, async (req, res) => {
     try {
         const { rede, linkTransacao, valor } = req.body;
@@ -1029,32 +1026,21 @@ async function setupInicial() {
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }
 
-// =========================================================================
-// --- ROBÔ AUTOMÁTICO DE VERIFICAÇÃO DE PIX (SUBSTITUTO DO WEBHOOK) ---
-// =========================================================================
 async function verificarPixPendentesAutomatizado() {
     try {
         const ordensPendentes = await SocioOrder.find({ status: 'Pendente', metodoPagamento: 'Pix Efí' });
-        
-        if (ordensPendentes.length > 0) {
-            console.log(`🤖 Verificando ${ordensPendentes.length} pagamento(s) Pix pendente(s)...`);
-        }
+        if (ordensPendentes.length > 0) console.log(`🤖 Verificando ${ordensPendentes.length} pagamento(s) Pix pendente(s)...`);
 
         for (let ordem of ordensPendentes) {
             try {
                 const cob = await efipay.pixDetailCharge({ txid: ordem.txId });
-                
                 if (cob.status === 'CONCLUIDA') {
                     const user = await User.findById(ordem.userId);
                     const admin = await User.findOne({ email: ADMIN_EMAIL });
                     
                     if (admin && admin.saldo >= ordem.moedasReceber) {
-                        admin.saldo -= ordem.moedasReceber; 
-                        user.saldo += ordem.moedasReceber;
-                        user.statusSocio = 'Ativo'; 
-                        user.planoSocio = ordem.plano; 
-                        user.vencimentoSocio = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); 
-                        ordem.status = 'Aprovado';
+                        admin.saldo -= ordem.moedasReceber; user.saldo += ordem.moedasReceber;
+                        user.statusSocio = 'Ativo'; user.planoSocio = ordem.plano; user.vencimentoSocio = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); ordem.status = 'Aprovado';
                         
                         const transacoesToSave = [
                             new Transaction({ userId: user._id, tipo: 'Assinatura Sócio SolidCoin', descricao: `Pix Automático (Robô)`, valor: ordem.moedasReceber }),
@@ -1081,13 +1067,9 @@ async function verificarPixPendentesAutomatizado() {
                         console.log(`✅ Pagamento de ${user.nome} confirmado pelo robô e moedas liberadas!`);
                     }
                 }
-            } catch (e) { 
-                // Ignora erro de uma ordem específica
-            }
+            } catch (e) { }
         }
-    } catch (e) {
-        console.error("Erro no Robô de Pix:", e);
-    }
+    } catch (e) { console.error("Erro no Robô de Pix:", e); }
 }
 
 setInterval(verificarPixPendentesAutomatizado, 60000);
