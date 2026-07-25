@@ -182,6 +182,65 @@ app.post('/api/nfc/transferir-aproximacao', checkAuthenticated, async (req, res)
         res.status(500).json({ sucesso: false, mensagem: "Erro na transferência NFC." });
     }
 });
+// 3. Rota para RECEBER / COBRAR via aproximação (Modo Maquininha SolidCoin)
+app.post('/api/nfc/cobrar-aproximacao', checkAuthenticated, async (req, res) => {
+    try {
+        const { nfcTokenPagador, valor } = req.body;
+        const valorNum = parseFloat(valor);
+
+        if (!nfcTokenPagador || !valorNum || valorNum <= 0) {
+            return res.status(400).json({ sucesso: false, mensagem: "Dados ou valor da cobrança inválidos." });
+        }
+
+        const recebedor = await User.findById(req.session.user.id);
+        const pagador = await User.findOne({ nfcToken: nfcTokenPagador });
+
+        if (!pagador) {
+            return res.status(404).json({ sucesso: false, mensagem: "Cartão NFC do pagador não reconhecido no sistema SolidCoin." });
+        }
+        if (recebedor._id.toString() === pagador._id.toString()) {
+            return res.status(400).json({ sucesso: false, mensagem: "Você não pode cobrar de si mesmo." });
+        }
+        if (pagador.saldo < valorNum) {
+            return res.status(400).json({ sucesso: false, mensagem: `❌ Venda Recusada: Saldo insuficiente no cartão de ${pagador.nome}.` });
+        }
+
+        // Efetua a transferência: debita do pagador e credita no recebedor (comerciante)
+        pagador.saldo -= valorNum;
+        recebedor.saldo += valorNum;
+
+        await Promise.all([
+            pagador.save(),
+            recebedor.save(),
+            new Transaction({ userId: pagador._id, tipo: 'Pagamento NFC (Cobrado)', descricao: `Pago na maquininha de ${recebedor.nome}`, valor: -valorNum }).save(),
+            new Transaction({ userId: recebedor._id, tipo: 'Venda NFC (Recebido)', descricao: `Recebido por aproximação de ${pagador.nome}`, valor: valorNum }).save()
+        ]);
+
+        res.json({ 
+            sucesso: true, 
+            mensagem: `⚡ Venda Aprovada! ${valorNum} SC recebidos com sucesso de ${pagador.nome}.`,
+            novoSaldo: recebedor.saldo 
+        });
+
+    } catch (error) {
+        console.error("Erro cobrança NFC:", error);
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao processar cobrança NFC." });
+    }
+});
+
+// 4. Rota para o usuário gerar seu próprio Token NFC grátis (Para usar em adesivos caseiros)
+app.post('/api/nfc/gerar-meu-token', checkAuthenticated, async (req, res) => {
+    try {
+        const user = await User.findById(req.session.user.id);
+        if (!user.nfcToken) {
+            user.nfcToken = 'SOLID-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+            await user.save();
+        }
+        res.json({ sucesso: true, token: user.nfcToken, mensagem: "Seu Token NFC foi gerado! Agora você pode gravá-lo em qualquer tag ou adesivo NFC." });
+    } catch (error) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao gerar token." });
+    }
+});
 
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => {

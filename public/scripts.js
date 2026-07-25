@@ -66,12 +66,75 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     const btnLerNfc = document.getElementById('btn-ler-nfc');
     const statusNfc = document.getElementById('status-nfc');
+    const btnCobrarNfc = document.getElementById('btn-cobrar-nfc');
+    const statusCobrarNfc = document.getElementById('status-cobrar-nfc');
+    const btnGerarTokenNfc = document.getElementById('btn-gerar-token-nfc');
 
+    // 1. MODO COBRAR / RECEBER (MAQUININHA)
+    if (btnCobrarNfc) {
+        btnCobrarNfc.addEventListener('click', async () => {
+            const valorCobrar = document.getElementById('valor-cobrar-nfc').value;
+            if (!valorCobrar || isNaN(valorCobrar) || parseFloat(valorCobrar) <= 0) {
+                return alert("⚠️ Digite o valor que deseja cobrar antes de aproximar o cartão!");
+            }
+
+            if (!("NDEFReader" in window)) {
+                return alert("⚠️ Seu navegador não suporta leitura NFC. Use o Google Chrome no Android e ligue o NFC.");
+            }
+
+            try {
+                const ndef = new NDEFReader();
+                await ndef.scan();
+                
+                btnCobrarNfc.style.background = "#00ff88";
+                btnCobrarNfc.textContent = `⌛ Cobrando ${valorCobrar} SC... Aproxime o cartão do cliente!`;
+                if(statusCobrarNfc) {
+                    statusCobrarNfc.style.display = 'block';
+                    statusCobrarNfc.textContent = "Aguardando aproximação do cartão ou celular...";
+                }
+
+                ndef.addEventListener("reading", async ({ message }) => {
+                    const decoder = new TextDecoder();
+                    let tokenLido = "";
+                    for (const record of message.records) {
+                        if (record.recordType === "text") tokenLido = decoder.decode(record.data);
+                    }
+
+                    if (!tokenLido.startsWith("SOLID-")) {
+                        alert("❌ Cartão inválido! Este chip não pertence à SolidCoin.");
+                        return;
+                    }
+
+                    btnCobrarNfc.textContent = "📲 Cobrar por Aproximação";
+                    btnCobrarNfc.style.background = "#00cec9";
+                    if(statusCobrarNfc) statusCobrarNfc.style.display = 'none';
+
+                    if (confirm(`Confirmar cobrança de ${valorCobrar} SC do cartão [${tokenLido}]?`)) {
+                        const res = await fetch('/api/nfc/cobrar-aproximacao', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ nfcTokenPagador: tokenLido, valor: valorCobrar })
+                        });
+                        const data = await res.json();
+                        alert(data.mensagem);
+                        if (data.sucesso) {
+                            document.getElementById('valor-cobrar-nfc').value = '';
+                            carregarDashboard(true);
+                            carregarExtrato();
+                        }
+                    }
+                });
+            } catch (error) {
+                alert("Erro ao ativar leitor NFC. Verifique as permissões do navegador.");
+            }
+        });
+    }
+
+    // 2. MODO PAGAR (LER E ENVIAR)
     if (btnLerNfc) {
         btnLerNfc.addEventListener('click', async () => {
-            // Verifica se o celular/navegador é compatível com Web NFC
             if (!("NDEFReader" in window)) {
-                return alert("⚠️ Seu navegador ou dispositivo não possui suporte a leitura NFC. Use o Google Chrome no Android e ligue o NFC do celular.");
+                return alert("⚠️ Seu navegador não suporta leitura NFC. Use o Google Chrome no Android.");
             }
 
             try {
@@ -79,35 +142,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 await ndef.scan();
                 
                 btnLerNfc.style.background = "#00ff88";
-                btnLerNfc.textContent = "⌛ Aproxime o Cartão SolidCoin da traseira do celular...";
+                btnLerNfc.textContent = "⌛ Aproxime o Cartão SolidCoin de quem vai receber...";
                 if(statusNfc) {
                     statusNfc.style.display = 'block';
                     statusNfc.textContent = "Buscando sinal NFC...";
                 }
 
-                // Quando o chip encosta no celular:
                 ndef.addEventListener("reading", async ({ message }) => {
                     const decoder = new TextDecoder();
                     let tokenLido = "";
-
-                    // Lê a mensagem gravada dentro do chip
                     for (const record of message.records) {
-                        if (record.recordType === "text") {
-                            tokenLido = decoder.decode(record.data);
-                        }
+                        if (record.recordType === "text") tokenLido = decoder.decode(record.data);
                     }
 
-                    // Verifica se o chip tem um código da SolidCoin
                     if (!tokenLido.startsWith("SOLID-")) {
                         alert("❌ Cartão inválido! Este chip não pertence ao ecossistema SolidCoin.");
                         return;
                     }
 
-                    btnLerNfc.textContent = "📲 Aproximar Cartão / Celular";
+                    btnLerNfc.textContent = "📲 Ler Cartão e Enviar";
                     btnLerNfc.style.background = "#d4af37";
                     if(statusNfc) statusNfc.style.display = 'none';
 
-                    // Pergunta quanto o usuário quer enviar
                     const valor = prompt(`✅ Cartão SolidCoin Identificado (${tokenLido})!\n\nQuanto em SolidCoins (SC) você deseja transferir para este usuário?`);
                     if (!valor || isNaN(valor) || parseFloat(valor) <= 0) return;
 
@@ -120,18 +176,28 @@ document.addEventListener('DOMContentLoaded', () => {
                         const data = await res.json();
                         alert(data.mensagem);
                         if (data.sucesso) {
-                            carregarDashboard(true); // Atualiza o saldo instantaneamente
+                            carregarDashboard(true);
+                            carregarExtrato();
                         }
                     }
                 });
-
             } catch (error) {
-                console.error("Erro NFC:", error);
-                alert("Erro ao ativar o leitor NFC. Verifique se a permissão foi concedida no navegador.");
+                alert("Erro ao ativar o leitor NFC.");
             }
         });
     }
 
+    // 3. GERAR TOKEN NFC GRÁTIS
+    if (btnGerarTokenNfc) {
+        btnGerarTokenNfc.addEventListener('click', async () => {
+            const res = await fetch('/api/nfc/gerar-meu-token', { method: 'POST' });
+            const data = await res.json();
+            alert(data.mensagem);
+            if (data.sucesso) carregarDashboard(true);
+        });
+    }
+
+    // 4. PEDIR CARTÃO FÍSICO OFICIAL (1600 SC)
     const formNfc = document.getElementById('form-solicitar-cartao');
     if (formNfc) {
         formNfc.addEventListener('submit', async (e) => {
@@ -433,6 +499,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 atualizarCustoDinamico(document.getElementById('gift-valor'), document.getElementById('gift-custo'));
                 atualizarCustoDinamico(document.getElementById('recharge-valor'), document.getElementById('recharge-custo'));
+
+                // ========================================================
+                // --- ATUALIZAÇÃO AUTOMÁTICA DO TOKEN NFC DO USUÁRIO ---
+                // ========================================================
+                const meuTokenEl = document.getElementById('meu-token-nfc');
+                const btnGerarTokenEl = document.getElementById('btn-gerar-token-nfc');
+                if (meuTokenEl) {
+                    if (data.usuario.nfcToken) {
+                        meuTokenEl.textContent = data.usuario.nfcToken;
+                        if (btnGerarTokenEl) btnGerarTokenEl.style.display = 'none';
+                    } else {
+                        meuTokenEl.textContent = "Não gerado";
+                        if (btnGerarTokenEl) btnGerarTokenEl.style.display = 'inline-block';
+                    }
+                }
+                // ========================================================
 
                 if(data.usuario.codigoIndicacao && codigoIndicacaoEl) {
                     codigoIndicacaoEl.textContent = data.usuario.codigoIndicacao;
