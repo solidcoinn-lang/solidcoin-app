@@ -458,6 +458,9 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
     }
 });
 
+// =====================================================================
+// --- ROTA DE SAQUE AUTOMATIZADO VIA PIX (ALL ACTIVE SOCIOS) ---
+// =====================================================================
 app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
     try {
         const { valorSC, tipoChave, chavePix } = req.body;
@@ -466,10 +469,13 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
         if (!valorNum || valorNum <= 0 || !tipoChave || !chavePix) return res.status(400).json({ sucesso: false, mensagem: "Dados inválidos." });
 
         const user = await User.findById(req.session.user.id);
-        const planosPermitidos = ['Prata', 'Ouro', 'Diamante'];
 
-        if (user.statusSocio !== 'Ativo' || !planosPermitidos.includes(user.planoSocio)) {
-            return res.status(403).json({ sucesso: false, mensagem: "Saque via Pix é um benefício exclusivo para Sócios Prata, Ouro e Diamante." });
+        // Aferição liberada para qualquer plano de Sócio ativo da plataforma
+        if (user.statusSocio !== 'Ativo') {
+            return res.status(403).json({ 
+                sucesso: false, 
+                mensagem: "⚠️ O Saque via Pix é um benefício exclusivo para Sócios ativos da SolidCoin (qualquer plano)." 
+            });
         }
         if (user.saldo < valorNum) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente." });
 
@@ -815,11 +821,10 @@ app.post('/api/admin/cancelar-socio', isAdmin, async (req, res) => {
 // --- SISTEMA INTELIGENTE: GIFT CARDS SOLIDCOIN COM VALIDADE E RELATÓRIO ---
 // =========================================================================
 
-// 1. Rota para o CEO gerar Gift Card com Validade (em dias)
 app.post('/api/admin/gerar-giftcard-solidcoin', isAdmin, async (req, res) => {
     try {
         const valor = parseFloat(req.body.valor);
-        const diasValidade = parseInt(req.body.diasValidade) || 7; // Padrão: 7 dias
+        const diasValidade = parseInt(req.body.diasValidade) || 7; 
         const admin = await User.findOne({ email: ADMIN_EMAIL });
 
         if (!valor || valor <= 0 || admin.saldo < valor) {
@@ -842,7 +847,6 @@ app.post('/api/admin/gerar-giftcard-solidcoin', isAdmin, async (req, res) => {
     }
 });
 
-// 2. Rota para listar todos os Gift Cards gerados para o Painel ADM
 app.get('/api/admin/listar-giftcards-solidcoin', isAdmin, async (req, res) => {
     try {
         const lista = await SolidCoinGiftCard.find().sort({ criadoEm: -1 });
@@ -852,7 +856,6 @@ app.get('/api/admin/listar-giftcards-solidcoin', isAdmin, async (req, res) => {
     }
 });
 
-// 3. Rota para o Usuário resgatar Gift Card SolidCoin
 app.post('/api/resgatar-giftcard-solidcoin', checkAuthenticated, async (req, res) => {
     try {
         const giftCard = await SolidCoinGiftCard.findOne({ codigo: req.body.codigo.toUpperCase() });
@@ -860,7 +863,6 @@ app.post('/api/resgatar-giftcard-solidcoin', checkAuthenticated, async (req, res
             return res.status(400).json({ sucesso: false, mensagem: "Código inválido, já utilizado ou expirado." });
         }
 
-        // Verifica na hora do resgate se já expirou
         if (new Date() > new Date(giftCard.validade)) {
             giftCard.status = 'Expirado';
             giftCard.isUsed = true;
