@@ -488,7 +488,7 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
 });
 
 // =====================================================================
-// --- ROTA DE SAQUE AUTOMATIZADO VIA PIX (COM LIMPEZA E IDENVIO) ---
+// --- ROTA DE SAQUE AUTOMATIZADO VIA PIX (COM LIMPEZA, IDENVIO E AUDITORIA) ---
 // =====================================================================
 app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
     try {
@@ -534,6 +534,21 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
             console.log(`📤 Enviando Pix [ID: ${idEnvio}] R$ ${valorBRL.toFixed(2)} para ${chaveFavorecidoLimpa} (De: ${chavePagadorLimpa})`);
             const envioResponse = await efipay.pixSend({ idEnvio: idEnvio }, bodyEnvioPix);
             
+            // --- LOG PARA AUDITORIA NA RENDER ---
+            console.log("📊 Resposta completa do Banco (Efí):", JSON.stringify(envioResponse, null, 2));
+
+            // --- TRAVA DE SEGURANÇA: CHECA SE O BANCO RECUSOU ---
+            if (envioResponse.status === 'NAO_REALIZADO' || envioResponse.status === 'RECUSADO' || envioResponse.status === 'FALHA') {
+                const motivoRecusa = envioResponse.motivo || envioResponse.erros || "Transação rejeitada pelo Banco Central ou saldo BRL insuficiente na Efí";
+                console.error("❌ O Banco (Efí) recusou o envio do Pix:", motivoRecusa);
+                
+                return res.status(400).json({ 
+                    sucesso: false, 
+                    mensagem: `❌ Saque cancelado pelo banco: ${JSON.stringify(motivoRecusa)}. Suas SolidCoins NÃO foram descontadas.` 
+                });
+            }
+
+            // SÓ DESCONTA O SALDO SE O BANCO CONFIRMAR O ENVIO OU PROCESSAMENTO
             user.saldo -= valorNum;
             const admin = await User.findOne({ email: ADMIN_EMAIL });
             if (admin) admin.saldo += valorNum; 
@@ -541,7 +556,7 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
             const novoSaquePix = new PixWithdrawal({
                 userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, chavePix: chaveFavorecidoLimpa, tipoChavePix: tipoChave,
                 valorSC: valorNum, taxaSC: taxaSC, valorBRL: valorBRL, 
-                status: 'Aprovado', txId: envioResponse.e2eId 
+                status: 'Aprovado', txId: envioResponse.e2eId || envioResponse.idEnvio || idEnvio
             });
 
             await Promise.all([
@@ -639,6 +654,7 @@ app.post('/api/admin/verificar-pix-efi', isAdmin, async (req, res) => {
         res.json({ sucesso: true, mensagem: `Sincronização concluída. ${aprovadas} pagamentos Pix foram identificados e aprovados automaticamente.` });
     } catch (e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao comunicar com a Efí." }); }
 });
+
 // =====================================================================
 // --- ROTA PARA CADASTRO AUTOMÁTICO DO WEBHOOK NA EFÍ ---
 // =====================================================================
