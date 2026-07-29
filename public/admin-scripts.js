@@ -491,3 +491,15 @@ window.processarNfc = async (id, acao) => {
         alert("Erro ao processar pedido NFC.");
     }
 };
+
+// --- ATIVAÇÃO DE WEBHOOK EFÍ ---
+window.ativarWebhookEfi = async () => {
+    if (!confirm("Deseja cadastrar a URL do sistema no Webhook da sua chave Pix na Efí agora?")) return;
+    try {
+        const res = await fetch('/api/admin/ativar-webhook-efi', { method: 'POST' });
+        const data = await res.json();
+        alert(data.mensagem);
+    } catch (e) {
+        alert("Erro de conexão ao tentar ativar o webhook no servidor.");
+    }
+};

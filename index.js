@@ -639,6 +639,37 @@ app.post('/api/admin/verificar-pix-efi', isAdmin, async (req, res) => {
         res.json({ sucesso: true, mensagem: `Sincronização concluída. ${aprovadas} pagamentos Pix foram identificados e aprovados automaticamente.` });
     } catch (e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao comunicar com a Efí." }); }
 });
+// =====================================================================
+// --- ROTA PARA CADASTRO AUTOMÁTICO DO WEBHOOK NA EFÍ ---
+// =====================================================================
+app.post('/api/admin/ativar-webhook-efi', isAdmin, async (req, res) => {
+    try {
+        const chave = process.env.EFI_PIX_KEY;
+        const webhookUrl = "https://solidcoin-app.onrender.com/api/webhook/pix";
+
+        if (!chave) {
+            return res.status(400).json({ sucesso: false, mensagem: "Chave Pix do CEO (EFI_PIX_KEY) não encontrada no painel da Render." });
+        }
+
+        console.log(`🔗 Cadastrando webhook na Efí para a chave: ${chave} -> URL: ${webhookUrl}`);
+        
+        // Solicita à Efí que vincule a URL do sistema à chave Pix do CEO
+        const response = await efipay.pixConfigWebhook({ chave: chave }, { webhookUrl: webhookUrl });
+
+        res.json({ 
+            sucesso: true, 
+            mensagem: "✅ Webhook cadastrado com sucesso na Efí! O Saque Pix Automático está liberado.",
+            detalhes: response 
+        });
+    } catch (error) {
+        const detalheErro = error?.error_description || error?.mensagem || error?.message || JSON.stringify(error);
+        console.error("❌ Erro ao cadastrar webhook na Efí:", detalheErro);
+        res.status(500).json({ 
+            sucesso: false, 
+            mensagem: `❌ A Efí recusou o cadastro do webhook: ${detalheErro}.\n\nDica: Faça o cadastro manual acessando o site da Efí em: API Pix -> Webhooks -> Configurar Webhook e colando a URL: https://solidcoin-app.onrender.com/api/webhook/pix` 
+        });
+    }
+});
 
 app.post('/api/depositar', checkAuthenticated, async (req, res) => {
     try {

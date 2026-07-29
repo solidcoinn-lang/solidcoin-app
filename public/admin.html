@@ -187,6 +187,16 @@
             <div class="section-card" style="border-left: 5px solid #00b894;">
                 <h2 style="margin-top: 0;">Saques Pendentes (PIX VIP)</h2>
                 <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Faça a transferência Pix e cole o ID do Comprovante para aprovar e fechar o pedido.</p>
+                
+                <!-- BOTÃO DE ATIVAÇÃO DO WEBHOOK EFÍ -->
+                <div style="margin: 15px 0; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <strong style="color: #d4af37;">Configuração Obrigatória do Banco:</strong>
+                        <p style="margin: 0; font-size: 0.85em; color: #aaa;">A Efí exige que a chave Pix do CEO tenha o Webhook ativado para permitir saques.</p>
+                    </div>
+                    <button onclick="ativarWebhookEfi()" class="btn-admin" style="background-color: #00b894; color: #000;">🔗 Ativar Webhook na Efí</button>
+                </div>
+
                 <table>
                     <thead>
                         <tr>
