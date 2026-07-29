@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.carregarPendentes();
     window.carregarInadimplentes();
     window.carregarUsuarios();
+    window.carregarListaGiftCardsSC();
 });
 
 window.carregarUsuarios = async () => {
@@ -404,20 +405,75 @@ window.processarRecharge = async (id, acao) => {
     const data = await res.json(); alert(data.mensagem); if(data.sucesso) window.carregarPendentes();
 };
 
+// --- GERAÇÃO DE GIFT CARD SOLIDCOIN COM PRAZO DE VALIDADE ---
 window.gerarGiftCardSolidCoin = async () => {
     const valorInput = document.getElementById('valor-gerar-gift');
+    const validadeInput = document.getElementById('validade-gerar-gift');
     const valor = valorInput ? parseFloat(valorInput.value) : 0;
+    const diasValidade = validadeInput ? parseInt(validadeInput.value) : 7;
+
     if (!valor || valor <= 0) return alert("Digite um valor válido em SolidCoins.");
-    if(!confirm(`Deseja gerar um Gift Card de ${valor} SC? Isso será debitado do seu saldo de CEO.`)) return;
+    if (!diasValidade || diasValidade <= 0) return alert("Digite um prazo de validade válido em dias.");
+    
+    if(!confirm(`Deseja gerar um Gift Card de ${valor} SC com validade de ${diasValidade} dias?\nO valor será debitado agora e retornará se expirar.`)) return;
 
     try {
-        const res = await fetch('/api/admin/gerar-giftcard-solidcoin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valor }) });
-        const data = await res.json(); alert(data.mensagem);
-        if(data.sucesso && valorInput) { valorInput.value = ''; }
-    } catch(e) { console.error(e); alert("Erro ao tentar gerar o código. Verifique a conexão."); }
+        const res = await fetch('/api/admin/gerar-giftcard-solidcoin', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ valor, diasValidade }) 
+        });
+        const data = await res.json(); 
+        alert(data.mensagem);
+        if(data.sucesso) {
+            if(valorInput) valorInput.value = '';
+            if(typeof window.carregarListaGiftCardsSC === 'function') {
+                window.carregarListaGiftCardsSC();
+            }
+        }
+    } catch(e) { 
+        console.error(e); 
+        alert("Erro ao tentar gerar o código. Verifique a conexão."); 
+    }
 };
 
-// --- NOVA FUNÇÃO: PROCESSAR PEDIDOS DE CARTÃO NFC ---
+// --- LISTAGEM DO RELATÓRIO DE GIFT CARDS INTERNOS ---
+window.carregarListaGiftCardsSC = async () => {
+    const listaEl = document.getElementById('lista-giftcards-sc');
+    if (!listaEl) return;
+
+    try {
+        const res = await fetch('/api/admin/listar-giftcards-solidcoin');
+        const data = await res.json();
+
+        listaEl.innerHTML = '';
+        if (!data.giftcards || data.giftcards.length === 0) {
+            listaEl.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhum Gift Card interno gerado ainda.</td></tr>';
+            return;
+        }
+
+        data.giftcards.forEach(item => {
+            const tr = document.createElement('tr');
+            
+            let corStatus = "#00ff88"; // Disponivel
+            if (item.status === 'Resgatado') corStatus = "#3498db";
+            else if (item.status === 'Expirado') corStatus = "#e74c3c";
+
+            tr.innerHTML = `
+                <td><strong style="color: #d4af37; letter-spacing: 1px;">${item.codigo}</strong></td>
+                <td><strong>${item.valor} SC</strong></td>
+                <td><span style="color: ${corStatus}; font-weight: bold;">${item.status}</span></td>
+                <td>${new Date(item.criadoEm).toLocaleDateString('pt-BR')}</td>
+                <td>${new Date(item.validade).toLocaleDateString('pt-BR')}</td>
+                <td>${item.nomeResgatador || '-'}</td>
+            `;
+            listaEl.appendChild(tr);
+        });
+    } catch (e) {
+        console.error("Erro ao listar Gift Cards SC:", e);
+    }
+};
+
 window.processarNfc = async (id, acao) => {
     if (acao === 'aprovar' && !confirm('Você já gravou o código no chip NFC e realizou o envio do cartão físico para o endereço do cliente?')) return;
     if (acao === 'rejeitar' && !confirm('Tem certeza que deseja cancelar o pedido de cartão? Os 1.600 SC serão devolvidos ao usuário.')) return;

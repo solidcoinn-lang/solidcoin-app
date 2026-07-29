@@ -103,7 +103,6 @@
             <button class="feature-btn btn-sociosaprov" onclick="abrirSecao('sec-socios')">
                 <span class="icon">💎</span><span class="text">Aprovar Planos Sócio</span>
             </button>
-            <!-- NOVO BOTAO NFC AQUI -->
             <button class="feature-btn btn-nfc" onclick="abrirSecao('sec-pedidos-nfc')">
                 <span class="icon">💳</span><span class="text">Pedidos Cartão NFC</span>
             </button>
@@ -159,7 +158,7 @@
             </div>
         </div>
 
-        <!-- NOVA SECAO: PEDIDOS DE CARTÃO NFC -->
+        <!-- PEDIDOS DE CARTÃO NFC -->
         <div id="sec-pedidos-nfc" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #00cec9;">
@@ -315,16 +314,35 @@
             </div>
         </div>
 
-        <!-- 8. GERAR GIFT SC -->
+        <!-- 8. GERAR & GERENCIAR GIFT CARDS SOLIDCOIN (INTERNOS) -->
         <div id="sec-gerar-gift" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #d4af37;">
-                <h2 style="margin-top: 0;">Gerar Gift Card SolidCoin</h2>
-                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Crie um código promocional. O valor será descontado do saldo do CEO.</p>
-                <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center; flex-wrap: wrap;">
-                    <input type="number" id="valor-gerar-gift" class="input-admin" placeholder="Valor em SolidCoins (Ex: 5000)" style="max-width: 300px; margin-bottom: 0; width: 100%;">
-                    <button onclick="gerarGiftCardSolidCoin()" class="btn-admin">Gerar Código Promocional</button>
+                <h2 style="margin-top: 0;">Gerenciar Gift Cards SolidCoin (Internos)</h2>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Crie códigos promocionais temporários. Códigos não resgatados retornam ao saldo do CEO ao vencer.</p>
+                
+                <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center; flex-wrap: wrap; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333;">
+                    <input type="number" id="valor-gerar-gift" class="input-admin" placeholder="Valor em SC (Ex: 500)" style="flex: 2; min-width: 180px; margin-bottom: 0;">
+                    <input type="number" id="validade-gerar-gift" class="input-admin" placeholder="Validade em Dias (Ex: 7)" value="7" style="flex: 1; min-width: 150px; margin-bottom: 0;">
+                    <button onclick="gerarGiftCardSolidCoin()" class="btn-admin" style="flex: 1; min-width: 200px;">⚡ Gerar Código</button>
                 </div>
+
+                <h3 style="color: #d4af37; margin-top: 25px;">Relatório de Códigos Promocionais</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                            <th>Criado Em</th>
+                            <th>Validade (Vence Em)</th>
+                            <th>Resgatado Por</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-giftcards-sc">
+                        <tr><td colspan="6" style="text-align: center;">Carregando relatório...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -386,6 +404,11 @@
             secoes.forEach(sec => sec.style.display = 'none');
             document.getElementById(idSecao).style.display = 'block';
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            // Carrega relatório na abertura da aba de Gift Cards Internos
+            if (idSecao === 'sec-gerar-gift' && typeof window.carregarListaGiftCardsSC === 'function') {
+                window.carregarListaGiftCardsSC();
+            }
         };
 
         window.voltarMenu = function() {

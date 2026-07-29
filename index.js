@@ -83,7 +83,7 @@ const NfcOrderSchema = new mongoose.Schema({
 const NfcOrder = mongoose.model('NfcOrder', NfcOrderSchema);
 
 // =========================================================================
-// --- CONFIGURAÇÃO DO SERVIDOR E MIDDLEWARES (ORDEM CORRETA!) ---
+// --- CONFIGURAÇÃO DO SERVIDOR E MIDDLEWARES ---
 // =========================================================================
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => {
@@ -252,10 +252,8 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
 });
 
 // =========================================================================
-// --- ROTAS DO MÓDULO NFC (POSICIONADAS DEPOIS DA SESSÃO!) ---
+// --- ROTAS DO MÓDULO NFC ---
 // =========================================================================
-
-// 1. Rota para o usuário gerar seu próprio Token NFC grátis
 app.post('/api/nfc/gerar-meu-token', checkAuthenticated, async (req, res) => {
     try {
         const user = await User.findById(req.session.user.id);
@@ -272,7 +270,6 @@ app.post('/api/nfc/gerar-meu-token', checkAuthenticated, async (req, res) => {
     }
 });
 
-// 2. Rota para solicitar o Cartão NFC (Custo: 1.600 SC)
 app.post('/api/nfc/solicitar-cartao', checkAuthenticated, async (req, res) => {
     try {
         const { endereco } = req.body;
@@ -323,7 +320,6 @@ app.post('/api/nfc/solicitar-cartao', checkAuthenticated, async (req, res) => {
     }
 });
 
-// 3. Rota para transferir SolidCoins via aproximação (Lendo o chip NFC)
 app.post('/api/nfc/transferir-aproximacao', checkAuthenticated, async (req, res) => {
     try {
         const { nfcTokenDestino, valor } = req.body;
@@ -368,7 +364,6 @@ app.post('/api/nfc/transferir-aproximacao', checkAuthenticated, async (req, res)
     }
 });
 
-// 4. Rota para RECEBER / COBRAR via aproximação (Modo Maquininha SolidCoin)
 app.post('/api/nfc/cobrar-aproximacao', checkAuthenticated, async (req, res) => {
     try {
         const { nfcTokenPagador, valor } = req.body;
@@ -816,29 +811,81 @@ app.post('/api/admin/cancelar-socio', isAdmin, async (req, res) => {
     } catch (e) { res.status(500).json({ sucesso: false }); }
 });
 
+// =========================================================================
+// --- SISTEMA INTELIGENTE: GIFT CARDS SOLIDCOIN COM VALIDADE E RELATÓRIO ---
+// =========================================================================
+
+// 1. Rota para o CEO gerar Gift Card com Validade (em dias)
 app.post('/api/admin/gerar-giftcard-solidcoin', isAdmin, async (req, res) => {
     try {
         const valor = parseFloat(req.body.valor);
+        const diasValidade = parseInt(req.body.diasValidade) || 7; // Padrão: 7 dias
         const admin = await User.findOne({ email: ADMIN_EMAIL });
-        if (admin.saldo < valor) return res.status(400).json({ sucesso: false, mensagem: "Insuficiente CEO." });
+
+        if (!valor || valor <= 0 || admin.saldo < valor) {
+            return res.status(400).json({ sucesso: false, mensagem: "Valor inválido ou saldo insuficiente no CEO." });
+        }
 
         const cod = 'SOLID-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+        const dataValidade = new Date(Date.now() + diasValidade * 24 * 60 * 60 * 1000);
+
         admin.saldo -= valor;
-        await Promise.all([ admin.save(), new SolidCoinGiftCard({ codigo: cod, valor: valor }).save(), new Transaction({ userId: admin._id, tipo: 'Geração Gift', descricao: cod, valor: -valor }).save() ]);
-        res.json({ sucesso: true, mensagem: `Criado: ${cod}` });
-    } catch (error) { res.status(500).json({ sucesso: false }); }
+        await Promise.all([ 
+            admin.save(), 
+            new SolidCoinGiftCard({ codigo: cod, valor: valor, validade: dataValidade, status: 'Disponivel' }).save(), 
+            new Transaction({ userId: admin._id, tipo: 'Geração Gift SC', descricao: `${cod} (${diasValidade} dias)`, valor: -valor }).save() 
+        ]);
+
+        res.json({ sucesso: true, mensagem: `✅ Gift Card Criado: ${cod} | Validade: ${diasValidade} dia(s)` });
+    } catch (error) { 
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao gerar Gift Card." }); 
+    }
 });
 
+// 2. Rota para listar todos os Gift Cards gerados para o Painel ADM
+app.get('/api/admin/listar-giftcards-solidcoin', isAdmin, async (req, res) => {
+    try {
+        const lista = await SolidCoinGiftCard.find().sort({ criadoEm: -1 });
+        res.json({ sucesso: true, giftcards: lista });
+    } catch (error) {
+        res.status(500).json({ sucesso: false });
+    }
+});
+
+// 3. Rota para o Usuário resgatar Gift Card SolidCoin
 app.post('/api/resgatar-giftcard-solidcoin', checkAuthenticated, async (req, res) => {
     try {
-        const giftCard = await SolidCoinGiftCard.findOne({ codigo: req.body.codigo });
-        if (!giftCard || giftCard.isUsed) return res.status(400).json({ sucesso: false, mensagem: "Inválido/Usado." });
+        const giftCard = await SolidCoinGiftCard.findOne({ codigo: req.body.codigo.toUpperCase() });
+        if (!giftCard || giftCard.isUsed || giftCard.status !== 'Disponivel') {
+            return res.status(400).json({ sucesso: false, mensagem: "Código inválido, já utilizado ou expirado." });
+        }
+
+        // Verifica na hora do resgate se já expirou
+        if (new Date() > new Date(giftCard.validade)) {
+            giftCard.status = 'Expirado';
+            giftCard.isUsed = true;
+            await giftCard.save();
+            return res.status(400).json({ sucesso: false, mensagem: "⚠️ Este código promocional já expirou." });
+        }
 
         const user = await User.findById(req.session.user.id);
-        user.saldo += giftCard.valor; giftCard.isUsed = true; giftCard.usedBy = user._id; giftCard.usedAt = new Date();
-        await Promise.all([user.save(), giftCard.save(), new Transaction({ userId: user._id, tipo: 'Resgate', descricao: req.body.codigo, valor: giftCard.valor }).save()]);
-        res.json({ sucesso: true, mensagem: `Resgatado!`, novoSaldo: user.saldo });
-    } catch (error) { res.status(500).json({ sucesso: false }); }
+        user.saldo += giftCard.valor; 
+        giftCard.isUsed = true; 
+        giftCard.status = 'Resgatado';
+        giftCard.usedBy = user._id; 
+        giftCard.nomeResgatador = user.nome;
+        giftCard.usedAt = new Date();
+
+        await Promise.all([
+            user.save(), 
+            giftCard.save(), 
+            new Transaction({ userId: user._id, tipo: 'Resgate Gift SC', descricao: giftCard.codigo, valor: giftCard.valor }).save()
+        ]);
+
+        res.json({ sucesso: true, mensagem: `🎉 Resgatado com sucesso! +${giftCard.valor} SC adicionados ao seu saldo.`, novoSaldo: user.saldo });
+    } catch (error) { 
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao resgatar código." }); 
+    }
 });
 
 app.get('/api/admin/pedidos-pendentes', isAdmin, async (req, res) => {
@@ -1072,6 +1119,43 @@ async function verificarPixPendentesAutomatizado() {
     } catch (e) { console.error("Erro no Robô de Pix:", e); }
 }
 
-setInterval(verificarPixPendentesAutomatizado, 60000);
+// =========================================================================
+// --- ROBÔ AUTOMÁTICO DE EXPIRAÇÃO DE GIFT CARDS SOLIDCOIN ---
+// =========================================================================
+async function verificarGiftCardsExpirados() {
+    try {
+        const agora = new Date();
+        const vencidos = await SolidCoinGiftCard.find({ status: 'Disponivel', validade: { $lt: agora } });
+
+        if (vencidos.length > 0) {
+            const admin = await User.findOne({ email: ADMIN_EMAIL });
+            if (!admin) return;
+
+            for (let card of vencidos) {
+                card.status = 'Expirado';
+                card.isUsed = true;
+                admin.saldo += card.valor; // Devolve as moedas para o CEO
+
+                await Promise.all([
+                    card.save(),
+                    new Transaction({ 
+                        userId: admin._id, 
+                        tipo: 'Estorno Gift Card SC Expirado', 
+                        descricao: `Código vencido: ${card.codigo}`, 
+                        valor: card.valor 
+                    }).save()
+                ]);
+                console.log(`♻️ Gift Card ${card.codigo} expirado! ${card.valor} SC devolvidos ao CEO.`);
+            }
+            await admin.save();
+        }
+    } catch (e) {
+        console.error("Erro no robô de expiração de Gift Cards:", e);
+    }
+}
+
+// Intervais de verificação de processos de background
+setInterval(verificarPixPendentesAutomatizado, 60000); // 1 Minuto
+setInterval(verificarGiftCardsExpirados, 3600000);      // 1 Hora
 
 app.listen(PORT, () => { console.log(`\n🚀 SolidCoin App rodando na porta ${PORT}`); });
