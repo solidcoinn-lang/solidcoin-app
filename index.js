@@ -114,6 +114,35 @@ async function getSCRate() {
     return settings.scPorReal;
 }
 
+// =========================================================================
+// --- FUNÇÃO PARA LIMPEZA E PADRONIZAÇÃO DE CHAVES PIX ---
+// =========================================================================
+function normalizarChavePix(chave, tipo = '') {
+    let c = String(chave || '').trim().replace(/^['"]|['"]$/g, ''); // remove espaços e aspas
+    
+    // 1. E-mail
+    if (c.includes('@')) {
+        return c.toLowerCase();
+    }
+    // 2. Chave Aleatória (EVP / UUID) - formato 8-4-4-4-12
+    if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(c)) {
+        return c.toLowerCase();
+    }
+    
+    // Remove tudo que não for número (pontos, traços, parênteses)
+    let nums = c.replace(/\D/g, '');
+    
+    // 3. Telefone / Celular (BACEN exige E.164 iniciando com +55)
+    if (tipo.toLowerCase().includes('telefone') || tipo.toLowerCase().includes('celular') || c.startsWith('+55')) {
+        if (nums.length === 11) return `+55${nums}`;
+        if (nums.length === 13 && nums.startsWith('55')) return `+${nums}`;
+        return `+55${nums}`;
+    }
+    
+    // 4. CPF ou CNPJ (retorna puramente os 11 ou 14 dígitos numéricos)
+    return nums;
+}
+
 async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
     if (userEmail === ADMIN_EMAIL) return currentSaldo;
 
@@ -459,16 +488,14 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
 });
 
 // =====================================================================
-// --- ROTA DE SAQUE AUTOMATIZADO VIA PIX (COM LIMPEZA E DIAGNÓSTICO) ---
+// --- ROTA DE SAQUE AUTOMATIZADO VIA PIX (COM LIMPEZA E IDENVIO) ---
 // =====================================================================
 app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
     try {
         const { valorSC, tipoChave, chavePix } = req.body;
         const valorNum = parseFloat(valorSC);
 
-        if (!valorNum || valorNum <= 0 || !tipoChave || !chavePix) {
-            return res.status(400).json({ sucesso: false, mensagem: "Dados inválidos." });
-        }
+        if (!valorNum || valorNum <= 0 || !tipoChave || !chavePix) return res.status(400).json({ sucesso: false, mensagem: "Dados inválidos." });
 
         const user = await User.findById(req.session.user.id);
 
@@ -478,84 +505,62 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
                 mensagem: "⚠️ O Saque via Pix é um benefício exclusivo para Sócios ativos da SolidCoin (qualquer plano)." 
             });
         }
-
-        if (user.saldo < valorNum) {
-            return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente." });
-        }
+        if (user.saldo < valorNum) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente." });
 
         const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
         if (valorNum > limiteDisponivel) {
-            return res.status(400).json({ 
-                sucesso: false, 
-                mensagem: `Saque Bloqueado. Limite de saque liberado no momento é de: ${limiteDisponivel.toFixed(2)} SC.` 
-            });
+            return res.status(400).json({ sucesso: false, mensagem: `Saque Bloqueado. Limite de saque liberado no momento é de: ${limiteDisponivel.toFixed(2)} SC.` });
         }
 
-        // --- LIMPEZA AUTOMÁTICA DA CHAVE PIX ---
-        // Remove pontos, traços, barras e parênteses automaticamente de CPF, CNPJ e Telefone
-        let chaveLimpa = chavePix.trim();
-        if (tipoChave.includes('CPF') || tipoChave.includes('CNPJ') || tipoChave.includes('Telefone') || /^[0-9.\-\/() ]+$/.test(chaveLimpa)) {
-            chaveLimpa = chaveLimpa.replace(/\D/g, '');
-        }
+        // Sanitização total da chave do favorecido E do pagador no .env
+        const chaveFavorecidoLimpa = normalizarChavePix(chavePix, tipoChave);
+        const chavePagadorLimpa = normalizarChavePix(process.env.EFI_PIX_KEY);
 
         const scRate = await getSCRate();
         const taxaSC = valorNum * 0.05; 
         const valorLiquidoSC = valorNum - taxaSC;
         const valorBRL = valorLiquidoSC / scRate;
 
+        // Gera identificador único alfanumérico obrigatório da transação (32 caracteres, sem hifens)
+        const idEnvio = crypto.randomBytes(16).toString('hex');
+
         let bodyEnvioPix = {
             valor: valorBRL.toFixed(2),
-            pagador: { chave: process.env.EFI_PIX_KEY }, 
-            favorecido: { chave: chaveLimpa } 
+            pagador: { chave: chavePagadorLimpa }, 
+            favorecido: { chave: chaveFavorecidoLimpa } 
         };
 
         try {
-            const envioResponse = await efipay.pixSend({}, bodyEnvioPix);
+            console.log(`📤 Enviando Pix [ID: ${idEnvio}] R$ ${valorBRL.toFixed(2)} para ${chaveFavorecidoLimpa} (De: ${chavePagadorLimpa})`);
+            const envioResponse = await efipay.pixSend({ idEnvio: idEnvio }, bodyEnvioPix);
             
             user.saldo -= valorNum;
             const admin = await User.findOne({ email: ADMIN_EMAIL });
             if (admin) admin.saldo += valorNum; 
 
             const novoSaquePix = new PixWithdrawal({
-                userId: user._id, 
-                nomeUsuario: user.nome, 
-                emailUsuario: user.email, 
-                chavePix: chaveLimpa, 
-                tipoChavePix: tipoChave,
-                valorSC: valorNum, 
-                taxaSC: taxaSC, 
-                valorBRL: valorBRL, 
-                status: 'Aprovado', 
-                txId: envioResponse.e2eId 
+                userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, chavePix: chaveFavorecidoLimpa, tipoChavePix: tipoChave,
+                valorSC: valorNum, taxaSC: taxaSC, valorBRL: valorBRL, 
+                status: 'Aprovado', txId: envioResponse.e2eId 
             });
 
             await Promise.all([
                 user.save(), 
                 admin ? admin.save() : Promise.resolve(), 
                 novoSaquePix.save(),
-                new Transaction({ userId: user._id, tipo: 'Saque Pix Automático', descricao: `Efetuado para Chave: ${chaveLimpa}`, valor: -valorNum }).save(),
+                new Transaction({ userId: user._id, tipo: 'Saque Pix Automático', descricao: `Efetuado para Chave: ${chaveFavorecidoLimpa}`, valor: -valorNum }).save(),
                 admin ? new Transaction({ userId: admin._id, tipo: 'Saque Pix Processado', descricao: `Para ${user.nome}`, valor: valorNum }).save() : Promise.resolve()
             ]);
 
-            return res.json({ 
-                sucesso: true, 
-                mensagem: `✅ Saque Processado com Sucesso! R$ ${valorBRL.toFixed(2)} transferidos para sua conta via Pix agora.` 
-            });
+            return res.json({ sucesso: true, mensagem: `✅ Saque Processado com Sucesso! R$ ${valorBRL.toFixed(2)} transferidos para sua conta via Pix agora.` });
 
         } catch (erroPix) {
-            // Captura a mensagem exata retornada pela API bancária da Efí
             const detalheErro = erroPix?.error_description || erroPix?.mensagem || erroPix?.message || JSON.stringify(erroPix);
             console.error("❌ Erro detalhado da Efí no Saque Pix:", detalheErro);
-
-            return res.status(500).json({ 
-                sucesso: false, 
-                mensagem: `❌ Erro recusado pelo Banco (Efí): ${detalheErro}` 
-            });
+            return res.status(500).json({ sucesso: false, mensagem: `Erro recusado pelo Banco (Efí): ${detalheErro}` });
         }
 
-    } catch (error) { 
-        res.status(500).json({ sucesso: false, mensagem: "Erro geral ao processar saque." }); 
-    }
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro geral ao processar saque." }); }
 });
 
 app.post('/api/webhook/pix', async (req, res) => {
