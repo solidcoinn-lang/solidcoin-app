@@ -154,7 +154,8 @@ async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
         'Depósito Aprovado', 'Transferência Recebida', 'Venda no Marketplace',
         'Recompensa de Staking', 'Rendimento Automático', 'Bônus de Indicação',
         'Comissão de Indicação', 'Comissão de Indicação (Sócio)', 'Bônus de Boas-Vindas',
-        'Resgate Gift Card SC', 'Estorno Saque Pix', 'Estorno de Saque'
+        'Resgate Gift Card SC', 'Estorno Saque Pix', 'Estorno de Saque',
+        'Recompensa Monlix' // Adicionado como limite livre
     ];
 
     const agora = Date.now();
@@ -975,6 +976,80 @@ app.post('/api/resgatar-giftcard-solidcoin', checkAuthenticated, async (req, res
         res.status(500).json({ sucesso: false, mensagem: "Erro ao resgatar código." }); 
     }
 });
+
+// ==========================================================================
+// --- ROTA DE POSTBACK - REDE CPA MONLIX (OFFERWALL) ---
+// ==========================================================================
+app.get('/api/postback/monlix', async (req, res) => {
+    // A Monlix envia os dados do usuário e o valor da recompensa através da URL
+    const { userId, reward, secret, transactionId } = req.query;
+
+    // 1. DADOS DA PLATAFORMA (Substitua depois que a Monlix aprovar)
+    const MONLIX_SECRET = "COLOCAR_SENHA_SECRETA_AQUI_DEPOIS";
+    const EMAIL_CEO = ADMIN_EMAIL; // Já puxa "solidcoinn@gmail.com" do sistema!
+
+    // 2. Trava de Segurança Contra Hackers
+    if (secret !== MONLIX_SECRET) {
+        console.log("⚠️ Monlix Postback: Falha na autenticação da chave secreta!");
+        return res.status(403).send("0"); // O "0" avisa a Monlix que deu erro
+    }
+
+    try {
+        const moedasGanhas = parseFloat(reward);
+
+        // 3. Buscar o usuário e o CEO no Banco de Dados
+        const usuario = await User.findOne({ email: userId });
+        if (!usuario) {
+            console.log(`⚠️ Monlix Postback: Usuário não encontrado (${userId})`);
+            return res.status(404).send("0");
+        }
+
+        const contaCEO = await User.findOne({ email: EMAIL_CEO });
+        if (!contaCEO) {
+            console.log("⚠️ Monlix Postback: Conta do CEO não encontrada!");
+            return res.status(500).send("0");
+        }
+
+        // 4. REGRA FINANCEIRA: Debitar do CEO para pagar o Usuário
+        if (contaCEO.saldo < moedasGanhas) {
+            console.log(`⚠️ URGENTE: CEO sem saldo para pagar recompensa de ${moedasGanhas} SC para ${usuario.email}!`);
+            return res.status(200).send("1"); // Retorna 1 para a Monlix não travar, mas não credita.
+        }
+
+        contaCEO.saldo -= moedasGanhas;
+        usuario.saldo += moedasGanhas;
+
+        await contaCEO.save();
+        await usuario.save();
+
+        // 5. Salvar o recibo no Extrato (Usando o seu modelo Transaction)
+        const novaTransacaoUser = new Transaction({
+            userId: usuario._id,
+            tipo: 'Recompensa Monlix',
+            descricao: `Ofertas Concluída (Ref: ${transactionId || 'N/A'})`,
+            valor: moedasGanhas
+        });
+        const novaTransacaoAdmin = new Transaction({
+            userId: contaCEO._id,
+            tipo: 'Pagamento CPA Monlix',
+            descricao: `Para ${usuario.nome}`,
+            valor: -moedasGanhas
+        });
+
+        await novaTransacaoUser.save();
+        await novaTransacaoAdmin.save();
+
+        console.log(`✅ Sucesso Monlix: ${moedasGanhas} SC pagas para ${usuario.email} (Debitado do CEO)`);
+        
+        // 6. Confirmação obrigatória para a Monlix fechar a transação deles
+        res.status(200).send("1");
+
+    } catch (error) {
+        console.error("Erro no postback Monlix:", error);
+        res.status(500).send("0");
+    }
+});
+// ==========================================================================
 
 app.get('/api/admin/pedidos-pendentes', isAdmin, async (req, res) => {
     try {

@@ -6,7 +6,7 @@
     <title>Dashboard - SolidCoin</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        /* ESTILOS DO NOVO MENU DE BOTÕES */
+        /* ESTILOS DO MENU DE BOTÕES */
         .feature-grid { 
             display: grid; 
             grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); 
@@ -49,7 +49,8 @@
         .btn-buygift { border-bottom: 4px solid #ff9f43; }
         .btn-recarga { border-bottom: 4px solid #1abc9c; }
         .btn-resgift { border-bottom: 4px solid #95a5a6; }
-        .btn-nfc { border-bottom: 4px solid #00cec9; } /* Cor do botão NFC */
+        .btn-nfc { border-bottom: 4px solid #00cec9; }
+        .btn-tarefas { border-bottom: 4px solid #8e44ad; } /* NOVO BOTAO TAREFAS */
 
         .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -102,6 +103,12 @@
             <button class="feature-btn btn-stake" onclick="abrirSecao('sec-staking')">
                 <span class="icon">📈</span><span class="text">Staking SolidCoin (5% a.m)</span>
             </button>
+            
+            <!-- NOVO BOTÃO DE TAREFAS / MONLIX AQUI -->
+            <button class="feature-btn btn-tarefas" onclick="abrirSecao('sec-tarefas')">
+                <span class="icon">🕹️</span><span class="text">Ganhar SC (Tarefas e Vídeos)</span>
+            </button>
+
             <button class="feature-btn btn-socio" onclick="abrirSecao('sec-socio')">
                 <span class="icon">💎</span><span class="text">Clube de Sócios SolidCoin</span>
             </button>
@@ -131,57 +138,63 @@
             </button>
         </div>
 
-        <!-- --- NOVA SEÇÃO NFC COMPLETA (PAGAR E RECEBER) --- -->
+        <!-- ========================================== -->
+        <!-- NOVA SEÇÃO: MURAL DE OFERTAS (MONLIX)      -->
+        <!-- ========================================== -->
+        <div id="sec-tarefas" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
+            <div class="card" style="border-left: 5px solid #8e44ad; background: linear-gradient(145deg, #11081a, #1a0f2e);">
+                <h2 style="color: #c56cf0; margin-top: 0;">🕹️ Mural de Ofertas SolidCoin</h2>
+                <p style="color: #ddd; font-size: 0.95em;">Ganhe SolidCoins reais assistindo a vídeos, respondendo pesquisas e testando novos aplicativos.</p>
+                
+                <!-- CONTAINER TEMPORÁRIO ENQUANTO AGUARDA APROVAÇÃO -->
+                <div id="monlix-container" style="margin-top: 20px; background: #0a0510; border: 2px dashed #8e44ad; border-radius: 12px; padding: 40px 20px; text-align: center;">
+                    <div style="font-size: 3em; margin-bottom: 15px;">🚧</div>
+                    <h3 style="color: #d4af37; margin: 0 0 10px 0;">Estamos preparando as melhores ofertas!</h3>
+                    <p style="color: #aaa; font-size: 0.9em; max-width: 80%; margin: 0 auto; line-height: 1.5;">Nossa parceria com a rede global de anúncios está em fase de aprovação final. Muito em breve você poderá ganhar SC de forma passiva aqui todos os dias.</p>
+                </div>
+            </div>
+        </div>
+        <!-- ========================================== -->
+
+        <!-- SEÇÃO NFC -->
         <div id="sec-nfc" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #00cec9; background: linear-gradient(145deg, #0d1a1a, #1a2a24);">
                 <h2 style="color: #00cec9; margin-top: 0;">Tecnologia NFC SolidCoin</h2>
-                
-                <!-- BLOCO 1: RECEBER / COBRAR (MODO MAQUININHA) -->
                 <div class="card-box" style="background: linear-gradient(135deg, #0f201d, #16302b); border: 2px solid #00cec9; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
                     <h3 style="color: #00cec9; margin-top: 0; display: flex; align-items: center; gap: 8px;">
                         📥 Receber via NFC <span style="font-size: 0.6em; background: #00cec9; color: #000; padding: 2px 8px; border-radius: 4px;">Modo Maquininha</span>
                     </h3>
                     <p style="font-size: 0.9em; color: #ccc;">Digite o valor da venda ou cobrança abaixo e encoste o Cartão NFC do cliente no seu celular para receber:</p>
-                    
                     <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                         <input type="number" id="valor-cobrar-nfc" placeholder="Valor a cobrar (Ex: 50 SC)" step="0.01" style="background: #081210; border: 1px solid #00cec9; color: #fff; padding: 12px; border-radius: 8px; width: 100%; font-size: 1.1em; font-weight: bold;">
                     </div>
-                    
                     <button id="btn-cobrar-nfc" style="background: #00cec9; color: #000; font-weight: bold; border: none; padding: 14px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 1.05em; transition: 0.3s;">
                         📲 Cobrar por Aproximação
                     </button>
                     <p id="status-cobrar-nfc" style="color: #00ff88; font-weight: bold; text-align: center; margin-top: 10px; display: none;"></p>
                 </div>
-
-                <!-- BLOCO 2: PAGAR POR APROXIMAÇÃO -->
                 <div class="card-box" style="background: linear-gradient(135deg, #111, #1a1a1a); border: 1px solid #d4af37; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
                     <h3 style="color: #d4af37; margin-top: 0;">💸 Pagar via NFC (Aproximar)</h3>
                     <p style="font-size: 0.9em; color: #ccc;">Encoste seu celular no cartão ou tag de outro usuário para transferir SolidCoins livremente.</p>
-                    
                     <button id="btn-ler-nfc" style="background: #d4af37; color: #000; font-weight: bold; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 1em;">
                         📲 Ler Cartão e Enviar
                     </button>
                     <p id="status-nfc" style="color: #00ff88; font-weight: bold; text-align: center; margin-top: 10px; display: none;"></p>
                 </div>
-
-                <!-- BLOCO 3: SEU CÓDIGO NFC & CARTÃO FÍSICO -->
                 <div class="card-box" style="background: #151515; border: 1px solid #333; padding: 20px; border-radius: 12px; margin-bottom: 10px;">
                     <h3 style="color: #fff; margin-top: 0;">🏷️ Seu Token de Recebimento NFC</h3>
                     <p style="font-size: 0.9em; color: #aaa;">Este é o seu código exclusivo. Você pode gravá-lo no app <strong>NFC Tools</strong> em qualquer adesivo ou tag NFC própria:</p>
-                    
                     <div style="background: #0a0a0a; padding: 12px; border-radius: 8px; border: 1px dashed #555; text-align: center; margin-bottom: 15px;">
                         <strong id="meu-token-nfc" style="color: #00cec9; font-size: 1.3em; letter-spacing: 2px;">Não gerado</strong>
                         <button id="btn-gerar-token-nfc" style="display: none; background: #333; color: #fff; border: 1px solid #777; padding: 6px 12px; border-radius: 4px; margin: 10px auto 0 auto; cursor: pointer; font-size: 0.85em;">
                             ⚡ Gerar Meu Token Grátis
                         </button>
                     </div>
-
                     <hr style="border: 0; border-top: 1px solid #222; margin: 15px 0;">
-
                     <h4 style="color: #d4af37; margin: 0 0 5px 0;">💳 Prefere o Cartão Black Exclusivo?</h4>
                     <p style="font-size: 0.85em; color: #888; margin-bottom: 10px;">Nós gravamos e enviamos o cartão de PVC oficial para sua casa. <strong style="color: #d4af37;">Emissão: 1.600 SC</strong></p>
-                    
                     <form id="form-solicitar-cartao">
                         <textarea id="nfc-endereco" placeholder="Digite seu endereço completo com CEP para entrega..." required style="width: 100%; height: 60px; background: #222; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 6px; margin-bottom: 10px;"></textarea>
                         <button type="submit" style="background: #fff; color: #000; font-weight: bold; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; width: 100%;">
@@ -191,7 +204,6 @@
                 </div>
             </div>
         </div>
-        <!-- --- FIM SEÇÃO NFC --- -->
 
         <div id="sec-tron" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
@@ -303,12 +315,10 @@
                         <option value="Aleatória">Chave Aleatória</option>
                     </select>
                     <input type="text" id="pix-chave" placeholder="Digite sua Chave Pix" required>
-                    
                     <div style="background-color: #050f0c; padding: 10px; border-radius: 6px; margin: 10px 0; border: 1px solid #00b894;">
                         <p style="margin: 0; font-size: 0.85em; color: #aaa;">Taxa (5%): <span id="pix-taxa-sc">0.00</span> SC</p>
                         <p style="margin: 5px 0 0 0; font-weight: bold; color: #00b894;">Você receberá na conta: R$ <span id="pix-receber-brl">0.00</span></p>
                     </div>
-                    
                     <p style="font-size: 0.78em; color: #888; margin-bottom: 10px; line-height: 1.3;">⚠️ *Nota de Sustentabilidade: Moedas recebidas por Planos de Sócio liberam 25% do saque a cada 30 dias de conta ativa. Ganhos de depósitos, staking e indicações são 100% livres.*</p>
                     <button type="submit" style="background-color: #00b894; color: #fff;">Solicitar Saque Pix</button>
                 </form>
@@ -324,7 +334,6 @@
                     <input type="number" id="valor-saque" placeholder="Valor do saque" step="0.01" required>
                     <button type="submit">Solicitar Saque Cripto</button>
                 </form>
-                
                 <h3 style="margin-top: 20px; font-size: 1.1em;">Carteiras Salvas</h3>
                 <form id="carteira-form">
                     <input type="text" id="solana-wallet" placeholder="Endereço Solana (SOL)">
@@ -419,12 +428,9 @@
             </div>
         </div>
 
-        <!-- ========================================== -->
-        <!-- BLOCO DE ANÚNCIO ORGANIZADO (GOOGLE ADSENSE) -->
-        <!-- ========================================== -->
+        <!-- BLOCO DE ANÚNCIO (GOOGLE ADSENSE) -->
         <div style="margin: 30px auto; padding: 15px; background-color: #1a1a1a; border-radius: 8px; border: 1px solid rgba(212, 175, 55, 0.15); text-align: center; max-width: 100%;">
             <p style="color: #888; font-size: 0.75em; text-transform: uppercase; margin-top: 0; margin-bottom: 10px; letter-spacing: 1px;">Publicidade</p>
-            
             <ins class="adsbygoogle"
                  style="display:block"
                  data-ad-client="ca-pub-6692128035412361"
