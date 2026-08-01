@@ -6,8 +6,7 @@
     <title>SolidCoin - Login e Cadastro</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        /* Ajustado para column para o anúncio ficar embaixo da caixa de login */
-        body { background-color: #0a0a0a; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; gap: 30px; padding: 20px; box-sizing: border-box; }
+        body { background-color: #0a0a0a; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
         .auth-container { background-color: #1a1a1a; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.8); border: 1px solid rgba(212, 175, 55, 0.2); width: 100%; max-width: 400px; text-align: center; }
         h1 { color: #d4af37; margin-bottom: 20px; }
         input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 6px; border: 1px solid #333; background-color: #0a0a0a; color: #fff; box-sizing: border-box; }
@@ -16,23 +15,7 @@
         button:hover { background-color: #b5952f; }
         .toggle-btn { background: none; color: #aaa; font-weight: normal; margin-top: 15px; font-size: 0.9em; text-decoration: underline; }
         .toggle-btn:hover { background: none; color: #fff; }
-
-        /* Estilo para a caixa de anúncio organizada */
-        .ads-login-container {
-            width: 100%;
-            max-width: 400px;
-            background-color: #1a1a1a;
-            border-radius: 8px;
-            border: 1px solid rgba(212, 175, 55, 0.15);
-            padding: 10px;
-            text-align: center;
-            box-sizing: border-box;
-        }
     </style>
-
-    <!-- Google AdSense -->
-    <meta name="google-adsense-account" content="ca-pub-6692128035412361">
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6692128035412361" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -60,20 +43,6 @@
             <button type="submit">Cadastrar</button>
         </form>
         <button class="toggle-btn" onclick="toggleAuth('login')">Já tem conta? Faça Login</button>
-    </div>
-
-    <!-- BLOCO DE ANÚNCIO (AdSense) -->
-    <div class="ads-login-container">
-        <p style="color: #888; font-size: 0.7em; text-transform: uppercase; margin: 0 0 5px 0; letter-spacing: 1px;">Publicidade</p>
-        <ins class="adsbygoogle"
-             style="display:block"
-             data-ad-client="ca-pub-6692128035412361"
-             data-ad-slot="3506482773"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
-        <script>
-             (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
     </div>
 
     <script>
