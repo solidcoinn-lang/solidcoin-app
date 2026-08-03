@@ -153,14 +153,13 @@
             <div class="card" style="border-left: 5px solid #f1c40f; background: linear-gradient(145deg, #1a1a1a, #2a2a2a);">
                 <h2 style="color: #f1c40f;">🤝 Programa de Indicação</h2>
                 
-                <!-- BLOCO DE RESGATE TARDIO (Escondido via JS se já tiver usado) -->
+                <!-- BLOCO DE RESGATE TARDIO (LAYOUT ATUALIZADO 100% LARGURA) -->
                 <div id="bloco-resgatar-indicacao" style="background-color: #111; padding: 15px; border-radius: 8px; border: 1px dashed #f1c40f; margin-bottom: 20px; display: none;">
                     <h3 style="color: #f1c40f; margin-top: 0; font-size: 1.1em;">🎁 Esqueceu de usar um código?</h3>
-                    <p style="font-size: 0.85em; color: #aaa; margin-bottom: 10px;">Insira o código do seu amigo abaixo e ambos ganharão <strong>250 SC</strong> na hora!</p>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" id="codigo-indicacao-tardio" placeholder="Ex: ABC123" style="flex: 1; background: #0a0a0a; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 6px; text-transform: uppercase;">
-                        <button onclick="resgatarCodigoTardio()" style="background-color: #f1c40f; color: #000; font-weight: bold; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; white-space: nowrap;">Resgatar Bônus</button>
-                    </div>
+                    <p style="font-size: 0.85em; color: #aaa; margin-bottom: 15px;">Insira o código do seu amigo abaixo e ambos ganharão <strong>250 SC</strong> na hora!</p>
+                    
+                    <input type="text" id="codigo-indicacao-tardio" placeholder="Digite aqui o código. Ex: ABC123" style="width: 100%; background: #0a0a0a; border: 1px solid #444; color: #fff; padding: 15px; border-radius: 6px; text-transform: uppercase; font-size: 1.1em; margin-bottom: 12px; box-sizing: border-box;">
+                    <button onclick="resgatarCodigoTardio()" style="width: 100%; background-color: #f1c40f; color: #000; font-weight: bold; border: none; padding: 15px; border-radius: 6px; cursor: pointer; font-size: 1.1em; text-transform: uppercase;">Resgatar Bônus</button>
                 </div>
 
                 <p style="color: #ddd; font-size: 0.95em;">Convide seus amigos e ganhem juntos! Quando alguém usar seu código no cadastro:</p>
