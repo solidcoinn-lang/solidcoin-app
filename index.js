@@ -33,7 +33,7 @@ const efipayPF = new EfiPay({
 });
 
 // 2. CONFIGURAÇÃO DA CONTA PJ (PAGAMENTOS / SAQUES DOS USUÁRIOS)
-let certPathPJ = path.join(__dirname, 'certificado_pj.p12'); // Fallback local
+let certPathPJ = path.join(__dirname, 'certificado_pj.p12'); 
 if (process.env.EFI_CERT_BASE64_PJ) {
     certPathPJ = path.join(__dirname, 'certificado_render_pj.p12');
     try {
@@ -253,11 +253,72 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
                 nome: user.nome, saldo: user.saldo, stakedAmount: user.stakedAmount, canUnstakeAt: user.canUnstakeAt, 
                 solanaWallet: user.solanaWallet, tronWallet: user.tronWallet, isAdmin: user.email === ADMIN_EMAIL, 
                 statusSocio: user.statusSocio, planoSocio: user.planoSocio, vencimentoSocio: user.vencimentoSocio, 
-                codigoIndicacao: user.codigoIndicacao, limiteDeSaque: limiteSaqueAprovado, nfcToken: user.nfcToken || ''
+                codigoIndicacao: user.codigoIndicacao, limiteDeSaque: limiteSaqueAprovado, nfcToken: user.nfcToken || '',
+                jaUsouCodigo: !!user.indicadoPor // NOVO: Flag para saber se já foi indicado
             },
             marketplace: produtos.map(p => ({ id: p._id, nome: p.nome, preco: p.preco, imagemUrl: p.imagemUrl, categoria: p.categoria || 'Cédulas SolidCoin' }))
         });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao buscar dados." }); }
+});
+
+// =========================================================================
+// --- NOVA ROTA: RESGATE TARDIO DE CÓDIGO DE INDICAÇÃO ---
+// =========================================================================
+app.post('/api/indicacao/resgatar', checkAuthenticated, async (req, res) => {
+    try {
+        const { codigo } = req.body;
+        if (!codigo) return res.status(400).json({ sucesso: false, mensagem: "Código não informado." });
+
+        const user = await User.findById(req.session.user.id);
+        
+        // Verifica se o usuário já tem um padrinho
+        if (user.indicadoPor) {
+            return res.status(400).json({ sucesso: false, mensagem: "Você já utilizou um código de indicação anteriormente." });
+        }
+
+        const codigoUpper = codigo.toUpperCase();
+        
+        // Impede de usar o próprio código
+        if (user.codigoIndicacao === codigoUpper) {
+            return res.status(400).json({ sucesso: false, mensagem: "Você não pode usar o seu próprio código." });
+        }
+
+        // Busca o dono do código
+        const referrer = await User.findOne({ codigoIndicacao: codigoUpper });
+        if (!referrer) {
+            return res.status(404).json({ sucesso: false, mensagem: "Código inválido ou não encontrado." });
+        }
+
+        const admin = await User.findOne({ email: ADMIN_EMAIL });
+        if (!admin || admin.saldo < 500) {
+            return res.status(500).json({ sucesso: false, mensagem: "O sistema está sem saldo para processar esse bônus no momento." });
+        }
+
+        // Aplica as regras financeiras
+        user.indicadoPor = referrer._id;
+        user.saldo += 250;
+        referrer.saldo += 250;
+        admin.saldo -= 500;
+
+        await Promise.all([
+            user.save(),
+            referrer.save(),
+            admin.save(),
+            new Transaction({ userId: user._id, tipo: 'Bônus de Boas-Vindas', descricao: `Código de ${referrer.nome}`, valor: 250 }).save(),
+            new Transaction({ userId: referrer._id, tipo: 'Bônus de Indicação', descricao: `Você convidou ${user.nome}`, valor: 250 }).save(),
+            new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Para ${referrer.nome} e ${user.nome}`, valor: -500 }).save()
+        ]);
+
+        res.json({ 
+            sucesso: true, 
+            mensagem: "🎉 Código resgatado com sucesso! Você e seu amigo acabaram de ganhar 250 SC.", 
+            novoSaldo: user.saldo 
+        });
+
+    } catch (error) {
+        console.error("Erro no resgate de indicação:", error);
+        res.status(500).json({ sucesso: false, mensagem: "Erro interno ao resgatar código." });
+    }
 });
 
 // ROTAS DO MÓDULO NFC
@@ -394,9 +455,6 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
     }
 });
 
-// =====================================================================
-// --- ROTA DE SAQUE AUTOMATIZADO VIA PIX (AGORA USANDO CONTA PJ) ---
-// =====================================================================
 app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
     try {
         const { valorSC, tipoChave, chavePix } = req.body;
@@ -420,7 +478,7 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
         }
 
         const chaveFavorecidoLimpa = normalizarChavePix(chavePix, tipoChave);
-        const chavePagadorLimpa = normalizarChavePix(process.env.EFI_PIX_KEY_PJ); // CHAVE DA CONTA PJ!
+        const chavePagadorLimpa = normalizarChavePix(process.env.EFI_PIX_KEY_PJ); 
 
         const scRate = await getSCRate();
         const taxaSC = valorNum * 0.05; 
@@ -520,7 +578,6 @@ app.post('/api/admin/verificar-pix-efi', isAdmin, async (req, res) => {
 
         for (let ordem of ordensPendentes) {
             try {
-                // VERIFICA NA CONTA PF SE A COBRANÇA FOI PAGA
                 const cob = await efipayPF.pixDetailCharge({ txid: ordem.txId });
                 if (cob.status === 'CONCLUIDA') {
                     const user = await User.findById(ordem.userId);
@@ -544,7 +601,7 @@ app.post('/api/admin/verificar-pix-efi', isAdmin, async (req, res) => {
 
 app.post('/api/admin/ativar-webhook-efi', isAdmin, async (req, res) => {
     try {
-        const chave = process.env.EFI_PIX_KEY; // A chave PF para recebimento
+        const chave = process.env.EFI_PIX_KEY;
         const webhookUrl = "https://solidcoin-app.onrender.com/api/webhook/pix";
 
         if (!chave) return res.status(400).json({ sucesso: false, mensagem: "Chave Pix PF não encontrada." });

@@ -50,7 +50,7 @@
         .btn-recarga { border-bottom: 4px solid #1abc9c; }
         .btn-resgift { border-bottom: 4px solid #95a5a6; }
         .btn-nfc { border-bottom: 4px solid #00cec9; }
-        .btn-tarefas { border-bottom: 4px solid #8e44ad; } /* NOVO BOTAO TAREFAS */
+        .btn-tarefas { border-bottom: 4px solid #8e44ad; }
 
         .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -100,12 +100,9 @@
             <button class="feature-btn btn-stake" onclick="abrirSecao('sec-staking')">
                 <span class="icon">📈</span><span class="text">Staking SolidCoin (5% a.m)</span>
             </button>
-            
-            <!-- NOVO BOTÃO DE TAREFAS / MONLIX AQUI -->
             <button class="feature-btn btn-tarefas" onclick="abrirSecao('sec-tarefas')">
                 <span class="icon">🕹️</span><span class="text">Ganhar SC (Tarefas e Vídeos)</span>
             </button>
-
             <button class="feature-btn btn-socio" onclick="abrirSecao('sec-socio')">
                 <span class="icon">💎</span><span class="text">Clube de Sócios SolidCoin</span>
             </button>
@@ -135,16 +132,11 @@
             </button>
         </div>
 
-        <!-- ========================================== -->
-        <!-- NOVA SEÇÃO: MURAL DE OFERTAS (MONLIX)      -->
-        <!-- ========================================== -->
         <div id="sec-tarefas" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #8e44ad; background: linear-gradient(145deg, #11081a, #1a0f2e);">
                 <h2 style="color: #c56cf0; margin-top: 0;">🕹️ Mural de Ofertas SolidCoin</h2>
                 <p style="color: #ddd; font-size: 0.95em;">Ganhe SolidCoins reais assistindo a vídeos, respondendo pesquisas e testando novos aplicativos.</p>
-                
-                <!-- CONTAINER TEMPORÁRIO ENQUANTO AGUARDA APROVAÇÃO -->
                 <div id="monlix-container" style="margin-top: 20px; background: #0a0510; border: 2px dashed #8e44ad; border-radius: 12px; padding: 40px 20px; text-align: center;">
                     <div style="font-size: 3em; margin-bottom: 15px;">🚧</div>
                     <h3 style="color: #d4af37; margin: 0 0 10px 0;">Estamos preparando as melhores ofertas!</h3>
@@ -152,9 +144,38 @@
                 </div>
             </div>
         </div>
-        <!-- ========================================== -->
 
-        <!-- SEÇÃO NFC -->
+        <!-- ========================================== -->
+        <!-- PROGRAMA DE INDICAÇÃO COM RESGATE TARDIO   -->
+        <!-- ========================================== -->
+        <div id="sec-indicacao" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
+            <div class="card" style="border-left: 5px solid #f1c40f; background: linear-gradient(145deg, #1a1a1a, #2a2a2a);">
+                <h2 style="color: #f1c40f;">🤝 Programa de Indicação</h2>
+                
+                <!-- BLOCO DE RESGATE TARDIO (Escondido via JS se já tiver usado) -->
+                <div id="bloco-resgatar-indicacao" style="background-color: #111; padding: 15px; border-radius: 8px; border: 1px dashed #f1c40f; margin-bottom: 20px; display: none;">
+                    <h3 style="color: #f1c40f; margin-top: 0; font-size: 1.1em;">🎁 Esqueceu de usar um código?</h3>
+                    <p style="font-size: 0.85em; color: #aaa; margin-bottom: 10px;">Insira o código do seu amigo abaixo e ambos ganharão <strong>250 SC</strong> na hora!</p>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="codigo-indicacao-tardio" placeholder="Ex: ABC123" style="flex: 1; background: #0a0a0a; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 6px; text-transform: uppercase;">
+                        <button onclick="resgatarCodigoTardio()" style="background-color: #f1c40f; color: #000; font-weight: bold; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; white-space: nowrap;">Resgatar Bônus</button>
+                    </div>
+                </div>
+
+                <p style="color: #ddd; font-size: 0.95em;">Convide seus amigos e ganhem juntos! Quando alguém usar seu código no cadastro:</p>
+                <ul style="color: #aaa; font-size: 0.9em; text-align: left; margin: 10px 0; padding-left: 20px;">
+                    <li>Você ganha <strong>250 SolidCoins</strong></li>
+                    <li>Seu amigo ganha <strong>250 SolidCoins</strong></li>
+                    <li>Se ele assinar um plano de Sócio, você ganha <strong>5% de Comissão</strong> do valor do plano na hora!</li>
+                </ul>
+                <div style="background-color: #111; padding: 15px; border-radius: 8px; border: 1px dashed #f1c40f; margin-top: 15px;">
+                    <p style="margin: 0 0 5px 0; color: #aaa; font-size: 0.85em;">Compartilhe seu código único:</p>
+                    <strong id="codigo-indicacao" style="font-size: 1.5em; letter-spacing: 2px; color: #d4af37;">CARREGANDO...</strong>
+                </div>
+            </div>
+        </div>
+
         <div id="sec-nfc" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #00cec9; background: linear-gradient(145deg, #0d1a1a, #1a2a24);">
@@ -217,23 +238,6 @@
                     <button id="btn-claim-tron" style="background-color: #2ecc71; color: #000; flex: 1; display: none;">Resgatar Rendimentos</button>
                 </div>
                 <p id="tron-status" style="color: #f1c40f; font-size: 0.85em; margin-top: 10px; text-align: center;"></p>
-            </div>
-        </div>
-
-        <div id="sec-indicacao" class="feature-section">
-            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
-            <div class="card" style="border-left: 5px solid #f1c40f; background: linear-gradient(145deg, #1a1a1a, #2a2a2a);">
-                <h2 style="color: #f1c40f;">🤝 Programa de Indicação</h2>
-                <p style="color: #ddd; font-size: 0.95em;">Convide seus amigos e ganhem juntos! Quando alguém usar seu código no cadastro:</p>
-                <ul style="color: #aaa; font-size: 0.9em; text-align: left; margin: 10px 0; padding-left: 20px;">
-                    <li>Você ganha <strong>250 SolidCoins</strong></li>
-                    <li>Seu amigo ganha <strong>250 SolidCoins</strong></li>
-                    <li>Se ele assinar um plano de Sócio, você ganha <strong>5% de Comissão</strong> do valor do plano na hora!</li>
-                </ul>
-                <div style="background-color: #111; padding: 15px; border-radius: 8px; border: 1px dashed #f1c40f; margin-top: 15px;">
-                    <p style="margin: 0 0 5px 0; color: #aaa; font-size: 0.85em;">Compartilhe seu código único:</p>
-                    <strong id="codigo-indicacao" style="font-size: 1.5em; letter-spacing: 2px; color: #d4af37;">CARREGANDO...</strong>
-                </div>
             </div>
         </div>
 
@@ -489,6 +493,45 @@
             secoes.forEach(sec => sec.style.display = 'none');
             document.getElementById('menu-botoes').style.display = 'grid';
         };
+
+        // Função do Resgate Tardio de Indicação
+        async function resgatarCodigoTardio() {
+            const codigo = document.getElementById('codigo-indicacao-tardio').value;
+            if (!codigo) return alert('Por favor, digite o código do seu amigo!');
+            
+            try {
+                const response = await fetch('/api/indicacao/resgatar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ codigo })
+                });
+                const data = await response.json();
+                
+                alert(data.mensagem);
+                
+                if (data.sucesso) {
+                    // Esconde a caixinha na hora!
+                    document.getElementById('bloco-resgatar-indicacao').style.display = 'none';
+                    // Atualiza o saldo no topo
+                    document.getElementById('saldo-usuario').innerText = parseFloat(data.novoSaldo).toFixed(2);
+                }
+            } catch (error) {
+                alert('Erro na conexão com o servidor.');
+            }
+        }
+
+        // Esconde a caixinha automaticamente quando a página carrega, se o usuário já tiver usado um código
+        window.addEventListener('DOMContentLoaded', () => {
+            fetch('/api/dados-dashboard')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.sucesso && !data.usuario.jaUsouCodigo) {
+                        const bloco = document.getElementById('bloco-resgatar-indicacao');
+                        if(bloco) bloco.style.display = 'block'; // Mostra apenas se ainda NÃO usou
+                    }
+                })
+                .catch(err => console.log('Erro ao checar indicação', err));
+        });
     </script>
     <script src="scripts.js"></script>
 </body>
