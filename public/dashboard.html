@@ -51,7 +51,7 @@
         .btn-resgift { border-bottom: 4px solid #95a5a6; }
         .btn-nfc { border-bottom: 4px solid #00cec9; }
         .btn-tarefas { border-bottom: 4px solid #8e44ad; }
-        .btn-invest { border-bottom: 4px solid #f39c12; } /* Nova cor para Investimentos */
+        .btn-invest { border-bottom: 4px solid #f39c12; }
 
         .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -92,11 +92,9 @@
         </div>
 
         <div id="menu-botoes" class="feature-grid">
-            <!-- Novo Botão de Investimentos Adicionado -->
             <button class="feature-btn btn-invest" onclick="abrirSecao('sec-investimentos')">
                 <span class="icon">📈</span><span class="text">Mercado (FIIs & Ações)</span>
             </button>
-            
             <button class="feature-btn btn-tron" onclick="abrirSecao('sec-tron')">
                 <span class="icon">🌐</span><span class="text">Resgate Rendimento (Web3 Tron)</span>
             </button>
@@ -138,9 +136,7 @@
             </button>
         </div>
 
-        <!-- ========================================== -->
-        <!-- MÓDULO DE INVESTIMENTOS (FIIs e AÇÕES)     -->
-        <!-- ========================================== -->
+        <!-- MÓDULO DE INVESTIMENTOS (FIIs e AÇÕES) -->
         <div id="sec-investimentos" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #f39c12; background: linear-gradient(145deg, #1a1505, #2a200a);">
@@ -149,11 +145,10 @@
                 
                 <div style="background-color: #111; padding: 15px; border-radius: 8px; border: 1px dashed #f39c12; margin-bottom: 20px;">
                     <h3 style="margin-top: 0; color: #f39c12; font-size: 1.1em;">Sua Carteira de FIIs/Ações</h3>
-                    <p style="margin: 0; color: #aaa; font-size: 0.9em;">Acompanhe aqui a quantidade de cotas que você possui. Os rendimentos serão creditados automaticamente no seu saldo SC.</p>
+                    <div id="minha-carteira-ativos" style="margin-top: 10px; color: #fff;">Carregando carteira...</div>
                 </div>
 
                 <div id="lista-ativos-investimento" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
-                    <!-- Os ativos serão injetados aqui via JavaScript -->
                     <div style="text-align: center; color: #aaa; padding: 20px;">Carregando ativos disponíveis no mercado...</div>
                 </div>
             </div>
@@ -180,16 +175,15 @@
                 <div id="bloco-resgatar-indicacao" style="background-color: #111; padding: 15px; border-radius: 8px; border: 1px dashed #f1c40f; margin-bottom: 20px; display: none;">
                     <h3 style="color: #f1c40f; margin-top: 0; font-size: 1.1em;">🎁 Esqueceu de usar um código?</h3>
                     <p style="font-size: 0.85em; color: #aaa; margin-bottom: 15px;">Insira o código do seu amigo abaixo e ambos ganharão <strong>250 SC</strong> na hora!</p>
-                    
                     <input type="text" id="codigo-indicacao-tardio" placeholder="Digite aqui o código. Ex: ABC123" style="width: 100%; background: #0a0a0a; border: 1px solid #444; color: #fff; padding: 15px; border-radius: 6px; text-transform: uppercase; font-size: 1.1em; margin-bottom: 12px; box-sizing: border-box;">
                     <button onclick="resgatarCodigoTardio()" style="width: 100%; background-color: #f1c40f; color: #000; font-weight: bold; border: none; padding: 15px; border-radius: 6px; cursor: pointer; font-size: 1.1em; text-transform: uppercase;">Resgatar Bônus</button>
                 </div>
 
                 <p style="color: #ddd; font-size: 0.95em;">Convide seus amigos e ganhem juntos! Quando alguém usar seu código no cadastro:</p>
                 <ul style="color: #aaa; font-size: 0.9em; text-align: left; margin: 10px 0; padding-left: 20px;">
-                    <li>Você ganha <strong>250 SolidCoins</strong></li>
-                    <li>Seu amigo ganha <strong>250 SolidCoins</strong></li>
-                    <li>Se ele assinar um plano de Sócio, você ganha <strong>5% de Comissão</strong> do valor do plano na hora!</li>
+                    <li>Você ganha <strong>250 SolidCoins</strong>[cite: 14]</li>
+                    <li>Seu amigo ganha <strong>250 SolidCoins</strong>[cite: 14]</li>
+                    <li>Se ele assinar um plano de Sócio, você ganha <strong>5% de Comissão</strong> do valor do plano na hora![cite: 14]</li>
                 </ul>
                 <div style="background-color: #111; padding: 15px; border-radius: 8px; border: 1px dashed #f1c40f; margin-top: 15px;">
                     <p style="margin: 0 0 5px 0; color: #aaa; font-size: 0.85em;">Compartilhe seu código único:</p>
@@ -497,10 +491,9 @@
                 </a>
             </div>
         </footer>
-
     </div>
     
-    <!-- Modal de Negociação de Ativos (Fica invisível até clicar em Negociar) -->
+    <!-- Modal de Negociação de Ativos -->
     <div id="modal-negociacao" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center;">
         <div style="background: #1a1a1a; padding: 30px; border-radius: 12px; border: 1px solid #f39c12; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.7);">
             <h2 id="modal-ativo-titulo" style="color: #f39c12; margin-top: 0; margin-bottom: 10px;">Negociar Ativo</h2>
@@ -521,7 +514,6 @@
     </div>
 
     <script>
-        // Funções para controle de abertura das seções
         window.abrirSecao = function(idSecao) {
             document.getElementById('menu-botoes').style.display = 'none';
             const secoes = document.querySelectorAll('.feature-section');
@@ -529,7 +521,6 @@
             document.getElementById(idSecao).style.display = 'block';
             window.scrollTo({ top: 0, behavior: 'smooth' });
             
-            // Se abrir a seção de investimentos, carrega a lista atualizada
             if(idSecao === 'sec-investimentos') {
                 carregarAtivosInvestimento();
             }
@@ -541,10 +532,6 @@
             document.getElementById('menu-botoes').style.display = 'grid';
         };
 
-        // ====================================================
-        // JS DO NOVO MÓDULO DE INVESTIMENTOS (FIIs e AÇÕES)
-        // ====================================================
-        
         async function carregarAtivosInvestimento() {
             try {
                 const res = await fetch('/api/investimentos/lista');
@@ -553,7 +540,7 @@
                 
                 if (data.sucesso) {
                     const container = document.getElementById('lista-ativos-investimento');
-                    container.innerHTML = ''; // Limpa a mensagem de carregando
+                    container.innerHTML = ''; 
                     
                     data.ativos.forEach(ativo => {
                         const card = document.createElement('div');
@@ -613,20 +600,13 @@
                 
                 if (data.sucesso) {
                     fecharModalNegociacao();
-                    carregarAtivosInvestimento(); // Atualiza a lista na tela
-                    
-                    // Se você tiver uma função global que atualiza o saldo no topo (geralmente no scripts.js)
-                    // Você pode chamá-la aqui. Exemplo genérico:
+                    carregarAtivosInvestimento(); 
                     if(typeof atualizarDadosDashboard === 'function') atualizarDadosDashboard();
                 }
             } catch (error) {
                 alert('Erro na requisição. Verifique sua conexão com o servidor.');
             }
         }
-
-        // ====================================================
-        // FUNÇÕES EXISTENTES MANTIDAS
-        // ====================================================
 
         async function resgatarCodigoTardio() {
             const codigo = document.getElementById('codigo-indicacao-tardio').value;
@@ -639,7 +619,6 @@
                     body: JSON.stringify({ codigo })
                 });
                 const data = await response.json();
-                
                 alert(data.mensagem);
                 
                 if (data.sucesso) {

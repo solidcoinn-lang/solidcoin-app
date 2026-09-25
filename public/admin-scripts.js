@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.carregarInadimplentes();
     window.carregarUsuarios();
     window.carregarListaGiftCardsSC();
-    window.carregarAtivos(); // Carrega os FIIs e Ações
+    window.carregarAtivos(); 
 });
 
 window.carregarUsuarios = async () => {
@@ -425,6 +425,36 @@ window.processarOrdemAtivo = async (id, acao) => {
         alert(data.mensagem);
         if (data.sucesso) window.carregarPendentes();
     } catch (e) { alert("Erro ao processar a ordem."); }
+};
+
+// NOVA FUNÇÃO: Ajustar Cotas Manualmente (Adicionar ou Retirar do Usuário)
+window.ajustarCotasUsuario = async () => {
+    const email = document.getElementById('invUserEmail').value;
+    const simbolo = document.getElementById('invUserSimbolo').value;
+    const quantidade = parseInt(document.getElementById('invUserQuantidade').value);
+
+    if (!email || !simbolo || isNaN(quantidade)) {
+        return alert("Preencha o e-mail, o ticker e a quantidade de forma válida.");
+    }
+
+    if (!confirm(`Confirma o ajuste de ${quantidade} cotas de ${simbolo.toUpperCase()} para o usuário ${email}?\n(Valores positivos adicionam, valores negativos retiram)`)) return;
+
+    try {
+        const res = await fetch('/api/admin/ativos/ajustar-cotas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, simbolo, quantidade })
+        });
+        const data = await res.json();
+        alert(data.mensagem);
+        if (data.sucesso) {
+            document.getElementById('invUserEmail').value = '';
+            document.getElementById('invUserSimbolo').value = '';
+            document.getElementById('invUserQuantidade').value = '';
+        }
+    } catch (e) {
+        alert("Erro ao ajustar cotas do usuário.");
+    }
 };
 
 /* ================================== */

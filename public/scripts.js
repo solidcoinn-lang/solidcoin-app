@@ -61,9 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
         atualizarUIValores();
     };
 
-    // ==========================================
     // --- LÓGICA: TECNOLOGIA NFC SOLIDCOIN ---
-    // ==========================================
     const btnLerNfc = document.getElementById('btn-ler-nfc');
     const statusNfc = document.getElementById('status-nfc');
     const btnCobrarNfc = document.getElementById('btn-cobrar-nfc');
@@ -231,11 +229,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ==========================================
     // --- LÓGICA WEB3: TRONLINK (SMART CONTRACT) ---
-    // ==========================================
     const CONTRATO_SOLIDCOIN = "TEyHvpEwPVoVqBDVXKnLBJPQDU7ACoikjE"; 
-    
     const ABI_SIMPLIFICADA = [{"inputs":[],"name":"claimRewards","outputs":[],"stateMutability":"nonpayable","type":"function"}];
 
     const btnConnectTron = document.getElementById('btn-connect-tron');
@@ -286,9 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ==========================================
     // --- LÓGICA: SAQUE PIX VIP ---
-    // ==========================================
     const pixValInput = document.getElementById('pix-valor-sc');
     const pixTaxaSc = document.getElementById('pix-taxa-sc');
     const pixReceberBrl = document.getElementById('pix-receber-brl');
@@ -335,80 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ==========================================
-    // --- LÓGICA: FIIs E AÇÕES (NOVO) ---
-    // ==========================================
-    const mercadoAtivosLista = document.getElementById('mercado-ativos-lista');
-    const minhaCarteiraAtivos = document.getElementById('minha-carteira-ativos');
-
-    const carregarMercadoAtivos = async () => {
-        if (!mercadoAtivosLista) return;
-        try {
-            const res = await fetch('/api/ativos');
-            const data = await res.json();
-            mercadoAtivosLista.innerHTML = '';
-            if (data.sucesso && data.ativos.length > 0) {
-                data.ativos.forEach(ativo => {
-                    const div = document.createElement('div');
-                    div.className = 'ativo-item';
-                    div.innerHTML = `
-                        <div class="ativo-info">
-                            <h3>${ativo.ticker} <span class="badge-${ativo.tipo.toLowerCase()}">${ativo.tipo}</span></h3>
-                            <p>Cotação Atual: <strong>R$ ${ativo.precoAtual.toFixed(2)}</strong></p>
-                        </div>
-                        <div class="ativo-acoes" style="display: flex; gap: 5px; margin-top: 10px;">
-                            <input type="number" id="qtd-${ativo.ticker}" min="1" placeholder="Qtd" style="width: 70px; padding: 5px; border-radius: 4px;">
-                            <button class="btn-comprar-ativo" data-ticker="${ativo.ticker}" style="background-color: #2ecc71; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Comprar</button>
-                            <button class="btn-vender-ativo" data-ticker="${ativo.ticker}" style="background-color: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Vender</button>
-                        </div>
-                    `;
-                    mercadoAtivosLista.appendChild(div);
-                });
-            } else {
-                mercadoAtivosLista.innerHTML = '<p>Nenhum ativo listado no momento.</p>';
-            }
-        } catch (err) {
-            console.error("Erro ao carregar mercado de FIIs e Ações:", err);
-        }
-    };
-
-    if (mercadoAtivosLista) {
-        mercadoAtivosLista.addEventListener('click', async (e) => {
-            const isCompra = e.target.classList.contains('btn-comprar-ativo');
-            const isVenda = e.target.classList.contains('btn-vender-ativo');
-            
-            if (isCompra || isVenda) {
-                const ticker = e.target.dataset.ticker;
-                const qtdInput = document.getElementById(`qtd-${ticker}`);
-                const quantidade = parseInt(qtdInput.value);
-
-                if (!quantidade || quantidade <= 0) return alert('Por favor, insira uma quantidade válida.');
-
-                const tipoOrdem = isCompra ? 'Compra' : 'Venda';
-                if (!confirm(`Confirmar envio de ordem de ${tipoOrdem} para ${quantidade} cotas de ${ticker}?`)) return;
-
-                try {
-                    const res = await fetch('/api/ativos/ordem', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ticker, quantidade, tipoOrdem })
-                    });
-                    const data = await res.json();
-                    alert(data.mensagem);
-                    if (data.sucesso) {
-                        qtdInput.value = '';
-                        carregarDashboard(true);
-                    }
-                } catch (err) {
-                    alert('Erro de comunicação ao enviar a ordem.');
-                }
-            }
-        });
-    }
-
-    // ==========================================
     // --- LÓGICA: SÓCIO & STAKING ---
-    // ==========================================
     const stakedAmountEl = document.getElementById('staked-amount');
     const unstakeDateEl = document.getElementById('unstake-date');
     const stakeForm = document.getElementById('stake-form');
@@ -599,18 +519,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Renderiza Carteira de FIIs e Ações do Usuário
+                const minhaCarteiraAtivos = document.getElementById('minha-carteira-ativos');
                 if (minhaCarteiraAtivos && data.usuario.carteiraAtivos) {
                     minhaCarteiraAtivos.innerHTML = '';
                     if (data.usuario.carteiraAtivos.length > 0) {
                         data.usuario.carteiraAtivos.forEach(item => {
                             const div = document.createElement('div');
                             div.className = 'minha-carteira-item';
-                            div.style = 'padding: 10px; border-bottom: 1px solid #333;';
-                            div.innerHTML = `Ticker: <strong>${item.ticker}</strong> | Quantidade: <strong>${item.quantidade}</strong>`;
+                            div.style = 'padding: 8px 0; border-bottom: 1px dashed #333; display: flex; justify-content: space-between;';
+                            div.innerHTML = `<span>Ativo: <strong>${item.simbolo}</strong></span> <span>Cotas: <strong>${item.quantidade}</strong></span>`;
                             minhaCarteiraAtivos.appendChild(div);
                         });
                     } else {
-                        minhaCarteiraAtivos.innerHTML = '<p>Você ainda não possui FIIs ou Ações em carteira.</p>';
+                        minhaCarteiraAtivos.innerHTML = '<p style="color: #aaa; font-size: 0.9em; margin: 0;">Você ainda não possui FIIs ou Ações em carteira.</p>';
                     }
                 }
 
@@ -676,7 +597,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 atualizarUIStaking(data.usuario);
-                carregarMercadoAtivos(); 
             } else if (!isUpdate) { alert(data.mensagem); }
         } catch (error) { console.error("Erro ao carregar o dashboard:", error); }
     };

@@ -62,7 +62,7 @@
         .btn-gifts { border-bottom: 4px solid #27ae60; }
         .btn-recargas { border-bottom: 4px solid #0984e3; }
         .btn-nfc { border-bottom: 4px solid #00cec9; }
-        .btn-acoes { border-bottom: 4px solid #ff4757; } /* NOVO: FIIs e Ações */
+        .btn-acoes { border-bottom: 4px solid #ff4757; } 
 
         .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -330,16 +330,16 @@
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #ff4757;">
                 <h2 style="margin-top: 0;">Gestão de FIIs e Ações</h2>
-                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Cadastre ativos, atualize cotações e aprove ordens pendentes dos usuários.</p>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Cadastre ativos, atualize cotações, ajuste cotas e aprove ordens pendentes dos usuários.</p>
                 
                 <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center; flex-wrap: wrap; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333;">
-                    <input type="text" id="ticker-ativo" class="input-admin" placeholder="Ticker (Ex: MXRF11, PETR4)" style="flex: 1; min-width: 150px;">
+                    <input type="text" id="ticker-ativo" class="input-admin" placeholder="Ticker (Ex: GARE11)" style="flex: 1; min-width: 150px;">
                     <select id="tipo-ativo" class="input-admin" style="flex: 1; min-width: 100px;">
                         <option value="FII">Fundo Imobiliário (FII)</option>
                         <option value="Ação">Ação</option>
                     </select>
-                    <input type="number" id="preco-ativo" class="input-admin" placeholder="Cotação R$ (Ex: 10.50)" style="flex: 1; min-width: 150px;">
-                    <button onclick="adicionarAtivo()" class="btn-admin" style="background-color: #ff4757; color: #fff; min-width: 150px;">➕ Cadastrar</button>
+                    <input type="number" id="preco-ativo" class="input-admin" placeholder="Cotação R$ (Ex: 8.38)" style="flex: 1; min-width: 150px;">
+                    <button onclick="adicionarAtivo()" class="btn-admin" style="background-color: #ff4757; color: #fff; min-width: 150px;">➕ Cadastrar Ativo</button>
                 </div>
 
                 <h3 style="color: #ff4757; margin-top: 30px;">Catálogo de Ativos</h3>
@@ -357,6 +357,15 @@
                             <tr><td colspan="4" style="text-align: center;">Carregando ativos...</td></tr>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- ÁREA DE CORREÇÃO MANUAL DE COTAS -->
+                <h3 style="color: #ff4757; margin-top: 30px;">Corrigir Cotas de Usuário (Manual)</h3>
+                <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center; flex-wrap: wrap; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333;">
+                    <input type="text" id="invUserEmail" class="input-admin" placeholder="E-mail do Usuário" style="flex: 1; min-width: 150px;">
+                    <input type="text" id="invUserSimbolo" class="input-admin" placeholder="Ticker (Ex: GARE11)" style="flex: 1; min-width: 100px;">
+                    <input type="number" id="invUserQuantidade" class="input-admin" placeholder="Qtd (+ adiciona, - retira)" style="flex: 1; min-width: 150px;">
+                    <button onclick="ajustarCotasUsuario()" class="btn-admin" style="background-color: #ff4757; color: #fff; min-width: 150px;">⚙️ Ajustar Cotas</button>
                 </div>
 
                 <h3 style="color: #ff4757; margin-top: 30px;">Ordens Pendentes (Compra e Venda)</h3>

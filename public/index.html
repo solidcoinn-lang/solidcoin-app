@@ -51,7 +51,6 @@
             document.getElementById('register-box').style.display = type === 'register' ? 'block' : 'none';
         }
         
-        // Verifica se a URL tem ?cadastro=sucesso
         if (window.location.search.includes('cadastro=sucesso')) {
             alert('Cadastro realizado com sucesso! Ganhou bônus? Verifique seu extrato ao fazer login.');
             toggleAuth('login');
