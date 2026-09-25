@@ -17,18 +17,6 @@ const checkAdmin = (req, res, next) => {
     next();
 };
 
-// Estrutura em memória dos Ativos (Pode ser integrado diretamente à base de dados)
-let ativos = [
-    {
-        id: 'gare11',
-        simbolo: 'GARE11',
-        nome: 'Gare Properties FII',
-        tipo: 'FII',
-        precoBrl: 8.38,
-        ativo: true
-    }
-];
-
 // =======================================================
 // ROTAS PÚBLICAS / UTILIZADOR AUTENTICADO
 // =======================================================
@@ -37,13 +25,19 @@ let ativos = [
 router.get('/ativos', async (req, res) => {
     try {
         const userId = req.user.id;
+        const ativosDoBanco = await db.listarAtivos();
         const userCarteira = (await db.getUserCarteira(userId)) || {};
 
         res.json({
             sucesso: true,
             cotacaoSC: COTACAO_SC,
-            ativos: ativos.map(a => ({
-                ...a,
+            ativos: ativosDoBanco.map(a => ({
+                id: a.id,
+                simbolo: a.simbolo,
+                nome: a.nome,
+                tipo: a.tipo,
+                precoBrl: a.precoBrl,
+                ativo: a.ativo,
                 minhasCotas: userCarteira[a.simbolo] || 0
             }))
         });
@@ -63,7 +57,7 @@ router.post('/comprar', async (req, res) => {
             return res.status(400).json({ sucesso: false, mensagem: 'Quantidade inválida.' });
         }
 
-        const ativo = ativos.find(a => a.simbolo === simboloAtivo?.toUpperCase() && a.ativo);
+        const ativo = await db.buscarAtivoPorSimbolo(simboloAtivo);
         if (!ativo) {
             return res.status(404).json({ sucesso: false, mensagem: 'Ativo não encontrado ou inativo.' });
         }
@@ -127,7 +121,7 @@ router.post('/vender', async (req, res) => {
             return res.status(400).json({ sucesso: false, mensagem: 'Quantidade inválida.' });
         }
 
-        const ativo = ativos.find(a => a.simbolo === simboloAtivo?.toUpperCase());
+        const ativo = await db.buscarAtivoPorSimbolo(simboloAtivo);
         if (!ativo) {
             return res.status(404).json({ sucesso: false, mensagem: 'Ativo não encontrado.' });
         }
@@ -207,7 +201,7 @@ router.post('/admin/ajustar-cotas', checkAdmin, async (req, res) => {
             return res.status(400).json({ sucesso: false, mensagem: "Operação inválida. Use 'adicionar' ou 'retirar'." });
         }
 
-        res.json({ sucesso: true, mensagem: `Cotas de ${simboloUpper} ajustadas com sucesso para o utilizador ${targetUserId}.` });
+        res.json({ sucesso: true, mensagem: `Cotas de ${simboloUpper} ajustadas com sucesso para o utilizador.` });
     } catch (err) {
         res.status(500).json({ sucesso: false, mensagem: err.message });
     }
@@ -223,13 +217,12 @@ router.post('/admin/atualizar-preco', checkAdmin, async (req, res) => {
             return res.status(400).json({ sucesso: false, mensagem: 'Símbolo ou preço inválido.' });
         }
 
-        const ativo = ativos.find(a => a.simbolo === simboloAtivo.toUpperCase());
-        if (!ativo) {
+        const ativoAtualizado = await db.atualizarPrecoAtivo(simboloAtivo, preco);
+        if (!ativoAtualizado) {
             return res.status(404).json({ sucesso: false, mensagem: 'Ativo não encontrado.' });
         }
 
-        ativo.precoBrl = preco;
-        res.json({ sucesso: true, mensagem: `Preço de ${ativo.simbolo} atualizado para R$ ${preco.toFixed(2)}` });
+        res.json({ sucesso: true, mensagem: `Preço de ${ativoAtualizado.simbolo} atualizado para R$ ${preco.toFixed(2)}` });
     } catch (err) {
         res.status(500).json({ sucesso: false, mensagem: err.message });
     }
@@ -246,20 +239,20 @@ router.post('/admin/novo-ativo', checkAdmin, async (req, res) => {
         }
 
         const simboloUpper = simbolo.toUpperCase();
-        if (ativos.some(a => a.simbolo === simboloUpper)) {
+        const ativoExistente = await db.buscarAtivoPorSimbolo(simboloUpper);
+        if (ativoExistente) {
             return res.status(400).json({ sucesso: false, mensagem: 'Ativo já cadastrado.' });
         }
 
-        const novoAtivo = {
+        const novoAtivo = await db.adicionarAtivo({
             id: simbolo.toLowerCase(),
             simbolo: simboloUpper,
             nome,
             tipo: tipo.toUpperCase(),
             precoBrl: preco,
             ativo: true
-        };
+        });
 
-        ativos.push(novoAtivo);
         res.json({ sucesso: true, mensagem: 'Novo ativo cadastrado com sucesso!', ativo: novoAtivo });
     } catch (err) {
         res.status(500).json({ sucesso: false, mensagem: err.message });
