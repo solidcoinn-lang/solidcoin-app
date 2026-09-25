@@ -70,7 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusCobrarNfc = document.getElementById('status-cobrar-nfc');
     const btnGerarTokenNfc = document.getElementById('btn-gerar-token-nfc');
 
-    // 1. MODO COBRAR / RECEBER (MAQUININHA)
     if (btnCobrarNfc) {
         btnCobrarNfc.addEventListener('click', async () => {
             const valorCobrar = document.getElementById('valor-cobrar-nfc').value;
@@ -130,7 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 2. MODO PAGAR (LER E ENVIAR)
     if (btnLerNfc) {
         btnLerNfc.addEventListener('click', async () => {
             if (!("NDEFReader" in window)) {
@@ -187,7 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 3. GERAR TOKEN NFC GRÁTIS
     if (btnGerarTokenNfc) {
         btnGerarTokenNfc.addEventListener('click', async () => {
             try {
@@ -213,7 +210,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 4. PEDIR CARTÃO FÍSICO OFICIAL (1600 SC)
     const formNfc = document.getElementById('form-solicitar-cartao');
     if (formNfc) {
         formNfc.addEventListener('submit', async (e) => {
@@ -290,7 +286,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ==========================================
     // --- LÓGICA: SAQUE PIX VIP ---
+    // ==========================================
     const pixValInput = document.getElementById('pix-valor-sc');
     const pixTaxaSc = document.getElementById('pix-taxa-sc');
     const pixReceberBrl = document.getElementById('pix-receber-brl');
@@ -336,16 +334,87 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    // ---------------------------------
 
-    // Staking Plataforma
+    // ==========================================
+    // --- LÓGICA: FIIs E AÇÕES (NOVO) ---
+    // ==========================================
+    const mercadoAtivosLista = document.getElementById('mercado-ativos-lista');
+    const minhaCarteiraAtivos = document.getElementById('minha-carteira-ativos');
+
+    const carregarMercadoAtivos = async () => {
+        if (!mercadoAtivosLista) return;
+        try {
+            const res = await fetch('/api/ativos');
+            const data = await res.json();
+            mercadoAtivosLista.innerHTML = '';
+            if (data.sucesso && data.ativos.length > 0) {
+                data.ativos.forEach(ativo => {
+                    const div = document.createElement('div');
+                    div.className = 'ativo-item';
+                    div.innerHTML = `
+                        <div class="ativo-info">
+                            <h3>${ativo.ticker} <span class="badge-${ativo.tipo.toLowerCase()}">${ativo.tipo}</span></h3>
+                            <p>Cotação Atual: <strong>R$ ${ativo.precoAtual.toFixed(2)}</strong></p>
+                        </div>
+                        <div class="ativo-acoes" style="display: flex; gap: 5px; margin-top: 10px;">
+                            <input type="number" id="qtd-${ativo.ticker}" min="1" placeholder="Qtd" style="width: 70px; padding: 5px; border-radius: 4px;">
+                            <button class="btn-comprar-ativo" data-ticker="${ativo.ticker}" style="background-color: #2ecc71; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Comprar</button>
+                            <button class="btn-vender-ativo" data-ticker="${ativo.ticker}" style="background-color: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Vender</button>
+                        </div>
+                    `;
+                    mercadoAtivosLista.appendChild(div);
+                });
+            } else {
+                mercadoAtivosLista.innerHTML = '<p>Nenhum ativo listado no momento.</p>';
+            }
+        } catch (err) {
+            console.error("Erro ao carregar mercado de FIIs e Ações:", err);
+        }
+    };
+
+    if (mercadoAtivosLista) {
+        mercadoAtivosLista.addEventListener('click', async (e) => {
+            const isCompra = e.target.classList.contains('btn-comprar-ativo');
+            const isVenda = e.target.classList.contains('btn-vender-ativo');
+            
+            if (isCompra || isVenda) {
+                const ticker = e.target.dataset.ticker;
+                const qtdInput = document.getElementById(`qtd-${ticker}`);
+                const quantidade = parseInt(qtdInput.value);
+
+                if (!quantidade || quantidade <= 0) return alert('Por favor, insira uma quantidade válida.');
+
+                const tipoOrdem = isCompra ? 'Compra' : 'Venda';
+                if (!confirm(`Confirmar envio de ordem de ${tipoOrdem} para ${quantidade} cotas de ${ticker}?`)) return;
+
+                try {
+                    const res = await fetch('/api/ativos/ordem', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ticker, quantidade, tipoOrdem })
+                    });
+                    const data = await res.json();
+                    alert(data.mensagem);
+                    if (data.sucesso) {
+                        qtdInput.value = '';
+                        carregarDashboard(true);
+                    }
+                } catch (err) {
+                    alert('Erro de comunicação ao enviar a ordem.');
+                }
+            }
+        });
+    }
+
+    // ==========================================
+    // --- LÓGICA: SÓCIO & STAKING ---
+    // ==========================================
     const stakedAmountEl = document.getElementById('staked-amount');
     const unstakeDateEl = document.getElementById('unstake-date');
     const stakeForm = document.getElementById('stake-form');
     const unstakeBtn = document.getElementById('unstake-btn');
     const claimRewardsBtn = document.getElementById('claim-rewards-btn');
     
-    // Planos de Sócio
     const planosData = {
         "Socio SolidCoin para Todos": { img: "https://i.postimg.cc/DZ39CCDv/file-000000004a7c71f98e2aedb0290f8b53.png", desc: "Ao aderir a esse plano o Sócio terá 500 SolidCoins mensais.", pix: "https://invoice.infinitepay.io/plans/solidcoin/gDRbdBuXD" },
         "Iron": { img: "https://i.postimg.cc/wMCLJm33/file-000000008d0c720e8dc3a17f05318954.png", desc: "2.750 + Bônus 10% = 3.025 SolidCoins.", pix: "https://invoice.infinitepay.io/plans/solidcoin/IzqprmCRH" },
@@ -513,9 +582,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 atualizarCustoDinamico(document.getElementById('gift-valor'), document.getElementById('gift-custo'));
                 atualizarCustoDinamico(document.getElementById('recharge-valor'), document.getElementById('recharge-custo'));
 
-                // ========================================================
-                // --- ATUALIZAÇÃO AUTOMÁTICA DO TOKEN NFC DA CONTA ---
-                // ========================================================
                 const meuTokenEl = document.getElementById('meu-token-nfc');
                 const btnGerarTokenEl = document.getElementById('btn-gerar-token-nfc');
                 if (meuTokenEl) {
@@ -527,10 +593,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (btnGerarTokenEl) btnGerarTokenEl.style.display = 'inline-block';
                     }
                 }
-                // ========================================================
 
                 if(data.usuario.codigoIndicacao && codigoIndicacaoEl) {
                     codigoIndicacaoEl.textContent = data.usuario.codigoIndicacao;
+                }
+
+                // Renderiza Carteira de FIIs e Ações do Usuário
+                if (minhaCarteiraAtivos && data.usuario.carteiraAtivos) {
+                    minhaCarteiraAtivos.innerHTML = '';
+                    if (data.usuario.carteiraAtivos.length > 0) {
+                        data.usuario.carteiraAtivos.forEach(item => {
+                            const div = document.createElement('div');
+                            div.className = 'minha-carteira-item';
+                            div.style = 'padding: 10px; border-bottom: 1px solid #333;';
+                            div.innerHTML = `Ticker: <strong>${item.ticker}</strong> | Quantidade: <strong>${item.quantidade}</strong>`;
+                            minhaCarteiraAtivos.appendChild(div);
+                        });
+                    } else {
+                        minhaCarteiraAtivos.innerHTML = '<p>Você ainda não possui FIIs ou Ações em carteira.</p>';
+                    }
                 }
 
                 if (!isUpdate) { 
@@ -595,6 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 atualizarUIStaking(data.usuario);
+                carregarMercadoAtivos(); 
             } else if (!isUpdate) { alert(data.mensagem); }
         } catch (error) { console.error("Erro ao carregar o dashboard:", error); }
     };

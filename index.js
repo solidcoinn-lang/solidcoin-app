@@ -69,6 +69,9 @@ const SocioOrder = require('./models/SocioOrder');
 const SystemSettings = require('./models/SystemSettings'); 
 const PixWithdrawal = require('./models/PixWithdrawal');
 
+// --- NOVO: Importa as Rotas de Investimentos ---
+const investimentosRoutes = require('./routes/investimentos'); 
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_EMAIL = "solidcoinn@gmail.com";
@@ -1109,6 +1112,11 @@ app.post('/api/admin/processar-nfc', isAdmin, async (req, res) => {
         }
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
+
+// =========================================================================
+// --- MÓDULO DE INVESTIMENTOS (FIIs e Ações) ---
+// =========================================================================
+app.use('/api/investimentos', checkAuthenticated, investimentosRoutes);
 
 async function setupInicial() {
     try {

@@ -61,7 +61,8 @@
         .btn-saquecripto { border-bottom: 4px solid #f39c12; }
         .btn-gifts { border-bottom: 4px solid #27ae60; }
         .btn-recargas { border-bottom: 4px solid #0984e3; }
-        .btn-nfc { border-bottom: 4px solid #00cec9; } /* NOVO BOTAO NFC */
+        .btn-nfc { border-bottom: 4px solid #00cec9; }
+        .btn-acoes { border-bottom: 4px solid #ff4757; } /* NOVO: FIIs e Ações */
 
         .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -112,6 +113,9 @@
             <button class="feature-btn btn-cotacao" onclick="abrirSecao('sec-cotacao')">
                 <span class="icon">📈</span><span class="text">Cotação SolidCoin</span>
             </button>
+            <button class="feature-btn btn-acoes" onclick="abrirSecao('sec-acoes')">
+                <span class="icon">📊</span><span class="text">FIIs e Ações</span>
+            </button>
             <button class="feature-btn btn-gerargift" onclick="abrirSecao('sec-gerar-gift')">
                 <span class="icon">🎟️</span><span class="text">Gerar Gift Card Interno</span>
             </button>
@@ -123,9 +127,7 @@
             </button>
         </div>
 
-        <!-- ========================================== -->
-        <!-- SEÇÕES OCULTAS DO ADM                      -->
-        <!-- ========================================== -->
+        <!-- SEÇÕES OCULTAS DO ADM -->
 
         <!-- 1. USUÁRIOS -->
         <div id="sec-usuarios" class="feature-section">
@@ -188,7 +190,6 @@
                 <h2 style="margin-top: 0;">Saques Pendentes (PIX VIP)</h2>
                 <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Faça a transferência Pix e cole o ID do Comprovante para aprovar e fechar o pedido.</p>
                 
-                <!-- BOTÃO DE ATIVAÇÃO DO WEBHOOK EFÍ -->
                 <div style="margin: 15px 0; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                     <div>
                         <strong style="color: #d4af37;">Configuração Obrigatória do Banco:</strong>
@@ -324,6 +325,59 @@
             </div>
         </div>
 
+        <!-- NOVO: GERENCIAR FIIS E AÇÕES -->
+        <div id="sec-acoes" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #ff4757;">
+                <h2 style="margin-top: 0;">Gestão de FIIs e Ações</h2>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Cadastre ativos, atualize cotações e aprove ordens pendentes dos usuários.</p>
+                
+                <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center; flex-wrap: wrap; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333;">
+                    <input type="text" id="ticker-ativo" class="input-admin" placeholder="Ticker (Ex: MXRF11, PETR4)" style="flex: 1; min-width: 150px;">
+                    <select id="tipo-ativo" class="input-admin" style="flex: 1; min-width: 100px;">
+                        <option value="FII">Fundo Imobiliário (FII)</option>
+                        <option value="Ação">Ação</option>
+                    </select>
+                    <input type="number" id="preco-ativo" class="input-admin" placeholder="Cotação R$ (Ex: 10.50)" style="flex: 1; min-width: 150px;">
+                    <button onclick="adicionarAtivo()" class="btn-admin" style="background-color: #ff4757; color: #fff; min-width: 150px;">➕ Cadastrar</button>
+                </div>
+
+                <h3 style="color: #ff4757; margin-top: 30px;">Catálogo de Ativos</h3>
+                <div style="max-height: 250px; overflow-y: auto; border: 1px solid #333; border-radius: 6px;">
+                    <table>
+                        <thead style="position: sticky; top: 0; z-index: 10;">
+                            <tr>
+                                <th>Ticker</th>
+                                <th>Tipo</th>
+                                <th>Cotação Atual (R$)</th>
+                                <th>Atualizar Cotação / Excluir</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-ativos">
+                            <tr><td colspan="4" style="text-align: center;">Carregando ativos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 style="color: #ff4757; margin-top: 30px;">Ordens Pendentes (Compra e Venda)</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Usuário</th>
+                            <th>Ticker</th>
+                            <th>Operação (Qtd)</th>
+                            <th>Valor Total (R$)</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordens-ativos-lista">
+                        <tr><td colspan="6" style="text-align: center;">Carregando ordens...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- 8. GERAR & GERENCIAR GIFT CARDS SOLIDCOIN (INTERNOS) -->
         <div id="sec-gerar-gift" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
@@ -407,7 +461,6 @@
     </div>
 
     <script>
-        // Funções para controle de abertura das seções
         window.abrirSecao = function(idSecao) {
             document.getElementById('menu-botoes').style.display = 'none';
             const secoes = document.querySelectorAll('.feature-section');
@@ -415,9 +468,11 @@
             document.getElementById(idSecao).style.display = 'block';
             window.scrollTo({ top: 0, behavior: 'smooth' });
             
-            // Carrega relatório na abertura da aba de Gift Cards Internos
             if (idSecao === 'sec-gerar-gift' && typeof window.carregarListaGiftCardsSC === 'function') {
                 window.carregarListaGiftCardsSC();
+            }
+            if (idSecao === 'sec-acoes' && typeof window.carregarAtivos === 'function') {
+                window.carregarAtivos();
             }
         };
 

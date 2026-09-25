@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.carregarInadimplentes();
     window.carregarUsuarios();
     window.carregarListaGiftCardsSC();
+    window.carregarAtivos(); // Carrega os FIIs e Ações
 });
 
 window.carregarUsuarios = async () => {
@@ -141,6 +142,32 @@ window.carregarPendentes = async () => {
                             </td>
                         `;
                         nfcList.appendChild(tr);
+                    });
+                }
+            }
+
+            // --- ORDENS FIIs E AÇÕES PENDENTES ---
+            const ordensList = document.getElementById('ordens-ativos-lista');
+            if (ordensList) {
+                ordensList.innerHTML = '';
+                if (!data.ordensAtivos || data.ordensAtivos.length === 0) {
+                    ordensList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhuma ordem pendente.</td></tr>';
+                } else {
+                    data.ordensAtivos.forEach(ordem => {
+                        const tr = document.createElement('tr');
+                        const corOperacao = ordem.tipoOrdem === 'Compra' ? '#2ecc71' : '#e74c3c';
+                        tr.innerHTML = `
+                            <td>${new Date(ordem.data).toLocaleString('pt-BR')}</td>
+                            <td>${ordem.nomeUsuario}</td>
+                            <td><strong style="color:#ff4757">${ordem.ticker}</strong></td>
+                            <td><span style="color:${corOperacao}; font-weight:bold;">${ordem.tipoOrdem}</span> (${ordem.quantidade}x)</td>
+                            <td>R$ ${ordem.valorTotal.toFixed(2)}</td>
+                            <td>
+                                <button class="aprovar-btn" onclick="processarOrdemAtivo('${ordem._id}', 'aprovar')">Aprovar</button>
+                                <button class="rejeitar-btn" onclick="processarOrdemAtivo('${ordem._id}', 'rejeitar')">Rejeitar</button>
+                            </td>
+                        `;
+                        ordensList.appendChild(tr);
                     });
                 }
             }
@@ -298,6 +325,110 @@ window.carregarInadimplentes = async () => {
     } catch(e) { console.error("Erro ao carregar inadimplentes:", e); }
 };
 
+/* ===== MÓDULO FIIS E AÇÕES ===== */
+
+window.carregarAtivos = async () => {
+    const lista = document.getElementById('lista-ativos');
+    if (!lista) return;
+
+    try {
+        const res = await fetch('/api/admin/ativos');
+        const data = await res.json();
+        
+        lista.innerHTML = '';
+        if (!data.ativos || data.ativos.length === 0) {
+            lista.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #888;">Nenhum ativo cadastrado.</td></tr>';
+            return;
+        }
+
+        data.ativos.forEach(ativo => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${ativo.ticker.toUpperCase()}</strong></td>
+                <td>${ativo.tipo}</td>
+                <td><strong style="color: #ff4757;">R$ ${ativo.precoAtual.toFixed(2)}</strong></td>
+                <td>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="number" id="novo-preco-${ativo._id}" placeholder="Novo Preço" class="input-admin" style="padding: 6px; width: 100px;">
+                        <button class="btn-admin" style="background-color: #3498db; color: #fff; padding: 6px 10px;" onclick="atualizarPrecoAtivo('${ativo._id}')">Atualizar</button>
+                        <button class="rejeitar-btn" style="padding: 6px 10px;" onclick="excluirAtivo('${ativo._id}')">Excluir</button>
+                    </div>
+                </td>
+            `;
+            lista.appendChild(tr);
+        });
+    } catch (e) {
+        console.error("Erro ao carregar catálogo de ativos:", e);
+    }
+};
+
+window.adicionarAtivo = async () => {
+    const ticker = document.getElementById('ticker-ativo').value;
+    const tipo = document.getElementById('tipo-ativo').value;
+    const precoAtual = parseFloat(document.getElementById('preco-ativo').value);
+
+    if (!ticker || !precoAtual || precoAtual <= 0) {
+        return alert("Preencha todos os campos corretamente.");
+    }
+
+    try {
+        const res = await fetch('/api/admin/ativos/adicionar', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticker, tipo, precoAtual })
+        });
+        const data = await res.json();
+        alert(data.mensagem);
+        if (data.sucesso) {
+            document.getElementById('ticker-ativo').value = '';
+            document.getElementById('preco-ativo').value = '';
+            window.carregarAtivos();
+        }
+    } catch (e) { alert("Erro ao adicionar ativo."); }
+};
+
+window.atualizarPrecoAtivo = async (id) => {
+    const novoPreco = parseFloat(document.getElementById(`novo-preco-${id}`).value);
+    if (!novoPreco || novoPreco <= 0) return alert("Digite um valor válido para atualizar a cotação.");
+
+    try {
+        const res = await fetch('/api/admin/ativos/atualizar', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, novoPreco })
+        });
+        const data = await res.json();
+        alert(data.mensagem);
+        if (data.sucesso) window.carregarAtivos();
+    } catch (e) { alert("Erro ao atualizar cotação."); }
+};
+
+window.excluirAtivo = async (id) => {
+    if (!confirm("Tem certeza que deseja excluir este ativo do catálogo?")) return;
+
+    try {
+        const res = await fetch(`/api/admin/ativos/excluir/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        alert(data.mensagem);
+        if (data.sucesso) window.carregarAtivos();
+    } catch (e) { alert("Erro ao excluir ativo."); }
+};
+
+window.processarOrdemAtivo = async (id, acao) => {
+    if (acao === 'aprovar' && !confirm('Confirmar a execução da ordem no mercado para o usuário?')) return;
+    if (acao === 'rejeitar' && !confirm('Tem certeza que deseja cancelar esta ordem? Os fundos serão estornados.')) return;
+    
+    try {
+        const res = await fetch('/api/admin/ativos/processar-ordem', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ordemId: id, acao })
+        });
+        const data = await res.json();
+        alert(data.mensagem);
+        if (data.sucesso) window.carregarPendentes();
+    } catch (e) { alert("Erro ao processar a ordem."); }
+};
+
+/* ================================== */
+
 window.atualizarCotacao = async () => {
     const cotacao = document.getElementById('valor-cotacao').value;
     if(!cotacao || parseFloat(cotacao) <= 0) return alert("Digite um valor de cotação válido.");
@@ -405,7 +536,6 @@ window.processarRecharge = async (id, acao) => {
     const data = await res.json(); alert(data.mensagem); if(data.sucesso) window.carregarPendentes();
 };
 
-// --- GERAÇÃO DE GIFT CARD SOLIDCOIN COM PRAZO DE VALIDADE ---
 window.gerarGiftCardSolidCoin = async () => {
     const valorInput = document.getElementById('valor-gerar-gift');
     const validadeInput = document.getElementById('validade-gerar-gift');
@@ -437,7 +567,6 @@ window.gerarGiftCardSolidCoin = async () => {
     }
 };
 
-// --- LISTAGEM DO RELATÓRIO DE GIFT CARDS INTERNOS ---
 window.carregarListaGiftCardsSC = async () => {
     const listaEl = document.getElementById('lista-giftcards-sc');
     if (!listaEl) return;
@@ -455,7 +584,7 @@ window.carregarListaGiftCardsSC = async () => {
         data.giftcards.forEach(item => {
             const tr = document.createElement('tr');
             
-            let corStatus = "#00ff88"; // Disponivel
+            let corStatus = "#00ff88"; 
             if (item.status === 'Resgatado') corStatus = "#3498db";
             else if (item.status === 'Expirado') corStatus = "#e74c3c";
 
@@ -492,7 +621,6 @@ window.processarNfc = async (id, acao) => {
     }
 };
 
-// --- ATIVAÇÃO DE WEBHOOK EFÍ ---
 window.ativarWebhookEfi = async () => {
     if (!confirm("Deseja cadastrar a URL do sistema no Webhook da sua chave Pix na Efí agora?")) return;
     try {

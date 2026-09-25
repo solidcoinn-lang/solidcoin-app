@@ -17,12 +17,19 @@ const UserSchema = new mongoose.Schema({
     planoSocio: { type: String, default: '' },
     vencimentoSocio: { type: Date, default: null },
 
-    // --- NOVOS CAMPOS: SISTEMA DE INDICAÇÃO ---
+    // --- CAMPOS: SISTEMA DE INDICAÇÃO ---
     codigoIndicacao: { type: String, unique: true, sparse: true }, // O código deste usuário (Ex: A1B2C3)
     indicadoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, // Quem convidou ele
 
-    // --- NOVO CAMPO: TECNOLOGIA NFC ---
-    nfcToken: { type: String, default: '' } // Identificador único gravado no cartão físico (Ex: SOLID-8F3A2B1C)
+    // --- CAMPO: TECNOLOGIA NFC ---
+    nfcToken: { type: String, default: '' }, // Identificador único gravado no cartão físico (Ex: SOLID-8F3A2B1C)
+
+    // --- NOVO CAMPO: CARTEIRA DE INVESTIMENTOS (FIIs e Ações) ---
+    carteiraInvestimentos: {
+        gare11: { type: Number, default: 0 }
+        // Se for adicionar outros FIIs ou Ações no futuro, basta inserir a linha aqui embaixo.
+        // Exemplo: petr4: { type: Number, default: 0 }
+    }
 });
 
 module.exports = mongoose.model('User', UserSchema);
