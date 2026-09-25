@@ -95,9 +95,9 @@ window.carregarPendentes = async () => {
             const saquesPixList = document.getElementById('saques-pix-lista');
             if (saquesPixList) {
                 saquesPixList.innerHTML = '';
-                if (data.saquesPix && data.saquesPix.length === 0) {
+                if (!data.saquesPix || data.saquesPix.length === 0) {
                     saquesPixList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #888;">Nenhum saque Pix pendente.</td></tr>';
-                } else if (data.saquesPix) {
+                } else {
                     data.saquesPix.forEach(saq => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
@@ -126,9 +126,9 @@ window.carregarPendentes = async () => {
             const nfcList = document.getElementById('nfc-lista');
             if (nfcList) {
                 nfcList.innerHTML = '';
-                if (data.cartoesNfc && data.cartoesNfc.length === 0) {
+                if (!data.cartoesNfc || data.cartoesNfc.length === 0) {
                     nfcList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #888;">Nenhum pedido de Cartão NFC pendente.</td></tr>';
-                } else if (data.cartoesNfc) {
+                } else {
                     data.cartoesNfc.forEach(nfc => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
@@ -175,9 +175,9 @@ window.carregarPendentes = async () => {
             const sociosList = document.getElementById('socios-lista');
             if (sociosList) {
                 sociosList.innerHTML = '';
-                if (data.socios && data.socios.length === 0) {
+                if (!data.socios || data.socios.length === 0) {
                     sociosList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhum pedido de Sócio pendente.</td></tr>';
-                } else if (data.socios) {
+                } else {
                     data.socios.forEach(socio => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
@@ -202,9 +202,9 @@ window.carregarPendentes = async () => {
             const depositosList = document.getElementById('depositos-lista');
             if (depositosList) {
                 depositosList.innerHTML = '';
-                if (data.depositos && data.depositos.length === 0) {
+                if (!data.depositos || data.depositos.length === 0) {
                     depositosList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhum depósito pendente.</td></tr>';
-                } else if (data.depositos) {
+                } else {
                     data.depositos.forEach(dep => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
@@ -226,7 +226,8 @@ window.carregarPendentes = async () => {
             const saquesList = document.getElementById('saques-lista');
             if (saquesList) {
                 saquesList.innerHTML = '';
-                if (data.saques.length === 0) { saquesList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #888;">Nenhum saque pendente.</td></tr>';
+                if (!data.saques || data.saques.length === 0) { 
+                    saquesList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #888;">Nenhum saque pendente.</td></tr>';
                 } else {
                     data.saques.forEach(saq => {
                         const tr = document.createElement('tr');
@@ -248,7 +249,8 @@ window.carregarPendentes = async () => {
             const giftsList = document.getElementById('gifts-lista');
             if (giftsList) {
                 giftsList.innerHTML = '';
-                if (data.gifts.length === 0) { giftsList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhum pedido de Gift Card pendente.</td></tr>';
+                if (!data.gifts || data.gifts.length === 0) { 
+                    giftsList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhum pedido de Gift Card pendente.</td></tr>';
                 } else {
                     data.gifts.forEach(gift => {
                         const tr = document.createElement('tr');
@@ -274,7 +276,8 @@ window.carregarPendentes = async () => {
             const rechargesList = document.getElementById('recharges-lista');
             if (rechargesList) {
                 rechargesList.innerHTML = '';
-                if (data.recharges.length === 0) { rechargesList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhuma recarga pendente.</td></tr>';
+                if (!data.recharges || data.recharges.length === 0) { 
+                    rechargesList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhuma recarga pendente.</td></tr>';
                 } else {
                     data.recharges.forEach(rec => {
                         const tr = document.createElement('tr');
@@ -491,32 +494,43 @@ window.processarSocio = async (id, acao) => {
     if (acao === 'aprovar' && !confirm('Verificou a transação? Ao aprovar as moedas serão debitadas de você e o plano do usuário ficará ativo por 30 dias.')) return;
     if (acao === 'rejeitar' && !confirm('Tem certeza que deseja rejeitar esse pagamento?')) return;
     
-    const res = await fetch('/api/admin/processar-socio', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: id, acao })
-    });
-    const data = await res.json();
-    alert(data.mensagem);
-    if(data.sucesso) { window.carregarPendentes(); window.carregarUsuarios(); }
+    try {
+        const res = await fetch('/api/admin/processar-socio', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: id, acao })
+        });
+        const data = await res.json();
+        alert(data.mensagem);
+        if(data.sucesso) { window.carregarPendentes(); window.carregarUsuarios(); }
+    } catch (e) { alert("Erro ao processar assinatura de sócio."); }
 };
 
 window.processarDeposito = async (id, acao) => {
     if (acao === 'aprovar' && !confirm('Atenção: Ao aprovar, as SolidCoins serão DEBITADAS do seu saldo de CEO e enviadas ao usuário. Confirma?')) return;
     if (acao === 'rejeitar' && !confirm('Tem certeza que a transação é inválida/falsa?')) return;
     
-    const res = await fetch('/api/admin/processar-deposito', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ depositId: id, acao })
-    });
-    const data = await res.json();
-    alert(data.mensagem);
-    if(data.sucesso) window.carregarPendentes();
+    try {
+        const res = await fetch('/api/admin/processar-deposito', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ depositId: id, acao })
+        });
+        const data = await res.json();
+        alert(data.mensagem);
+        if(data.sucesso) window.carregarPendentes();
+    } catch (e) { alert("Erro ao processar depósito."); }
 };
 
 window.processarSaque = async (id, acao) => {
     if (acao === 'rejeitar' && !confirm('Tem certeza que deseja rejeitar este saque? (As moedas serão devolvidas para o usuário)')) return;
-    const res = await fetch('/api/admin/processar-saque', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ withdrawalId: id, acao }) });
-    const data = await res.json(); alert(data.mensagem); if(data.sucesso) window.carregarPendentes();
+    
+    try {
+        const res = await fetch('/api/admin/processar-saque', { 
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ withdrawalId: id, acao }) 
+        });
+        const data = await res.json(); 
+        alert(data.mensagem); 
+        if(data.sucesso) window.carregarPendentes();
+    } catch (e) { alert("Erro ao processar saque."); }
 };
 
 window.processarSaquePix = async (id, acao) => {
@@ -538,9 +552,7 @@ window.processarSaquePix = async (id, acao) => {
         const data = await res.json();
         alert(data.mensagem);
         if (data.sucesso) window.carregarPendentes();
-    } catch (e) {
-        alert('Erro ao processar saque pix.');
-    }
+    } catch (e) { alert('Erro ao processar saque pix.'); }
 };
 
 window.processarGiftCard = async (id, acao) => {
@@ -550,8 +562,14 @@ window.processarGiftCard = async (id, acao) => {
         if (!pin) return alert('Operação cancelada. O PIN é obrigatório para concluir o pedido.');
     } else if (!confirm('Tem certeza que deseja cancelar e devolver as SolidCoins para o usuário?')) { return; }
 
-    const res = await fetch('/api/admin/processar-giftcard', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: id, acao, pin }) });
-    const data = await res.json(); alert(data.mensagem); if(data.sucesso) window.carregarPendentes();
+    try {
+        const res = await fetch('/api/admin/processar-giftcard', { 
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: id, acao, pin }) 
+        });
+        const data = await res.json(); 
+        alert(data.mensagem); 
+        if(data.sucesso) window.carregarPendentes();
+    } catch (e) { alert("Erro ao processar Gift Card."); }
 };
 
 window.processarRecharge = async (id, acao) => {
@@ -561,8 +579,14 @@ window.processarRecharge = async (id, acao) => {
         if (!nsu) return alert('Operação cancelada. O NSU é obrigatório.');
     } else if (!confirm('Tem certeza que deseja cancelar e devolver as SolidCoins para o usuário?')) { return; }
 
-    const res = await fetch('/api/admin/processar-recharge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rechargeId: id, acao, nsu }) });
-    const data = await res.json(); alert(data.mensagem); if(data.sucesso) window.carregarPendentes();
+    try {
+        const res = await fetch('/api/admin/processar-recharge', { 
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rechargeId: id, acao, nsu }) 
+        });
+        const data = await res.json(); 
+        alert(data.mensagem); 
+        if(data.sucesso) window.carregarPendentes();
+    } catch (e) { alert("Erro ao processar Recarga."); }
 };
 
 window.gerarGiftCardSolidCoin = async () => {
