@@ -24,15 +24,19 @@ const checkAdmin = (req, res, next) => {
 // 1. OBTER ATIVOS E CARTEIRA DO UTILIZADOR
 router.get('/ativos', async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user ? req.user.id : null;
         const ativosDoBanco = await db.listarAtivos();
-        const userCarteira = (await db.getUserCarteira(userId)) || {};
+        
+        let userCarteira = {};
+        if (userId) {
+            userCarteira = (await db.getUserCarteira(userId)) || {};
+        }
 
         res.json({
             sucesso: true,
             cotacaoSC: COTACAO_SC,
             ativos: ativosDoBanco.map(a => ({
-                id: a.id,
+                id: a.id || a.simbolo.toLowerCase(),
                 simbolo: a.simbolo,
                 nome: a.nome,
                 tipo: a.tipo,
@@ -42,6 +46,7 @@ router.get('/ativos', async (req, res) => {
             }))
         });
     } catch (err) {
+        console.error("Erro na rota /ativos:", err);
         res.status(500).json({ sucesso: false, mensagem: err.message });
     }
 });
@@ -50,7 +55,9 @@ router.get('/ativos', async (req, res) => {
 router.post('/comprar', async (req, res) => {
     try {
         const { simboloAtivo, quantidade, formaPagamento } = req.body;
-        const userId = req.user.id;
+        const userId = req.user ? req.user.id : null;
+        if (!userId) return res.status(401).json({ sucesso: false, mensagem: 'Não autenticado.' });
+
         const qtd = parseInt(quantidade, 10);
 
         if (!qtd || isNaN(qtd) || qtd <= 0) {
@@ -62,12 +69,11 @@ router.post('/comprar', async (req, res) => {
             return res.status(404).json({ sucesso: false, mensagem: 'Ativo não encontrado ou inativo.' });
         }
 
-        // Validação do Limite Máximo por utilizador
         const cotasAtuais = (await db.getUserCotas(userId, ativo.simbolo)) || 0;
         if (cotasAtuais + qtd > LIMITE_MAXIMO_COTAS) {
             return res.status(400).json({
                 sucesso: false,
-                mensagem: `Limite excedido! Cada utilizador pode ter no máximo ${LIMITE_MAXIMO_COTAS} cotas. Já possui ${cotasAtuais}.`
+                mensagem: `Limite excedido! Cada utilizador pode ter no máximo ${LIMITE_MAXIMO_COTAS} cotas.`
             });
         }
 
@@ -86,7 +92,7 @@ router.post('/comprar', async (req, res) => {
 
             return res.json({
                 sucesso: true,
-                mensagem: `Compra de ${qtd} cotas de ${ativo.simbolo} realizada com sucesso usando SolidCoins!`
+                mensagem: `Compra de ${qtd} cotas de ${ativo.simbolo} realizada com sucesso!`
             });
 
         } else if (formaPagamento === 'pix') {
@@ -106,6 +112,7 @@ router.post('/comprar', async (req, res) => {
             return res.status(400).json({ sucesso: false, mensagem: 'Forma de pagamento inválida.' });
         }
     } catch (err) {
+        console.error("Erro na rota /comprar:", err);
         res.status(500).json({ sucesso: false, mensagem: err.message });
     }
 });
@@ -114,7 +121,9 @@ router.post('/comprar', async (req, res) => {
 router.post('/vender', async (req, res) => {
     try {
         const { simboloAtivo, quantidade, formaRecebimento, chavePix } = req.body;
-        const userId = req.user.id;
+        const userId = req.user ? req.user.id : null;
+        if (!userId) return res.status(401).json({ sucesso: false, mensagem: 'Não autenticado.' });
+
         const qtd = parseInt(quantidade, 10);
 
         if (!qtd || isNaN(qtd) || qtd <= 0) {
@@ -137,7 +146,7 @@ router.post('/vender', async (req, res) => {
         if (formaRecebimento === 'solidcoin') {
             const saldoCEO = await db.getSaldoCEO();
             if (saldoCEO < valorTotalSC) {
-                return res.status(400).json({ sucesso: false, mensagem: 'Liquidez temporariamente indisponível no fundo do CEO.' });
+                return res.status(400).json({ sucesso: false, mensagem: 'Liquidez temporariamente indisponível.' });
             }
 
             await db.subtrairSaldoCEO(valorTotalSC);
@@ -146,7 +155,7 @@ router.post('/vender', async (req, res) => {
 
             return res.json({
                 sucesso: true,
-                mensagem: `Venda concluída! ${valorTotalSC.toFixed(2)} SC creditados na sua conta.`
+                mensagem: `Venda concluída! ${valorTotalSC.toFixed(2)} SC creditados.`
             });
 
         } else if (formaRecebimento === 'pix') {
@@ -164,15 +173,16 @@ router.post('/vender', async (req, res) => {
                 await db.subtrairCotasUser(userId, ativo.simbolo, qtd);
                 return res.json({
                     sucesso: true,
-                    mensagem: `Venda concluída! R$ ${valorTotalBrl.toFixed(2)} enviados para o seu Pix.`
+                    mensagem: `Venda concluída! R$ ${valorTotalBrl.toFixed(2)} enviados via Pix.`
                 });
             } else {
-                return res.status(500).json({ sucesso: false, mensagem: 'Falha no envio automático do Pix. Tente novamente.' });
+                return res.status(500).json({ sucesso: false, mensagem: 'Falha no envio automático do Pix.' });
             }
         } else {
             return res.status(400).json({ sucesso: false, mensagem: 'Forma de recebimento inválida.' });
         }
     } catch (err) {
+        console.error("Erro na rota /vender:", err);
         res.status(500).json({ sucesso: false, mensagem: err.message });
     }
 });
@@ -198,11 +208,12 @@ router.post('/admin/ajustar-cotas', checkAdmin, async (req, res) => {
         } else if (operacao === 'retirar') {
             await db.subtrairCotasUser(targetUserId, simboloUpper, qtd);
         } else {
-            return res.status(400).json({ sucesso: false, mensagem: "Operação inválida. Use 'adicionar' ou 'retirar'." });
+            return res.status(400).json({ sucesso: false, mensagem: "Operação inválida." });
         }
 
-        res.json({ sucesso: true, mensagem: `Cotas de ${simboloUpper} ajustadas com sucesso para o utilizador.` });
+        res.json({ sucesso: true, mensagem: `Cotas ajustadas com sucesso.` });
     } catch (err) {
+        console.error("Erro no ajuste de cotas:", err);
         res.status(500).json({ sucesso: false, mensagem: err.message });
     }
 });
@@ -222,8 +233,9 @@ router.post('/admin/atualizar-preco', checkAdmin, async (req, res) => {
             return res.status(404).json({ sucesso: false, mensagem: 'Ativo não encontrado.' });
         }
 
-        res.json({ sucesso: true, mensagem: `Preço de ${ativoAtualizado.simbolo} atualizado para R$ ${preco.toFixed(2)}` });
+        res.json({ sucesso: true, mensagem: `Preço atualizado com sucesso!` });
     } catch (err) {
+        console.error("Erro ao atualizar preço:", err);
         res.status(500).json({ sucesso: false, mensagem: err.message });
     }
 });
@@ -235,7 +247,7 @@ router.post('/admin/novo-ativo', checkAdmin, async (req, res) => {
         const preco = parseFloat(precoBrl);
 
         if (!simbolo || !nome || !tipo || isNaN(preco) || preco <= 0) {
-            return res.status(400).json({ sucesso: false, mensagem: 'Dados cadastrais do ativo incompletos ou inválidos.' });
+            return res.status(400).json({ sucesso: false, mensagem: 'Preencha todos os campos corretamente.' });
         }
 
         const simboloUpper = simbolo.toUpperCase();
@@ -255,6 +267,7 @@ router.post('/admin/novo-ativo', checkAdmin, async (req, res) => {
 
         res.json({ sucesso: true, mensagem: 'Novo ativo cadastrado com sucesso!', ativo: novoAtivo });
     } catch (err) {
+        console.error("Erro ao adicionar novo ativo:", err);
         res.status(500).json({ sucesso: false, mensagem: err.message });
     }
 });
@@ -266,14 +279,15 @@ router.post('/admin/pagar-dividendos', checkAdmin, async (req, res) => {
         const valorPorCota = parseFloat(valorPorCotaBrl);
 
         if (!simboloAtivo || isNaN(valorPorCota) || valorPorCota <= 0) {
-            return res.status(400).json({ sucesso: false, mensagem: 'Símbolo ou valor por cota inválido.' });
+            return res.status(400).json({ sucesso: false, mensagem: 'Valor inválido.' });
         }
 
         const simboloUpper = simboloAtivo.toUpperCase();
         await db.distribuirDividendos(simboloUpper, valorPorCota);
 
-        res.json({ sucesso: true, mensagem: `Dividendos de R$ ${valorPorCota.toFixed(2)} por cota distribuídos para ${simboloUpper}!` });
+        res.json({ sucesso: true, mensagem: `Dividendos distribuídos com sucesso!` });
     } catch (err) {
+        console.error("Erro ao pagar dividendos:", err);
         res.status(500).json({ sucesso: false, mensagem: err.message });
     }
 });
