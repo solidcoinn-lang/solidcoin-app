@@ -427,7 +427,6 @@ window.processarOrdemAtivo = async (id, acao) => {
     } catch (e) { alert("Erro ao processar a ordem."); }
 };
 
-// NOVA FUNÇÃO: Ajustar Cotas Manualmente (Adicionar ou Retirar do Usuário)
 window.ajustarCotasUsuario = async () => {
     const email = document.getElementById('invUserEmail').value;
     const simbolo = document.getElementById('invUserSimbolo').value;
