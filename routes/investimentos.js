@@ -1,24 +1,34 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 
-// Importação dos serviços de PIX (Efí) e Banco de Dados
+// Importação dos modelos Mongoose e serviços de PIX
+const User = mongoose.models.User || mongoose.model('User');
 const { gerarPixEfi, enviarPixAutomaticoEfi } = require('../services/efiService');
-const db = require('../services/dbService');
+
+// Definição do Schema de Ativos (FIIs e Ações) diretamente no módulo
+const AtivoSchema = new mongoose.Schema({
+    simbolo: { type: String, required: true, unique: true, uppercase: true },
+    nome: { type: String, required: true },
+    tipo: { type: String, required: true, uppercase: true },
+    precoBrl: { type: Number, required: true, default: 0 },
+    ativo: { type: Boolean, default: true }
+});
+const Ativo = mongoose.models.Ativo || mongoose.model('Ativo', AtivoSchema);
 
 // Constantes globais do sistema
 const COTACAO_SC = 500; // 500 SC = R$ 1,00
 const LIMITE_MAXIMO_COTAS = 1000;
 
-// Função auxiliar robusta para obter o ID do utilizador (suporta req.user ou req.session.user)
+// Função auxiliar para obter o ID do utilizador com segurança
 const getUserId = (req) => {
     return req.user?.id || req.user?._id || req.session?.user?.id || req.session?.user?._id || req.session?.userId || null;
 };
 
 // Middleware de verificação de permissão de Administrador (CEO)
 const checkAdmin = (req, res, next) => {
-    const userId = getUserId(req);
     const isAdmin = req.user?.isAdmin || req.session?.user?.isAdmin;
-    if (!isAdmin && !userId) {
+    if (!isAdmin) {
         return res.status(403).json({ sucesso: false, mensagem: 'Acesso negado. Apenas administradores.' });
     }
     next();
@@ -32,22 +42,13 @@ const checkAdmin = (req, res, next) => {
 router.get('/ativos', async (req, res) => {
     try {
         const userId = getUserId(req);
-        
-        let ativosDoBanco = [];
-        try {
-            ativosDoBanco = (await db.listarAtivos()) || [];
-        } catch (dbErr) {
-            console.error("Aviso ao listar ativos:", dbErr.message);
-            ativosDoBanco = [];
-        }
+        const ativosDoBanco = await Ativo.find({ ativo: true }) || [];
         
         let userCarteira = {};
         if (userId) {
-            try {
-                userCarteira = (await db.getUserCarteira(userId)) || {};
-            } catch (carteiraErr) {
-                console.error("Aviso ao buscar carteira do utilizador:", carteiraErr.message);
-                userCarteira = {};
+            const user = await User.findById(userId);
+            if (user && user.carteiraInvestimentos) {
+                userCarteira = user.carteiraInvestimentos;
             }
         }
 
@@ -55,17 +56,17 @@ router.get('/ativos', async (req, res) => {
             sucesso: true,
             cotacaoSC: COTACAO_SC,
             ativos: ativosDoBanco.map(a => ({
-                id: a.id || a.simbolo?.toLowerCase() || '',
-                simbolo: a.simbolo || '',
-                nome: a.nome || '',
-                tipo: a.tipo || '',
-                precoBrl: a.precoBrl || 0,
-                ativo: a.ativo !== undefined ? a.ativo : true,
+                id: a._id.toString(),
+                simbolo: a.simbolo,
+                nome: a.nome,
+                tipo: a.tipo,
+                precoBrl: a.precoBrl,
+                ativo: a.ativo,
                 minhasCotas: userCarteira[a.simbolo] || 0
             }))
         });
     } catch (err) {
-        console.error("Erro crítico na rota /ativos:", err);
+        console.error("Erro na rota /ativos:", err);
         res.status(500).json({ sucesso: false, mensagem: err.message });
     }
 });
@@ -75,22 +76,24 @@ router.post('/comprar', async (req, res) => {
     try {
         const { simboloAtivo, quantidade, formaPagamento } = req.body;
         const userId = getUserId(req);
-        if (!userId) {
-            return res.status(401).json({ sucesso: false, mensagem: 'Não autenticado.' });
-        }
+        if (!userId) return res.status(401).json({ sucesso: false, mensagem: 'Não autenticado.' });
 
         const qtd = parseInt(quantidade, 10);
-
         if (!qtd || isNaN(qtd) || qtd <= 0) {
             return res.status(400).json({ sucesso: false, mensagem: 'Quantidade inválida.' });
         }
 
-        const ativo = await db.buscarAtivoPorSimbolo(simboloAtivo);
+        const ativo = await Ativo.findOne({ simbolo: simboloAtivo.toUpperCase(), ativo: true });
         if (!ativo) {
             return res.status(404).json({ sucesso: false, mensagem: 'Ativo não encontrado ou inativo.' });
         }
 
-        const cotasAtuais = (await db.getUserCotas(userId, ativo.simbolo)) || 0;
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ sucesso: false, mensagem: 'Utilizador não encontrado.' });
+
+        if (!user.carteiraInvestimentos) user.carteiraInvestimentos = {};
+        const cotasAtuais = user.carteiraInvestimentos[ativo.simbolo] || 0;
+
         if (cotasAtuais + qtd > LIMITE_MAXIMO_COTAS) {
             return res.status(400).json({
                 sucesso: false,
@@ -102,14 +105,14 @@ router.post('/comprar', async (req, res) => {
         const valorTotalSC = valorTotalBrl * COTACAO_SC;
 
         if (formaPagamento === 'solidcoin') {
-            const userSaldo = await db.getUserSaldo(userId);
-            if (userSaldo < valorTotalSC) {
+            if ((user.saldo || 0) < valorTotalSC) {
                 return res.status(400).json({ sucesso: false, mensagem: 'Saldo insuficiente em SolidCoins.' });
             }
 
-            await db.subtrairSaldoUser(userId, valorTotalSC);
-            await db.adicionarSaldoCEO(valorTotalSC);
-            await db.adicionarCotasUser(userId, ativo.simbolo, qtd);
+            user.saldo -= valorTotalSC;
+            user.carteiraInvestimentos[ativo.simbolo] = cotasAtuais + qtd;
+            user.markModified('carteiraInvestimentos');
+            await user.save();
 
             return res.json({
                 sucesso: true,
@@ -143,22 +146,24 @@ router.post('/vender', async (req, res) => {
     try {
         const { simboloAtivo, quantidade, formaRecebimento, chavePix } = req.body;
         const userId = getUserId(req);
-        if (!userId) {
-            return res.status(401).json({ sucesso: false, mensagem: 'Não autenticado.' });
-        }
+        if (!userId) return res.status(401).json({ sucesso: false, mensagem: 'Não autenticado.' });
 
         const qtd = parseInt(quantidade, 10);
-
         if (!qtd || isNaN(qtd) || qtd <= 0) {
             return res.status(400).json({ sucesso: false, mensagem: 'Quantidade inválida.' });
         }
 
-        const ativo = await db.buscarAtivoPorSimbolo(simboloAtivo);
+        const ativo = await Ativo.findOne({ simbolo: simboloAtivo.toUpperCase() });
         if (!ativo) {
             return res.status(404).json({ sucesso: false, mensagem: 'Ativo não encontrado.' });
         }
 
-        const cotasAtuais = (await db.getUserCotas(userId, ativo.simbolo)) || 0;
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ sucesso: false, mensagem: 'Utilizador não encontrado.' });
+
+        if (!user.carteiraInvestimentos) user.carteiraInvestimentos = {};
+        const cotasAtuais = user.carteiraInvestimentos[ativo.simbolo] || 0;
+
         if (qtd > cotasAtuais) {
             return res.status(400).json({ sucesso: false, mensagem: 'Não possui cotas suficientes para vender.' });
         }
@@ -167,14 +172,10 @@ router.post('/vender', async (req, res) => {
         const valorTotalSC = valorTotalBrl * COTACAO_SC;
 
         if (formaRecebimento === 'solidcoin') {
-            const saldoCEO = await db.getSaldoCEO();
-            if (saldoCEO < valorTotalSC) {
-                return res.status(400).json({ sucesso: false, mensagem: 'Liquidez temporariamente indisponível.' });
-            }
-
-            await db.subtrairSaldoCEO(valorTotalSC);
-            await db.adicionarSaldoUser(userId, valorTotalSC);
-            await db.subtrairCotasUser(userId, ativo.simbolo, qtd);
+            user.saldo = (user.saldo || 0) + valorTotalSC;
+            user.carteiraInvestimentos[ativo.simbolo] = cotasAtuais - qtd;
+            user.markModified('carteiraInvestimentos');
+            await user.save();
 
             return res.json({
                 sucesso: true,
@@ -193,7 +194,10 @@ router.post('/vender', async (req, res) => {
             });
 
             if (pixRes && pixRes.sucesso) {
-                await db.subtrairCotasUser(userId, ativo.simbolo, qtd);
+                user.carteiraInvestimentos[ativo.simbolo] = cotasAtuais - qtd;
+                user.markModified('carteiraInvestimentos');
+                await user.save();
+
                 return res.json({
                     sucesso: true,
                     mensagem: `Venda concluída! R$ ${valorTotalBrl.toFixed(2)} enviados via Pix.`
@@ -225,14 +229,22 @@ router.post('/admin/ajustar-cotas', checkAdmin, async (req, res) => {
         }
 
         const simboloUpper = simboloAtivo.toUpperCase();
+        const targetUser = await User.findById(targetUserId);
+        if (!targetUser) return res.status(404).json({ sucesso: false, mensagem: 'Utilizador alvo não encontrado.' });
+
+        if (!targetUser.carteiraInvestimentos) targetUser.carteiraInvestimentos = {};
+        const atual = targetUser.carteiraInvestimentos[simboloUpper] || 0;
 
         if (operacao === 'adicionar') {
-            await db.adicionarCotasUser(targetUserId, simboloUpper, qtd);
+            targetUser.carteiraInvestimentos[simboloUpper] = atual + qtd;
         } else if (operacao === 'retirar') {
-            await db.subtrairCotasUser(targetUserId, simboloUpper, qtd);
+            targetUser.carteiraInvestimentos[simboloUpper] = Math.max(0, atual - qtd);
         } else {
             return res.status(400).json({ sucesso: false, mensagem: "Operação inválida." });
         }
+
+        targetUser.markModified('carteiraInvestimentos');
+        await targetUser.save();
 
         res.json({ sucesso: true, mensagem: `Cotas ajustadas com sucesso.` });
     } catch (err) {
@@ -251,8 +263,13 @@ router.post('/admin/atualizar-preco', checkAdmin, async (req, res) => {
             return res.status(400).json({ sucesso: false, mensagem: 'Símbolo ou preço inválido.' });
         }
 
-        const ativoAtualizado = await db.atualizarPrecoAtivo(simboloAtivo, preco);
-        if (!ativoAtualizado) {
+        const ativo = await Ativo.findOneAndUpdate(
+            { simbolo: simboloAtivo.toUpperCase() },
+            { precoBrl: preco },
+            { new: true }
+        );
+
+        if (!ativo) {
             return res.status(404).json({ sucesso: false, mensagem: 'Ativo não encontrado.' });
         }
 
@@ -274,21 +291,21 @@ router.post('/admin/novo-ativo', checkAdmin, async (req, res) => {
         }
 
         const simboloUpper = simbolo.toUpperCase();
-        const ativoExistente = await db.buscarAtivoPorSimbolo(simboloUpper);
-        if (ativoExistente) {
+        let ativo = await Ativo.findOne({ simbolo: simboloUpper });
+        if (ativo) {
             return res.status(400).json({ sucesso: false, mensagem: 'Ativo já cadastrado.' });
         }
 
-        const novoAtivo = await db.adicionarAtivo({
-            id: simbolo.toLowerCase(),
+        ativo = new Ativo({
             simbolo: simboloUpper,
             nome,
             tipo: tipo.toUpperCase(),
             precoBrl: preco,
             ativo: true
         });
+        await ativo.save();
 
-        res.json({ sucesso: true, mensagem: 'Novo ativo cadastrado com sucesso!', ativo: novoAtivo });
+        res.json({ sucesso: true, mensagem: 'Novo ativo cadastrado com sucesso!', ativo });
     } catch (err) {
         console.error("Erro ao adicionar novo ativo:", err);
         res.status(500).json({ sucesso: false, mensagem: err.message });
@@ -306,9 +323,20 @@ router.post('/admin/pagar-dividendos', checkAdmin, async (req, res) => {
         }
 
         const simboloUpper = simboloAtivo.toUpperCase();
-        await db.distribuirDividendos(simboloUpper, valorPorCota);
+        const valorPorCotaSC = valorPorCota * COTACAO_SC;
 
-        res.json({ sucesso: true, mensagem: `Dividendos distribuídos com sucesso!` });
+        const users = await User.find({ [`carteiraInvestimentos.${simboloUpper}`]: { $gt: 0 } });
+
+        for (const u of users) {
+            const cotas = u.carteiraInvestimentos[simboloUpper] || 0;
+            if (cotas > 0) {
+                const totalDividendoSC = cotas * valorPorCotaSC;
+                u.saldo = (u.saldo || 0) + totalDividendoSC;
+                await u.save();
+            }
+        }
+
+        res.json({ sucesso: true, mensagem: `Dividendos distribuídos com sucesso para ${users.length} utilizadores!` });
     } catch (err) {
         console.error("Erro ao pagar dividendos:", err);
         res.status(500).json({ sucesso: false, mensagem: err.message });
