@@ -108,8 +108,8 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
         setupInicial();
     }).catch(err => console.error("❌ Erro ao conectar ao MongoDB:", err));
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
     secret: 'solidcoin-efi-secret-2026', resave: false, saveUninitialized: false, cookie: { secure: false }
