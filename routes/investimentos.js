@@ -25,10 +25,21 @@ const getUserId = (req) => {
     return req.user?.id || req.user?._id || req.session?.user?.id || req.session?.user?._id || req.session?.userId || null;
 };
 
-// Middleware de verificação de permissão de Administrador (CEO)
+// Middleware de verificação de Administrador ultra-robusto (suporta múltiplos formatos de sessão)
 const checkAdmin = (req, res, next) => {
-    const isAdmin = req.user?.isAdmin || req.session?.user?.isAdmin;
+    const isAdmin = 
+        req.user?.isAdmin || 
+        req.session?.user?.isAdmin || 
+        req.session?.isAdmin || 
+        req.session?.admin || 
+        false;
+
     if (!isAdmin) {
+        console.warn("[ADMIN_CHECK] Acesso negado. Estado atual:", {
+            user: req.user,
+            sessionUser: req.session?.user,
+            session: req.session
+        });
         return res.status(403).json({ sucesso: false, mensagem: 'Acesso negado. Apenas administradores.' });
     }
     next();
@@ -256,6 +267,7 @@ router.post('/admin/ajustar-cotas', checkAdmin, async (req, res) => {
 // ATUALIZAR PREÇO DO ATIVO
 router.post('/admin/atualizar-preco', checkAdmin, async (req, res) => {
     try {
+        console.log("[ADMIN] A atualizar preço. Dados recebidos:", req.body);
         const { simboloAtivo, novoPrecoBrl } = req.body;
         const preco = parseFloat(novoPrecoBrl);
 
@@ -283,6 +295,7 @@ router.post('/admin/atualizar-preco', checkAdmin, async (req, res) => {
 // ADICIONAR NOVO ATIVO (FII OU AÇÃO)
 router.post('/admin/novo-ativo', checkAdmin, async (req, res) => {
     try {
+        console.log("[ADMIN] A adicionar novo ativo. Dados recebidos:", req.body);
         const { simbolo, nome, tipo, precoBrl } = req.body;
         const preco = parseFloat(precoBrl);
 
