@@ -18,17 +18,18 @@ const UserSchema = new mongoose.Schema({
     vencimentoSocio: { type: Date, default: null },
 
     // --- CAMPOS: SISTEMA DE INDICAÇÃO ---
-    codigoIndicacao: { type: String, unique: true, sparse: true }, // O código deste usuário (Ex: A1B2C3)
-    indicadoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, // Quem convidou ele
+    codigoIndicacao: { type: String, unique: true, sparse: true }, 
+    indicadoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, 
 
     // --- CAMPO: TECNOLOGIA NFC ---
-    nfcToken: { type: String, default: '' }, // Identificador único gravado no cartão físico (Ex: SOLID-8F3A2B1C)
+    nfcToken: { type: String, default: '' }, 
 
-    // --- NOVO CAMPO: CARTEIRA DE INVESTIMENTOS (FIIs e Ações) ---
-    carteiraInvestimentos: {
-        gare11: { type: Number, default: 0 }
-        // Se for adicionar outros FIIs ou Ações no futuro, basta inserir a linha aqui embaixo.
-        // Exemplo: petr4: { type: Number, default: 0 }
+    // --- CARTEIRA DE INVESTIMENTOS (FIIs e Ações) ---
+    // Usamos o tipo 'Object' para permitir que o Mongoose aceite 
+    // QUALQUER ativo (GARE11, MXRF11, PETR4, etc) dinamicamente.
+    carteiraInvestimentos: { 
+        type: Object, 
+        default: {} 
     }
 });
 
