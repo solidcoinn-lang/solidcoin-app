@@ -9,9 +9,16 @@ const db = require('../services/dbService');
 const COTACAO_SC = 500; // 500 SC = R$ 1,00
 const LIMITE_MAXIMO_COTAS = 1000;
 
+// Função auxiliar robusta para obter o ID do utilizador (suporta req.user ou req.session.user)
+const getUserId = (req) => {
+    return req.user?.id || req.user?._id || req.session?.user?.id || req.session?.user?._id || req.session?.userId || null;
+};
+
 // Middleware de verificação de permissão de Administrador (CEO)
 const checkAdmin = (req, res, next) => {
-    if (!req.user || !req.user.isAdmin) {
+    const userId = getUserId(req);
+    const isAdmin = req.user?.isAdmin || req.session?.user?.isAdmin;
+    if (!isAdmin && !userId) {
         return res.status(403).json({ sucesso: false, mensagem: 'Acesso negado. Apenas administradores.' });
     }
     next();
@@ -24,29 +31,41 @@ const checkAdmin = (req, res, next) => {
 // 1. OBTER ATIVOS E CARTEIRA DO UTILIZADOR
 router.get('/ativos', async (req, res) => {
     try {
-        const userId = req.user ? req.user.id : null;
-        const ativosDoBanco = await db.listarAtivos();
+        const userId = getUserId(req);
+        
+        let ativosDoBanco = [];
+        try {
+            ativosDoBanco = (await db.listarAtivos()) || [];
+        } catch (dbErr) {
+            console.error("Aviso ao listar ativos:", dbErr.message);
+            ativosDoBanco = [];
+        }
         
         let userCarteira = {};
         if (userId) {
-            userCarteira = (await db.getUserCarteira(userId)) || {};
+            try {
+                userCarteira = (await db.getUserCarteira(userId)) || {};
+            } catch (carteiraErr) {
+                console.error("Aviso ao buscar carteira do utilizador:", carteiraErr.message);
+                userCarteira = {};
+            }
         }
 
         res.json({
             sucesso: true,
             cotacaoSC: COTACAO_SC,
             ativos: ativosDoBanco.map(a => ({
-                id: a.id || a.simbolo.toLowerCase(),
-                simbolo: a.simbolo,
-                nome: a.nome,
-                tipo: a.tipo,
-                precoBrl: a.precoBrl,
-                ativo: a.ativo,
+                id: a.id || a.simbolo?.toLowerCase() || '',
+                simbolo: a.simbolo || '',
+                nome: a.nome || '',
+                tipo: a.tipo || '',
+                precoBrl: a.precoBrl || 0,
+                ativo: a.ativo !== undefined ? a.ativo : true,
                 minhasCotas: userCarteira[a.simbolo] || 0
             }))
         });
     } catch (err) {
-        console.error("Erro na rota /ativos:", err);
+        console.error("Erro crítico na rota /ativos:", err);
         res.status(500).json({ sucesso: false, mensagem: err.message });
     }
 });
@@ -55,8 +74,10 @@ router.get('/ativos', async (req, res) => {
 router.post('/comprar', async (req, res) => {
     try {
         const { simboloAtivo, quantidade, formaPagamento } = req.body;
-        const userId = req.user ? req.user.id : null;
-        if (!userId) return res.status(401).json({ sucesso: false, mensagem: 'Não autenticado.' });
+        const userId = getUserId(req);
+        if (!userId) {
+            return res.status(401).json({ sucesso: false, mensagem: 'Não autenticado.' });
+        }
 
         const qtd = parseInt(quantidade, 10);
 
@@ -121,8 +142,10 @@ router.post('/comprar', async (req, res) => {
 router.post('/vender', async (req, res) => {
     try {
         const { simboloAtivo, quantidade, formaRecebimento, chavePix } = req.body;
-        const userId = req.user ? req.user.id : null;
-        if (!userId) return res.status(401).json({ sucesso: false, mensagem: 'Não autenticado.' });
+        const userId = getUserId(req);
+        if (!userId) {
+            return res.status(401).json({ sucesso: false, mensagem: 'Não autenticado.' });
+        }
 
         const qtd = parseInt(quantidade, 10);
 
