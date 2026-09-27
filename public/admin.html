@@ -13,7 +13,7 @@
         .admin-header button:hover { background-color: #d4af37; color: #000; }
         .section-card { background-color: #1a1a1a; padding: 25px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5); margin-bottom: 30px; overflow-x: auto; border: 1px solid rgba(212, 175, 55, 0.15); }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; min-width: 800px; }
-        th, td { padding: 12px 15px; border-bottom: 1px solid #333; text-align: left; color: #e0e0e0; }
+        th, td { padding: 12px 15px; border-bottom: 1px solid #333; text-align: left; color: #e0e0e0; vertical-align: middle; }
         th { background-color: #222; font-weight: bold; color: #d4af37; }
         tr:hover { background-color: #2a2a2a; }
         .input-admin { background-color: #0a0a0a; color: #fff; border: 1px solid #333; padding: 12px; border-radius: 6px; }
@@ -69,6 +69,7 @@
         .btn-recargas { border-bottom: 4px solid #0984e3; }
         .btn-nfc { border-bottom: 4px solid #00cec9; }
         .btn-acoes { border-bottom: 4px solid #ff4757; } 
+        .btn-imagens { border-bottom: 4px solid #e84393; }
 
         .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -80,6 +81,8 @@
             gap: 8px; font-weight: bold; transition: 0.3s;
         }
         .voltar-btn:hover { background-color: #d4af37; color: #000; }
+        
+        .img-preview { width: 60px; height: 60px; object-fit: contain; background: #000; border-radius: 4px; border: 1px solid #444; }
     </style>
 </head>
 <body>
@@ -97,6 +100,10 @@
         <div id="menu-botoes" class="feature-grid">
             <button class="feature-btn btn-users" onclick="abrirSecaoPainel('sec-usuarios')">
                 <span class="icon">👥</span><span class="text">Gerenciar Usuários</span>
+            </button>
+            <!-- NOVO BOTÃO: GERENCIAR IMAGENS -->
+            <button class="feature-btn btn-imagens" onclick="abrirSecaoPainel('sec-imagens')">
+                <span class="icon">🖼️</span><span class="text">Gerenciar Imagens</span>
             </button>
             <button class="feature-btn btn-saquepix" onclick="abrirSecaoPainel('sec-saques-pix')">
                 <span class="icon">⚡</span><span class="text">Aprovar Saques PIX</span>
@@ -134,6 +141,49 @@
         </div>
 
         <!-- SEÇÕES OCULTAS DO ADM -->
+
+        <!-- NOVA SEÇÃO: GERENCIAR IMAGENS -->
+        <div id="sec-imagens" class="feature-section">
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #e84393;">
+                <h2 style="margin-top: 0;">🖼️ Gerenciar Imagens do Sistema</h2>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Atualize as imagens dos Planos de Sócio e do Marketplace sem precisar reiniciar o servidor. As imagens precisam ser URLs (links) terminados em .png ou .jpg.</p>
+                
+                <h3 style="color: #e84393; margin-top: 30px;">Imagens dos Planos de Sócio</h3>
+                <div style="max-height: 400px; overflow-y: auto; border: 1px solid #333; border-radius: 6px;">
+                    <table>
+                        <thead style="position: sticky; top: 0; z-index: 10;">
+                            <tr>
+                                <th>Visualização</th>
+                                <th>Nome do Plano</th>
+                                <th>URL da Imagem (Link)</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-imagens-planos">
+                            <tr><td colspan="4" style="text-align: center;">Carregando imagens...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 style="color: #e84393; margin-top: 30px;">Imagens do Marketplace (Cédulas)</h3>
+                <div style="max-height: 400px; overflow-y: auto; border: 1px solid #333; border-radius: 6px;">
+                    <table>
+                        <thead style="position: sticky; top: 0; z-index: 10;">
+                            <tr>
+                                <th>Visualização</th>
+                                <th>Produto</th>
+                                <th>URL da Imagem (Link)</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-imagens-produtos">
+                            <tr><td colspan="4" style="text-align: center;">Carregando imagens...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
         <!-- 1. USUÁRIOS -->
         <div id="sec-usuarios" class="feature-section">
@@ -461,12 +511,11 @@
 
     </div>
 
-    <!-- 1º CARREGA O SCRIPT ANTIGO (COM BUGS NAS URLS) -->
+    <!-- 1º CARREGA O SCRIPT ANTIGO -->
     <script src="admin-scripts.js"></script>
 
-    <!-- 2º CARREGA O NOSSO SCRIPT PARA SOBRESCREVER OS ERROS DO ANTIGO -->
+    <!-- 2º SCRIPT COM AS NOVAS FUNÇÕES DE IMAGEM E ATIVOS -->
     <script>
-        // FUNÇÃO DE FECHAR SEÇÕES COMPLETAMENTE ISOLADA DE ERROS ANTIGOS
         window.fecharTodasSecoes = function() {
             const secoes = document.querySelectorAll('.feature-section');
             secoes.forEach(sec => sec.style.display = 'none');
@@ -477,7 +526,6 @@
             window.scrollTo(0, 0);
         };
 
-        // FUNÇÃO DE ABRIR SEÇÃO RENOMEADA PARA EVITAR CONFLITOS
         window.abrirSecaoPainel = function(idSecao) {
             document.getElementById('menu-botoes').style.display = 'none';
             const secoes = document.querySelectorAll('.feature-section');
@@ -491,8 +539,85 @@
             if (idSecao === 'sec-acoes') {
                 carregarAtivos();
             }
+            // NOVA ROTA PARA CARREGAR AS IMAGENS DO SISTEMA
+            if (idSecao === 'sec-imagens') {
+                carregarImagensSistema();
+            }
         };
 
+        // ==========================================
+        // GESTÃO DE IMAGENS DO SISTEMA
+        // ==========================================
+        window.carregarImagensSistema = async function() {
+            try {
+                const res = await fetch('/api/admin/listar-imagens');
+                const data = await res.json();
+
+                if (data.sucesso) {
+                    const tabelaPlanos = document.getElementById('tabela-imagens-planos');
+                    const tabelaProdutos = document.getElementById('tabela-imagens-produtos');
+                    
+                    tabelaPlanos.innerHTML = '';
+                    tabelaProdutos.innerHTML = '';
+
+                    // Preenche a tabela de Planos
+                    if (data.planos.length > 0) {
+                        data.planos.forEach(p => {
+                            tabelaPlanos.innerHTML += `
+                                <tr>
+                                    <td><img src="${p.url}" class="img-preview" onerror="this.src='https://via.placeholder.com/60?text=Sem+Img'"></td>
+                                    <td style="font-weight: bold;">${p.nomeExibicao}</td>
+                                    <td><input type="text" id="img-plano-${p.chave}" value="${p.url}" class="input-admin" style="width: 100%;"></td>
+                                    <td><button onclick="salvarNovaImagem('plano', '${p.chave}', 'img-plano-${p.chave}')" class="btn-admin" style="background: #e84393; color:#fff;">Atualizar URL</button></td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        tabelaPlanos.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhum plano encontrado.</td></tr>';
+                    }
+
+                    // Preenche a tabela de Produtos do Marketplace
+                    if (data.produtos.length > 0) {
+                        data.produtos.forEach(p => {
+                            tabelaProdutos.innerHTML += `
+                                <tr>
+                                    <td><img src="${p.imagemUrl}" class="img-preview" onerror="this.src='https://via.placeholder.com/60?text=Sem+Img'"></td>
+                                    <td style="font-weight: bold;">${p.nome}</td>
+                                    <td><input type="text" id="img-prod-${p._id}" value="${p.imagemUrl}" class="input-admin" style="width: 100%;"></td>
+                                    <td><button onclick="salvarNovaImagem('produto', '${p._id}', 'img-prod-${p._id}')" class="btn-admin" style="background: #e84393; color:#fff;">Atualizar URL</button></td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        tabelaProdutos.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhum produto cadastrado no marketplace.</td></tr>';
+                    }
+                }
+            } catch (erro) {
+                alert('Erro ao carregar imagens do sistema.');
+            }
+        };
+
+        window.salvarNovaImagem = async function(tipo, idOuChave, inputId) {
+            const novaUrl = document.getElementById(inputId).value;
+            if (!novaUrl.startsWith('http')) return alert('A URL deve começar com http ou https!');
+
+            try {
+                const res = await fetch('/api/admin/atualizar-imagem', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tipo, idOuChave, novaUrl })
+                });
+                const data = await res.json();
+                alert(data.mensagem);
+                if (data.sucesso) carregarImagensSistema();
+            } catch (erro) {
+                alert('Erro ao salvar a nova imagem.');
+            }
+        };
+
+        // ==========================================
+        // GESTÃO DE ATIVOS
+        // ==========================================
         window.carregarAtivos = async function() {
             const tabela = document.getElementById('lista-ativos');
             tabela.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #aaa;">Buscando dados no servidor...</td></tr>';
@@ -578,19 +703,12 @@
             }
         };
 
-        // NOVA FUNÇÃO: PERGUNTA O VALOR DO DIVIDENDO ESPECÍFICO DO ATIVO CLICADO
         window.perguntarDividendo = async function(simbolo) {
             const valorInformado = prompt(`PAGAMENTO DE DIVIDENDOS\n\nDigite o valor em REAIS (R$) por cada cota de ${simbolo} que será pago aos usuários:\n\nExemplo: 0.10`);
-            
-            if (valorInformado === null || valorInformado.trim() === '') return; // Cancela se clicar fora ou deixar vazio
-            
-            // Troca vírgula por ponto para evitar erros matemáticos
+            if (valorInformado === null || valorInformado.trim() === '') return;
             const valorReais = parseFloat(valorInformado.replace(',', '.'));
 
-            if (isNaN(valorReais) || valorReais <= 0) {
-                return alert('Valor inválido! Digite um número maior que zero.');
-            }
-
+            if (isNaN(valorReais) || valorReais <= 0) return alert('Valor inválido! Digite um número maior que zero.');
             if(!confirm(`⚠️ Confirma o pagamento de R$ ${valorReais.toFixed(2)} por cota para TODOS os acionistas de ${simbolo}?`)) return;
 
             try {

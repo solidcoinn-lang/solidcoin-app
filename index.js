@@ -16,47 +16,31 @@ const EfiPay = require('sdk-node-apis-efi');
 const isSandbox = process.env.EFI_ENV !== 'producao';
 console.log(`🌍 MODO EFÍ: ${isSandbox ? 'HOMOLOGAÇÃO (TESTES)' : 'PRODUÇÃO (REAL)'}`);
 
-// 1. CONFIGURAÇÃO DA CONTA PF (RECEBIMENTOS / PLANOS DE SÓCIO)
 let certPathPF = path.join(__dirname, 'certificado.p12');
 if (process.env.EFI_CERT_BASE64) {
     certPathPF = path.join(__dirname, 'certificado_render_pf.p12');
-    try {
-        fs.writeFileSync(certPathPF, Buffer.from(process.env.EFI_CERT_BASE64, 'base64'));
-    } catch (err) { console.error("❌ Erro ao criar certificado PF:", err); }
+    try { fs.writeFileSync(certPathPF, Buffer.from(process.env.EFI_CERT_BASE64, 'base64')); } catch (err) {}
 }
 
 const efipayPF = new EfiPay({
-    sandbox: isSandbox,
-    client_id: process.env.EFI_CLIENT_ID,
-    client_secret: process.env.EFI_CLIENT_SECRET,
-    certificate: certPathPF
+    sandbox: isSandbox, client_id: process.env.EFI_CLIENT_ID, client_secret: process.env.EFI_CLIENT_SECRET, certificate: certPathPF
 });
 
-// 2. CONFIGURAÇÃO DA CONTA PJ (PAGAMENTOS / SAQUES DOS USUÁRIOS)
 let certPathPJ = path.join(__dirname, 'certificado_pj.p12'); 
 if (process.env.EFI_CERT_BASE64_PJ) {
     certPathPJ = path.join(__dirname, 'certificado_render_pj.p12');
-    try {
-        fs.writeFileSync(certPathPJ, Buffer.from(process.env.EFI_CERT_BASE64_PJ, 'base64'));
-    } catch (err) { console.error("❌ Erro ao criar certificado PJ:", err); }
+    try { fs.writeFileSync(certPathPJ, Buffer.from(process.env.EFI_CERT_BASE64_PJ, 'base64')); } catch (err) {}
 }
 
 let efipayPJ = null;
 if (process.env.EFI_CLIENT_ID_PJ && process.env.EFI_CLIENT_SECRET_PJ && process.env.EFI_CERT_BASE64_PJ) {
     efipayPJ = new EfiPay({
-        sandbox: isSandbox,
-        client_id: process.env.EFI_CLIENT_ID_PJ,
-        client_secret: process.env.EFI_CLIENT_SECRET_PJ,
-        certificate: certPathPJ
+        sandbox: isSandbox, client_id: process.env.EFI_CLIENT_ID_PJ, client_secret: process.env.EFI_CLIENT_SECRET_PJ, certificate: certPathPJ
     });
-    console.log("✅ API Pagadora (PJ) carregada com sucesso!");
-} else {
-    console.warn("⚠️ AVISO: Credenciais da Conta PJ não encontradas. Saques automáticos podem falhar.");
 }
 
 // =========================================================================
 
-// Importa os modelos
 const User = require('./models/User');
 const Product = require('./models/Product');
 const Transaction = require('./models/Transaction');
@@ -69,51 +53,48 @@ const SocioOrder = require('./models/SocioOrder');
 const SystemSettings = require('./models/SystemSettings'); 
 const PixWithdrawal = require('./models/PixWithdrawal');
 
-// Importa as Rotas de Investimentos
 const investimentosRoutes = require('./routes/investimentos'); 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_EMAIL = "solidcoinn@gmail.com";
 
-// Constantes de Economia
 const STAKING_REWARD_RATE_MONTHLY = 0.05; 
 const WHALE_THRESHOLD = 1000000; 
 const WHALE_YIELD_PER_DAY = 200;
 
+// MAPA ORIGINAL DE PLANOS E IMAGENS
 const PLANOS_SOCIO = {
-    "Socio SolidCoin para Todos": { valorReais: 1, sc: 500 },
-    "Iron": { valorReais: 5, sc: 3025 },
-    "Bronze": { valorReais: 10, sc: 6325 },
-    "Prata": { valorReais: 20, sc: 13200 },
-    "Ouro": { valorReais: 50, sc: 34375 },
-    "Diamante": { valorReais: 100, sc: 71500 }
+    "Socio SolidCoin para Todos": { valorReais: 1, sc: 500, imagemUrl: "https://i.postimg.cc/QxzG1q50/Design-sem-nome.png" },
+    "Iron": { valorReais: 5, sc: 3025, imagemUrl: "https://i.postimg.cc/9MwF9J8R/iron-plan.png" },
+    "Bronze": { valorReais: 10, sc: 6325, imagemUrl: "https://i.postimg.cc/Z5F1fF2n/bronze-plan.png" },
+    "Prata": { valorReais: 20, sc: 13200, imagemUrl: "https://i.postimg.cc/hP0Zc1p9/silver-plan.png" },
+    "Ouro": { valorReais: 50, sc: 34375, imagemUrl: "https://i.postimg.cc/k4T8YnS2/gold-plan.png" },
+    "Diamante": { valorReais: 100, sc: 71500, imagemUrl: "https://i.postimg.cc/mZhTbqQ4/diamond-plan.png" }
 };
+
+// NOVO: MODELO DE CONFIGURAÇÃO DE IMAGENS DO SISTEMA
+const ImagemConfigSchema = new mongoose.Schema({
+    chave: { type: String, required: true, unique: true },
+    url: { type: String, default: '' },
+    nomeExibicao: { type: String, default: '' }
+});
+const ImagemConfig = mongoose.models.ImagemConfig || mongoose.model('ImagemConfig', ImagemConfigSchema);
 
 const NfcOrderSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    nomeUsuario: String,
-    emailUsuario: String,
-    enderecoEntrega: String,
-    nfcToken: String,
-    status: { type: String, default: 'Pendente' },
-    data: { type: Date, default: Date.now }
+    nomeUsuario: String, emailUsuario: String, enderecoEntrega: String, nfcToken: String,
+    status: { type: String, default: 'Pendente' }, data: { type: Date, default: Date.now }
 });
 const NfcOrder = mongoose.models.NfcOrder || mongoose.model('NfcOrder', NfcOrderSchema);
 
-// --- CONFIGURAÇÃO DO SERVIDOR E MIDDLEWARES ---
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => {
-        console.log("✅ Conectado ao MongoDB Atlas!");
-        setupInicial();
-    }).catch(err => console.error("❌ Erro ao conectar ao MongoDB:", err));
+    .then(() => { setupInicial(); }).catch(err => console.error(err));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(session({
-    secret: 'solidcoin-efi-secret-2026', resave: false, saveUninitialized: false, cookie: { secure: false }
-}));
+app.use(session({ secret: 'solidcoin-efi-secret-2026', resave: false, saveUninitialized: false }));
 
 function checkAuthenticated(req, res, next) {
     if (req.session && req.session.user) return next();
@@ -122,7 +103,7 @@ function checkAuthenticated(req, res, next) {
 
 function isAdmin(req, res, next) {
     if (req.session && req.session.user && req.session.user.email === ADMIN_EMAIL) return next();
-    res.status(403).send('Acesso negado. Apenas para administradores.');
+    res.status(403).send('Acesso negado.');
 }
 
 async function getSCRate() {
@@ -149,39 +130,27 @@ async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
     const txs = await Transaction.find({ userId: userId });
     let limiteBruto = 0; let saquesEfetuados = 0;
 
-    const tiposLivres = [
-        'Depósito Aprovado', 'Transferência Recebida', 'Venda no Marketplace',
-        'Recompensa de Staking', 'Rendimento Automático', 'Bônus de Indicação',
-        'Comissão de Indicação', 'Comissão de Indicação (Sócio)', 'Bônus de Boas-Vindas',
-        'Resgate Gift Card SC', 'Estorno Saque Pix', 'Estorno de Saque', 'Recompensa Monlix'
-    ];
+    const tiposLivres = [ 'Depósito Aprovado', 'Transferência Recebida', 'Venda no Marketplace', 'Recompensa de Staking', 'Rendimento Automático', 'Bônus de Indicação', 'Comissão de Indicação', 'Comissão de Indicação (Sócio)', 'Bônus de Boas-Vindas', 'Resgate Gift Card SC', 'Estorno Saque Pix', 'Estorno de Saque', 'Recompensa Monlix' ];
 
     const agora = Date.now();
     txs.forEach(tx => {
         if (tiposLivres.includes(tx.tipo)) {
             limiteBruto += tx.valor;
         } else if (tx.tipo === 'Assinatura Sócio SolidCoin') {
-            const diasPassados = (agora - new Date(tx.data).getTime()) / (1000 * 60 * 60 * 24);
-            const mesesPassados = Math.floor(diasPassados / 30);
-            if (mesesPassados > 0) {
-                const porcentagem = Math.min(mesesPassados * 0.25, 1.0); 
-                limiteBruto += (tx.valor * porcentagem);
-            }
+            const mesesPassados = Math.floor(((agora - new Date(tx.data).getTime()) / (1000 * 60 * 60 * 24)) / 30);
+            if (mesesPassados > 0) limiteBruto += (tx.valor * Math.min(mesesPassados * 0.25, 1.0));
         } else if (tx.tipo === 'Saque Cripto Solicitado' || tx.tipo === 'Saque Pix Solicitado' || tx.tipo === 'Saque Pix Automático') {
             saquesEfetuados += Math.abs(tx.valor);
         }
     });
 
-    let limiteDisponivel = limiteBruto - saquesEfetuados;
-    if (limiteDisponivel < 0) limiteDisponivel = 0;
-    return Math.min(currentSaldo, limiteDisponivel);
+    return Math.max(0, Math.min(currentSaldo, limiteBruto - saquesEfetuados));
 }
 
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
 app.post('/cadastrar', async (req, res) => {
     const { nome, email, senha, codigoIndicacao } = req.body;
-    if (!nome || !email || !senha) return res.status(400).send("Dados incompletos.");
     try {
         if (await User.findOne({ email })) return res.status(409).send("Email já cadastrado.");
         const admin = await User.findOne({ email: ADMIN_EMAIL });
@@ -199,35 +168,32 @@ app.post('/cadastrar', async (req, res) => {
         if (referrer && admin && admin.saldo >= 500) {
             saldoInicial = 250; indicadoPorId = referrer._id;
             referrer.saldo += 250; admin.saldo -= 500; 
-            await Promise.all([
-                referrer.save(), admin.save(),
-                new Transaction({ userId: referrer._id, tipo: 'Bônus de Indicação', descricao: `Você convidou ${nome}`, valor: 250 }).save(),
-                new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Bônus pago para ${referrer.nome} e ${nome}`, valor: -500 }).save()
-            ]);
+            await Promise.all([ referrer.save(), admin.save(), new Transaction({ userId: referrer._id, tipo: 'Bônus de Indicação', descricao: `Convite ${nome}`, valor: 250 }).save(), new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Bônus ${referrer.nome} e ${nome}`, valor: -500 }).save() ]);
         }
 
         const novoUsuario = new User({ nome, email, senha: senhaHash, saldo: saldoInicial, codigoIndicacao: novoCodigoUnico, indicadoPor: indicadoPorId });
         await novoUsuario.save();
 
-        if (saldoInicial > 0) await new Transaction({ userId: novoUsuario._id, tipo: 'Bônus de Boas-Vindas', descricao: `Você usou o código de ${referrer.nome}`, valor: 250 }).save();
+        if (saldoInicial > 0) await new Transaction({ userId: novoUsuario._id, tipo: 'Bônus de Boas-Vindas', descricao: `Código ${referrer.nome}`, valor: 250 }).save();
         res.redirect('/index.html?cadastro=sucesso');
-    } catch (error) { res.status(500).send("Erro ao cadastrar."); }
+    } catch (error) { res.status(500).send("Erro."); }
 });
 
 app.post('/login', async (req, res) => {
     const { email, senha } = req.body;
     try {
         const user = await User.findOne({ email });
-        if (!user || !(await bcrypt.compare(senha, user.senha))) return res.status(401).send("Email ou senha inválidos."); 
+        if (!user || !(await bcrypt.compare(senha, user.senha))) return res.status(401).send("Inválido."); 
         req.session.user = { id: user._id, nome: user.nome, email: user.email };
         res.redirect('/dashboard.html');
-    } catch (error) { res.status(500).send("Erro no login."); }
+    } catch (error) { res.status(500).send("Erro."); }
 });
 
 app.post('/logout', checkAuthenticated, (req, res) => {
-    req.session.destroy(err => { res.clearCookie('connect.sid'); res.json({ sucesso: true, mensagem: "Logout realizado." }); });
+    req.session.destroy(err => { res.clearCookie('connect.sid'); res.json({ sucesso: true }); });
 });
 
+// A ROTA DASHBOARD MESCLA AS IMAGENS DO BANCO DE DADOS COM OS PLANOS
 app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
     try {
         const user = await User.findById(req.session.user.id);
@@ -248,69 +214,47 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
             }
         }
 
-        const limiteSaqueAprovado = await calcularLimiteSaque(user._id, user.saldo, user.email);
+        // Busca imagens personalizadas dos planos no banco de dados
+        const imagensConfig = await ImagemConfig.find({});
+        let planosDinamicos = JSON.parse(JSON.stringify(PLANOS_SOCIO));
+        
+        imagensConfig.forEach(img => {
+            if (img.chave.startsWith('plano_') && img.url) {
+                const planoNome = img.chave.replace('plano_', '');
+                if (planosDinamicos[planoNome]) {
+                    planosDinamicos[planoNome].imagemUrl = img.url;
+                }
+            }
+        });
 
         res.json({
             sucesso: true, scRate: scRate,
+            planosImagens: planosDinamicos, // Usa os planos com as imagens atualizadas
             usuario: { 
                 nome: user.nome, saldo: user.saldo, stakedAmount: user.stakedAmount, canUnstakeAt: user.canUnstakeAt, 
                 solanaWallet: user.solanaWallet, tronWallet: user.tronWallet, isAdmin: user.email === ADMIN_EMAIL, 
                 statusSocio: user.statusSocio, planoSocio: user.planoSocio, vencimentoSocio: user.vencimentoSocio, 
-                codigoIndicacao: user.codigoIndicacao, limiteDeSaque: limiteSaqueAprovado, nfcToken: user.nfcToken || '',
+                codigoIndicacao: user.codigoIndicacao, limiteDeSaque: await calcularLimiteSaque(user._id, user.saldo, user.email), nfcToken: user.nfcToken || '',
                 jaUsouCodigo: !!user.indicadoPor 
             },
-            marketplace: produtos.map(p => ({ id: p._id, nome: p.nome, preco: p.preco, imagemUrl: p.imagemUrl, categoria: p.categoria || 'Cédulas SolidCoin' }))
+            marketplace: produtos.map(p => ({ id: p._id, nome: p.nome, preco: p.preco, imagemUrl: p.imagemUrl, categoria: p.categoria || 'Cédulas' }))
         });
-    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao buscar dados." }); }
+    } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
 app.post('/api/indicacao/resgatar', checkAuthenticated, async (req, res) => {
     try {
         const { codigo } = req.body;
-        if (!codigo) return res.status(400).json({ sucesso: false, mensagem: "Código não informado." });
-
         const user = await User.findById(req.session.user.id);
-        if (user.indicadoPor) {
-            return res.status(400).json({ sucesso: false, mensagem: "Você já utilizou um código de indicação anteriormente." });
-        }
-
-        const codigoUpper = codigo.toUpperCase();
-        if (user.codigoIndicacao === codigoUpper) {
-            return res.status(400).json({ sucesso: false, mensagem: "Você não pode usar o seu próprio código." });
-        }
-
-        const referrer = await User.findOne({ codigoIndicacao: codigoUpper });
-        if (!referrer) {
-            return res.status(404).json({ sucesso: false, mensagem: "Código inválido ou não encontrado." });
-        }
-
+        if (user.indicadoPor || user.codigoIndicacao === codigo.toUpperCase()) return res.status(400).json({ sucesso: false });
+        const referrer = await User.findOne({ codigoIndicacao: codigo.toUpperCase() });
         const admin = await User.findOne({ email: ADMIN_EMAIL });
-        if (!admin || admin.saldo < 500) {
-            return res.status(500).json({ sucesso: false, mensagem: "O sistema está sem saldo para processar esse bônus no momento." });
-        }
+        if (!referrer || !admin || admin.saldo < 500) return res.status(400).json({ sucesso: false });
 
-        user.indicadoPor = referrer._id;
-        user.saldo += 250;
-        referrer.saldo += 250;
-        admin.saldo -= 500;
-
-        await Promise.all([
-            user.save(),
-            referrer.save(),
-            admin.save(),
-            new Transaction({ userId: user._id, tipo: 'Bônus de Boas-Vindas', descricao: `Código de ${referrer.nome}`, valor: 250 }).save(),
-            new Transaction({ userId: referrer._id, tipo: 'Bônus de Indicação', descricao: `Você convidou ${user.nome}`, valor: 250 }).save(),
-            new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Para ${referrer.nome} e ${user.nome}`, valor: -500 }).save()
-        ]);
-
-        res.json({ 
-            sucesso: true, 
-            mensagem: "🎉 Código resgatado com sucesso! Você e seu amigo acabaram de ganhar 250 SC.", 
-            novoSaldo: user.saldo 
-        });
-    } catch (error) {
-        res.status(500).json({ sucesso: false, mensagem: "Erro interno ao resgatar código." });
-    }
+        user.indicadoPor = referrer._id; user.saldo += 250; referrer.saldo += 250; admin.saldo -= 500;
+        await Promise.all([ user.save(), referrer.save(), admin.save(), new Transaction({ userId: user._id, tipo: 'Bônus de Boas-Vindas', descricao: `Código de ${referrer.nome}`, valor: 250 }).save(), new Transaction({ userId: referrer._id, tipo: 'Bônus de Indicação', descricao: `Você convidou ${user.nome}`, valor: 250 }).save(), new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Para ${referrer.nome} e ${user.nome}`, valor: -500 }).save() ]);
+        res.json({ sucesso: true, novoSaldo: user.saldo });
+    } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
 app.post('/api/nfc/gerar-meu-token', checkAuthenticated, async (req, res) => {
@@ -771,6 +715,38 @@ app.get('/api/extrato', checkAuthenticated, async (req, res) => {
 });
 
 // --- ADMIN ROTAS ---
+
+// ROTA NOVA: LISTAR IMAGENS PARA O PAINEL ADM
+app.get('/api/admin/listar-imagens', isAdmin, async (req, res) => {
+    try {
+        const imagensPlanos = await ImagemConfig.find({ chave: { $regex: '^plano_' } });
+        const produtos = await Product.find({});
+        res.json({ sucesso: true, planos: imagensPlanos, produtos: produtos });
+    } catch (error) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao carregar imagens." });
+    }
+});
+
+// ROTA NOVA: ATUALIZAR QUALQUER IMAGEM DO SISTEMA
+app.post('/api/admin/atualizar-imagem', isAdmin, async (req, res) => {
+    try {
+        const { tipo, idOuChave, novaUrl } = req.body;
+        if (!novaUrl || !novaUrl.startsWith('http')) return res.status(400).json({ sucesso: false, mensagem: "A URL deve começar com http:// ou https://" });
+
+        if (tipo === 'plano') {
+            await ImagemConfig.findOneAndUpdate({ chave: idOuChave }, { url: novaUrl }, { upsert: true });
+        } else if (tipo === 'produto') {
+            await Product.findByIdAndUpdate(idOuChave, { imagemUrl: novaUrl });
+        } else {
+            return res.status(400).json({ sucesso: false, mensagem: "Tipo inválido." });
+        }
+
+        res.json({ sucesso: true, mensagem: "✅ Imagem atualizada com sucesso!" });
+    } catch (error) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao atualizar a imagem." });
+    }
+});
+
 app.get('/api/admin/usuarios', isAdmin, async (req, res) => {
     try {
         const usuarios = await User.find({ email: { $ne: ADMIN_EMAIL } }).select('nome email statusSocio planoSocio');
@@ -1041,15 +1017,10 @@ app.post('/api/admin/processar-nfc', isAdmin, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
-
-// --- CORREÇÃO CRÍTICA AQUI -------------------------------------------------------------------------------------------------
-// Nós montamos as rotas de investimentos DUAS VEZES, permitindo que o Painel do Admin
-// as encontre independentemente da URL exata que foi programada no JavaScript do FrontEnd.
 app.use('/api/investimentos', checkAuthenticated, investimentosRoutes);
 app.use('/api', checkAuthenticated, investimentosRoutes); 
-// ---------------------------------------------------------------------------------------------------------------------------
 
-
+// Injeta os planos no DB caso não existam
 async function setupInicial() {
     try {
         let ceo = await User.findOne({ email: ADMIN_EMAIL });
@@ -1067,6 +1038,17 @@ async function setupInicial() {
                 { nome: 'Cedula SC 100000', preco: 100000, imagemUrl: 'https://i.postimg.cc/MHxj1QN1/projeto4-page-0001.png', categoria: 'Cédulas'}
             ]);
         }
+        
+        // Cadastra as imagens dos planos no Banco se elas não existirem
+        const nomesDosPlanos = Object.keys(PLANOS_SOCIO);
+        for (const planoNome of nomesDosPlanos) {
+            const chavePlano = `plano_${planoNome}`;
+            const imagemExistente = await ImagemConfig.findOne({ chave: chavePlano });
+            if (!imagemExistente) {
+                await new ImagemConfig({ chave: chavePlano, nomeExibicao: `Imagem: ${planoNome}`, url: PLANOS_SOCIO[planoNome].imagemUrl }).save();
+            }
+        }
+
         if (!(await SystemSettings.findOne())) { await new SystemSettings({ scPorReal: 500 }).save(); }
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }
