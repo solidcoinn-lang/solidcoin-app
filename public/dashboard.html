@@ -533,24 +533,34 @@
             document.getElementById('menu-botoes').style.display = 'grid';
         };
 
-        // FUNÇÃO DE CARREGAR ATIVOS SOBRESCRITA À PROVA DE FALHAS
+        // FUNÇÃO DE CARREGAR ATIVOS SOBRESCRITA À PROVA DE FALHAS COM CALCULO DA CARTEIRA
         async function carregarAtivosInvestimento() {
             try {
-                // A URL exata que o backend (routes/investimentos.js) está à espera
                 const res = await fetch('/api/investimentos/ativos');
                 if(!res.ok) throw new Error("Erro na rota do servidor");
                 const data = await res.json();
                 
                 if (data.sucesso) {
                     const container = document.getElementById('lista-ativos-investimento');
+                    const carteiraContainer = document.getElementById('minha-carteira-ativos');
                     container.innerHTML = ''; 
+                    
+                    let totalCotas = 0;
+                    let patrimonioSC = 0;
+                    let patrimonioBRL = 0;
                     
                     if(data.ativos.length === 0) {
                         container.innerHTML = '<div style="text-align: center; color: #aaa; padding: 20px;">Nenhum ativo disponível no mercado ainda. O ADM precisa cadastrá-los.</div>';
+                        carteiraContainer.innerHTML = 'Sua carteira está vazia.';
                         return;
                     }
                     
                     data.ativos.forEach(ativo => {
+                        const minhasCotas = ativo.minhasCotas || 0;
+                        totalCotas += minhasCotas;
+                        patrimonioBRL += (minhasCotas * ativo.precoBrl);
+                        patrimonioSC += (minhasCotas * ativo.precoBrl * data.cotacaoSC);
+                        
                         const card = document.createElement('div');
                         card.style.cssText = 'background: #111; border: 1px solid #333; padding: 15px; border-radius: 8px; text-align: left; transition: transform 0.2s;';
                         
@@ -562,13 +572,31 @@
                             
                             <div style="background: #0a0a0a; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px dashed #444; display: flex; justify-content: space-between; align-items: center;">
                                 <span style="font-size: 0.9em; color: #aaa;">Suas Cotas:</span>
-                                <strong style="color: #fff; font-size: 1.2em;">${ativo.minhasCotas || 0}</strong>
+                                <strong style="color: #fff; font-size: 1.2em;">${minhasCotas}</strong>
                             </div>
                             
                             <button onclick="abrirModalNegociacao('${ativo.simbolo}', '${ativo.nome}', ${(ativo.precoBrl * data.cotacaoSC)})" style="width: 100%; background: #333; color: #fff; border: 1px solid #555; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s;">Negociar Ativo</button>
                         `;
                         container.appendChild(card);
                     });
+                    
+                    // ATUALIZA A CAIXA DA CARTEIRA COM OS VALORES SOMADOS
+                    carteiraContainer.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+                            <div>
+                                <p style="margin: 0; font-size: 0.9em; color: #aaa;">Total de Cotas:</p>
+                                <p style="margin: 5px 0 0 0; font-size: 1.2em; font-weight: bold;">${totalCotas}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; font-size: 0.9em; color: #aaa;">Patrimônio Estimado:</p>
+                                <p style="margin: 5px 0 0 0; font-size: 1.2em; font-weight: bold; color: #f39c12;">${patrimonioSC.toFixed(2)} SC</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; font-size: 0.9em; color: #aaa;">Equivalente em BRL:</p>
+                                <p style="margin: 5px 0 0 0; font-size: 1.2em; font-weight: bold; color: #2ecc71;">R$ ${patrimonioBRL.toFixed(2)}</p>
+                            </div>
+                        </div>
+                    `;
                 } else {
                     document.getElementById('lista-ativos-investimento').innerHTML = `<div style="text-align: center; color: #e74c3c; padding: 20px;">Falha: ${data.mensagem}</div>`;
                 }

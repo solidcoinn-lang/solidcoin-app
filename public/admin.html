@@ -336,7 +336,7 @@
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #ff4757;">
                 <h2 style="margin-top: 0;">Gestão de FIIs e Ações</h2>
-                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Cadastre ativos, atualize cotações, ajuste cotas e aprove ordens pendentes dos usuários.</p>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Cadastre ativos, atualize cotações, ajuste cotas e pague rendimentos.</p>
                 
                 <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center; flex-wrap: wrap; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333;">
                     <input type="text" id="ticker-ativo" class="input-admin" placeholder="Ticker (Ex: GARE11)" style="flex: 1; min-width: 150px;">
@@ -372,6 +372,16 @@
                     <input type="number" id="invUserQuantidade" class="input-admin" placeholder="Qtd (+ adiciona, - retira)" style="flex: 1; min-width: 150px;">
                     <button onclick="ajustarCotasUsuario()" class="btn-admin" style="background-color: #ff4757; color: #fff; min-width: 150px;">⚙️ Ajustar Cotas</button>
                 </div>
+
+                <!-- BLOCO ADICIONADO: DISTRIBUIR DIVIDENDOS -->
+                <h3 style="color: #ff4757; margin-top: 30px;">💰 Distribuir Dividendos</h3>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">O valor definido será multiplicado pelas cotas de cada usuário e pago em SolidCoins.</p>
+                <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center; flex-wrap: wrap; background: #111; padding: 15px; border-radius: 8px; border: 1px dashed #2ecc71;">
+                    <input type="text" id="div-ticker" class="input-admin" placeholder="Ticker (Ex: GARE11)" style="flex: 1; min-width: 100px;">
+                    <input type="number" id="div-valor" class="input-admin" placeholder="Valor por Cota (R$)" step="0.01" style="flex: 1; min-width: 150px;">
+                    <button onclick="distribuirDividendos()" class="btn-admin" style="background-color: #2ecc71; color: #000; min-width: 150px;">💸 Pagar Rendimentos</button>
+                </div>
+                <!-- FIM DO BLOCO -->
             </div>
         </div>
 
@@ -513,6 +523,34 @@
             } catch (erro) {
                 console.error('Erro de conexão:', erro);
                 alert('Erro de comunicação. O servidor pode estar reiniciando.');
+            }
+        };
+
+        // FUNÇÃO DE PAGAR DIVIDENDOS (NOVA)
+        window.distribuirDividendos = async function() {
+            const ticker = document.getElementById('div-ticker').value;
+            const valor = parseFloat(document.getElementById('div-valor').value);
+
+            if (!ticker || isNaN(valor) || valor <= 0) {
+                return alert('Preencha o Ticker e um valor válido!');
+            }
+
+            if(!confirm(`Confirma o pagamento de R$ ${valor} por cota para todos os acionistas de ${ticker}?`)) return;
+
+            try {
+                const resposta = await fetch('/api/investimentos/admin/pagar-dividendos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ simboloAtivo: ticker, valorPorCotaBrl: valor })
+                });
+                const dados = await resposta.json();
+                alert(dados.mensagem);
+                if(dados.sucesso) {
+                    document.getElementById('div-ticker').value = '';
+                    document.getElementById('div-valor').value = '';
+                }
+            } catch (erro) {
+                alert('Erro de conexão ao pagar dividendos.');
             }
         };
     </script>
