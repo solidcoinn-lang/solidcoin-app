@@ -95,40 +95,40 @@
 
         <!-- MENU DE BOTÕES DO ADM -->
         <div id="menu-botoes" class="feature-grid">
-            <button class="feature-btn btn-users" onclick="abrirSecao('sec-usuarios')">
+            <button class="feature-btn btn-users" onclick="abrirSecaoPainel('sec-usuarios')">
                 <span class="icon">👥</span><span class="text">Gerenciar Usuários</span>
             </button>
-            <button class="feature-btn btn-saquepix" onclick="abrirSecao('sec-saques-pix')">
+            <button class="feature-btn btn-saquepix" onclick="abrirSecaoPainel('sec-saques-pix')">
                 <span class="icon">⚡</span><span class="text">Aprovar Saques PIX</span>
             </button>
-            <button class="feature-btn btn-depositos" onclick="abrirSecao('sec-depositos')">
+            <button class="feature-btn btn-depositos" onclick="abrirSecaoPainel('sec-depositos')">
                 <span class="icon">📥</span><span class="text">Aprovar Depósitos</span>
             </button>
-            <button class="feature-btn btn-saquecripto" onclick="abrirSecao('sec-saques-cripto')">
+            <button class="feature-btn btn-saquecripto" onclick="abrirSecaoPainel('sec-saques-cripto')">
                 <span class="icon">🪙</span><span class="text">Aprovar Saques Cripto</span>
             </button>
-            <button class="feature-btn btn-sociosaprov" onclick="abrirSecao('sec-socios')">
+            <button class="feature-btn btn-sociosaprov" onclick="abrirSecaoPainel('sec-socios')">
                 <span class="icon">💎</span><span class="text">Aprovar Planos Sócio</span>
             </button>
-            <button class="feature-btn btn-nfc" onclick="abrirSecao('sec-pedidos-nfc')">
+            <button class="feature-btn btn-nfc" onclick="abrirSecaoPainel('sec-pedidos-nfc')">
                 <span class="icon">💳</span><span class="text">Pedidos Cartão NFC</span>
             </button>
-            <button class="feature-btn btn-inad" onclick="abrirSecao('sec-inadimplentes')">
+            <button class="feature-btn btn-inad" onclick="abrirSecaoPainel('sec-inadimplentes')">
                 <span class="icon">🚫</span><span class="text">Sócios Inadimplentes</span>
             </button>
-            <button class="feature-btn btn-cotacao" onclick="abrirSecao('sec-cotacao')">
+            <button class="feature-btn btn-cotacao" onclick="abrirSecaoPainel('sec-cotacao')">
                 <span class="icon">📈</span><span class="text">Cotação SolidCoin</span>
             </button>
-            <button class="feature-btn btn-acoes" onclick="abrirSecao('sec-acoes')">
+            <button class="feature-btn btn-acoes" onclick="abrirSecaoPainel('sec-acoes')">
                 <span class="icon">📊</span><span class="text">FIIs e Ações</span>
             </button>
-            <button class="feature-btn btn-gerargift" onclick="abrirSecao('sec-gerar-gift')">
+            <button class="feature-btn btn-gerargift" onclick="abrirSecaoPainel('sec-gerar-gift')">
                 <span class="icon">🎟️</span><span class="text">Gerar Gift Card Interno</span>
             </button>
-            <button class="feature-btn btn-gifts" onclick="abrirSecao('sec-pedidos-gift')">
+            <button class="feature-btn btn-gifts" onclick="abrirSecaoPainel('sec-pedidos-gift')">
                 <span class="icon">🛍️</span><span class="text">Pedidos de Gift Cards</span>
             </button>
-            <button class="feature-btn btn-recargas" onclick="abrirSecao('sec-recargas')">
+            <button class="feature-btn btn-recargas" onclick="abrirSecaoPainel('sec-recargas')">
                 <span class="icon">📱</span><span class="text">Pedidos de Recargas</span>
             </button>
         </div>
@@ -137,7 +137,7 @@
 
         <!-- 1. USUÁRIOS -->
         <div id="sec-usuarios" class="feature-section">
-            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #9b59b6;">
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
                     <div>
@@ -168,7 +168,7 @@
 
         <!-- PEDIDOS DE CARTÃO NFC -->
         <div id="sec-pedidos-nfc" class="feature-section">
-            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #00cec9;">
                 <h2 style="margin-top: 0;">Pedidos de Cartão Físico NFC</h2>
                 <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Grave o "Código NFC" no chip físico e envie para o endereço do usuário.</p>
@@ -191,7 +191,7 @@
 
         <!-- 2. APROVAR SAQUES PIX -->
         <div id="sec-saques-pix" class="feature-section">
-            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #00b894;">
                 <h2 style="margin-top: 0;">Saques Pendentes (PIX VIP)</h2>
                 <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Faça a transferência Pix e cole o ID do Comprovante para aprovar e fechar o pedido.</p>
@@ -223,7 +223,7 @@
 
         <!-- 3. APROVAR DEPÓSITOS -->
         <div id="sec-depositos" class="feature-section">
-            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #2ecc71;">
                 <h2 style="margin-top: 0;">Avisos de Depósito Pendentes</h2>
                 <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Verifique o Hash na blockchain e libere as SolidCoins (serão debitadas do saldo do CEO).</p>
@@ -246,7 +246,7 @@
 
         <!-- 4. APROVAR SAQUES CRIPTO -->
         <div id="sec-saques-cripto" class="feature-section">
-            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #f39c12;">
                 <h2 style="margin-top: 0;">Saques Pendentes (Cripto)</h2>
                 <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Aprove transferências para as carteiras Solana ou Tron dos usuários.</p>
@@ -269,7 +269,7 @@
 
         <!-- 5. APROVAR PLANOS SÓCIO -->
         <div id="sec-socios" class="feature-section">
-            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #8e44ad;">
                 <h2 style="margin-top: 0;">Assinaturas de Sócio SolidCoin</h2>
                 <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Verifique o pagamento na Blockchain/InfinitePay e libere as moedas do plano Sócio.</p>
@@ -293,7 +293,7 @@
 
         <!-- 6. INADIMPLENTES -->
         <div id="sec-inadimplentes" class="feature-section">
-            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #e74c3c;">
                 <h2 style="margin-top: 0;">Sócios Inadimplentes</h2>
                 <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Usuários que o plano de 30 dias venceu e não renovaram. Você pode cancelar os benefícios deles.</p>
@@ -316,7 +316,7 @@
 
         <!-- 7. COTAÇÃO SC -->
         <div id="sec-cotacao" class="feature-section">
-            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #3498db; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
                 <div>
                     <h2 style="margin-top: 0;">Cotação da SolidCoin</h2>
@@ -333,10 +333,10 @@
 
         <!-- GERENCIAR FIIS E AÇÕES -->
         <div id="sec-acoes" class="feature-section">
-            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #ff4757;">
                 <h2 style="margin-top: 0;">Gestão de FIIs e Ações</h2>
-                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Cadastre ativos, atualize cotações, ajuste cotas e pague rendimentos.</p>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Cadastre ativos, atualize cotações e pague rendimentos de forma individual.</p>
                 
                 <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center; flex-wrap: wrap; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333;">
                     <input type="text" id="ticker-ativo" class="input-admin" placeholder="Ticker (Ex: GARE11)" style="flex: 1; min-width: 150px;">
@@ -353,14 +353,14 @@
                     <button onclick="carregarAtivos()" style="background-color: #333; color: #fff; border: 1px solid #555; padding: 5px 15px; border-radius: 4px; cursor: pointer;">🔄 Recarregar Tabela</button>
                 </div>
                 
-                <div style="max-height: 250px; overflow-y: auto; border: 1px solid #333; border-radius: 6px; margin-top: 10px;">
+                <div style="max-height: 400px; overflow-y: auto; border: 1px solid #333; border-radius: 6px; margin-top: 10px;">
                     <table>
                         <thead style="position: sticky; top: 0; z-index: 10;">
                             <tr>
                                 <th>Ticker</th>
                                 <th>Tipo</th>
                                 <th>Cotação Atual (R$)</th>
-                                <th>Atualizar Cotação</th>
+                                <th>Ações de Gestão (Preço e Dividendos)</th>
                             </tr>
                         </thead>
                         <tbody id="lista-ativos">
@@ -376,20 +376,12 @@
                     <input type="number" id="invUserQuantidade" class="input-admin" placeholder="Qtd (+ adiciona, - retira)" style="flex: 1; min-width: 150px;">
                     <button onclick="ajustarCotasUsuario()" class="btn-admin" style="background-color: #ff4757; color: #fff; min-width: 150px;">⚙️ Ajustar Cotas</button>
                 </div>
-
-                <h3 style="color: #ff4757; margin-top: 30px;">💰 Distribuir Dividendos</h3>
-                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">O valor definido será multiplicado pelas cotas de cada usuário e pago em SolidCoins.</p>
-                <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center; flex-wrap: wrap; background: #111; padding: 15px; border-radius: 8px; border: 1px dashed #2ecc71;">
-                    <input type="text" id="div-ticker" class="input-admin" placeholder="Ticker (Ex: GARE11)" style="flex: 1; min-width: 100px;">
-                    <input type="number" id="div-valor" class="input-admin" placeholder="Valor por Cota (R$)" step="0.01" style="flex: 1; min-width: 150px;">
-                    <button onclick="distribuirDividendos()" class="btn-admin" style="background-color: #2ecc71; color: #000; min-width: 150px;">💸 Pagar Rendimentos</button>
-                </div>
             </div>
         </div>
 
         <!-- 8. GERAR & GERENCIAR GIFT CARDS SOLIDCOIN (INTERNOS) -->
         <div id="sec-gerar-gift" class="feature-section">
-            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #d4af37;">
                 <h2 style="margin-top: 0;">Gerenciar Gift Cards SolidCoin (Internos)</h2>
                 <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Crie códigos promocionais temporários. Códigos não resgatados retornam ao saldo do CEO ao vencer.</p>
@@ -421,7 +413,7 @@
 
         <!-- 9. PEDIDOS DE GIFT CARDS -->
         <div id="sec-pedidos-gift" class="feature-section">
-            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #27ae60;">
                 <h2 style="margin-top: 0;">Pedidos de Gift Cards Externos</h2>
                 <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Ao aprovar, o sistema pedirá que você digite o PIN para enviar ao usuário.</p>
@@ -445,7 +437,7 @@
 
         <!-- 10. PEDIDOS DE RECARGAS -->
         <div id="sec-recargas" class="feature-section">
-            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #0984e3;">
                 <h2 style="margin-top: 0;">Pedidos de Recarga de Celular</h2>
                 <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Faça a recarga e clique em Aprovar para inserir o comprovante (NSU/Transação).</p>
@@ -474,8 +466,19 @@
 
     <!-- 2º CARREGA O NOSSO SCRIPT PARA SOBRESCREVER OS ERROS DO ANTIGO -->
     <script>
-        // Força o carregamento da tabela correta sempre que o botão for clicado
-        window.abrirSecao = function(idSecao) {
+        // FUNÇÃO DE FECHAR SEÇÕES COMPLETAMENTE ISOLADA DE ERROS ANTIGOS
+        window.fecharTodasSecoes = function() {
+            const secoes = document.querySelectorAll('.feature-section');
+            secoes.forEach(sec => sec.style.display = 'none');
+            
+            const menu = document.getElementById('menu-botoes');
+            if(menu) menu.style.display = 'grid';
+            
+            window.scrollTo(0, 0);
+        };
+
+        // FUNÇÃO DE ABRIR SEÇÃO RENOMEADA PARA EVITAR CONFLITOS
+        window.abrirSecaoPainel = function(idSecao) {
             document.getElementById('menu-botoes').style.display = 'none';
             const secoes = document.querySelectorAll('.feature-section');
             secoes.forEach(sec => sec.style.display = 'none');
@@ -496,7 +499,6 @@
             
             try {
                 const resposta = await fetch('/api/investimentos/ativos');
-                
                 if (!resposta.ok) throw new Error("Erro na conexão com o servidor");
                 
                 const dados = await resposta.json();
@@ -506,20 +508,21 @@
                     dados.ativos.forEach(ativo => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
-                            <td style="font-weight: bold; color: #d4af37;">${ativo.simbolo}</td>
-                            <td>${ativo.tipo}</td>
-                            <td style="font-weight: bold; color: #2ecc71;">R$ ${ativo.precoBrl.toFixed(2)}</td>
+                            <td style="font-weight: bold; color: #d4af37; vertical-align: middle;">${ativo.simbolo}</td>
+                            <td style="vertical-align: middle;">${ativo.tipo}</td>
+                            <td style="font-weight: bold; color: #2ecc71; vertical-align: middle;">R$ ${ativo.precoBrl.toFixed(2)}</td>
                             <td>
-                                <div style="display: flex; gap: 5px;">
-                                    <input type="number" id="preco-edit-${ativo.simbolo}" value="${ativo.precoBrl.toFixed(2)}" step="0.01" style="width: 80px; padding: 5px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 4px;">
-                                    <button onclick="salvarNovoPreco('${ativo.simbolo}')" style="background-color: #3498db; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;">Salvar Novo Preço</button>
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <input type="number" id="preco-edit-${ativo.simbolo}" value="${ativo.precoBrl.toFixed(2)}" step="0.01" style="width: 80px; padding: 6px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 4px;">
+                                    <button onclick="salvarNovoPreco('${ativo.simbolo}')" style="background-color: #3498db; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.3s;">Salvar Preço</button>
+                                    <button onclick="perguntarDividendo('${ativo.simbolo}')" style="background-color: #2ecc71; color: #000; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.3s;">💸 Pagar Dividendo</button>
                                 </div>
                             </td>
                         `;
                         tabela.appendChild(tr);
                     });
                 } else {
-                    tabela.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #aaa;">Nenhum ativo encontrado. Cadastre um novo acima.</td></tr>';
+                    tabela.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #aaa;">Nenhum ativo encontrado no mercado.</td></tr>';
                 }
             } catch (erro) {
                 console.error('Erro ao carregar ativos:', erro);
@@ -529,7 +532,6 @@
 
         window.salvarNovoPreco = async function(simbolo) {
             const novoPreco = parseFloat(document.getElementById(`preco-edit-${simbolo}`).value);
-            
             if (!novoPreco || novoPreco <= 0) return alert('Digite um preço válido!');
 
             try {
@@ -541,7 +543,6 @@
                 
                 const dados = await resposta.json();
                 alert(dados.mensagem);
-                
                 if (dados.sucesso) carregarAtivos(); 
             } catch (erro) {
                 alert('Erro ao comunicar com o servidor.');
@@ -577,25 +578,29 @@
             }
         };
 
-        window.distribuirDividendos = async function() {
-            const ticker = document.getElementById('div-ticker').value;
-            const valor = parseFloat(document.getElementById('div-valor').value);
+        // NOVA FUNÇÃO: PERGUNTA O VALOR DO DIVIDENDO ESPECÍFICO DO ATIVO CLICADO
+        window.perguntarDividendo = async function(simbolo) {
+            const valorInformado = prompt(`PAGAMENTO DE DIVIDENDOS\n\nDigite o valor em REAIS (R$) por cada cota de ${simbolo} que será pago aos usuários:\n\nExemplo: 0.10`);
+            
+            if (valorInformado === null || valorInformado.trim() === '') return; // Cancela se clicar fora ou deixar vazio
+            
+            // Troca vírgula por ponto para evitar erros matemáticos
+            const valorReais = parseFloat(valorInformado.replace(',', '.'));
 
-            if (!ticker || isNaN(valor) || valor <= 0) return alert('Preencha o Ticker e um valor válido!');
-            if(!confirm(`Confirma o pagamento de R$ ${valor} por cota para todos os acionistas de ${ticker}?`)) return;
+            if (isNaN(valorReais) || valorReais <= 0) {
+                return alert('Valor inválido! Digite um número maior que zero.');
+            }
+
+            if(!confirm(`⚠️ Confirma o pagamento de R$ ${valorReais.toFixed(2)} por cota para TODOS os acionistas de ${simbolo}?`)) return;
 
             try {
                 const resposta = await fetch('/api/investimentos/admin/pagar-dividendos', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ simboloAtivo: ticker, valorPorCotaBrl: valor })
+                    body: JSON.stringify({ simboloAtivo: simbolo, valorPorCotaBrl: valorReais })
                 });
                 const dados = await resposta.json();
                 alert(dados.mensagem);
-                if(dados.sucesso) {
-                    document.getElementById('div-ticker').value = '';
-                    document.getElementById('div-valor').value = '';
-                }
             } catch (erro) {
                 alert('Erro de conexão ao pagar dividendos.');
             }
