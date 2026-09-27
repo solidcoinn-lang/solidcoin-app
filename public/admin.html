@@ -331,7 +331,7 @@
             </div>
         </div>
 
-        <!-- NOVO: GERENCIAR FIIS E AÇÕES -->
+        <!-- GERENCIAR FIIS E AÇÕES -->
         <div id="sec-acoes" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #ff4757;">
@@ -345,7 +345,7 @@
                         <option value="Ação">Ação</option>
                     </select>
                     <input type="number" id="preco-ativo" class="input-admin" placeholder="Cotação R$ (Ex: 8.38)" style="flex: 1; min-width: 150px;">
-                    <button onclick="adicionarAtivo()" class="btn-admin" style="background-color: #ff4757; color: #fff; min-width: 150px;">➕ Cadastrar Ativo</button>
+                    <button onclick="adicionarAtivoSolid()" class="btn-admin" style="background-color: #ff4757; color: #fff; min-width: 150px;">➕ Cadastrar Ativo</button>
                 </div>
 
                 <h3 style="color: #ff4757; margin-top: 30px;">Catálogo de Ativos</h3>
@@ -365,7 +365,6 @@
                     </table>
                 </div>
 
-                <!-- ÁREA DE CORREÇÃO MANUAL DE COTAS -->
                 <h3 style="color: #ff4757; margin-top: 30px;">Corrigir Cotas de Usuário (Manual)</h3>
                 <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center; flex-wrap: wrap; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333;">
                     <input type="text" id="invUserEmail" class="input-admin" placeholder="E-mail do Usuário" style="flex: 1; min-width: 150px;">
@@ -373,23 +372,6 @@
                     <input type="number" id="invUserQuantidade" class="input-admin" placeholder="Qtd (+ adiciona, - retira)" style="flex: 1; min-width: 150px;">
                     <button onclick="ajustarCotasUsuario()" class="btn-admin" style="background-color: #ff4757; color: #fff; min-width: 150px;">⚙️ Ajustar Cotas</button>
                 </div>
-
-                <h3 style="color: #ff4757; margin-top: 30px;">Ordens Pendentes (Compra e Venda)</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Usuário</th>
-                            <th>Ticker</th>
-                            <th>Operação (Qtd)</th>
-                            <th>Valor Total (R$)</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ordens-ativos-lista">
-                        <tr><td colspan="6" style="text-align: center;">Carregando ordens...</td></tr>
-                    </tbody>
-                </table>
             </div>
         </div>
 
@@ -475,6 +457,7 @@
 
     </div>
 
+    <!-- SCRIPT CORRIGIDO INJETADO AQUI PARA GARANTIR FUNCIONAMENTO -->
     <script>
         window.abrirSecao = function(idSecao) {
             document.getElementById('menu-botoes').style.display = 'none';
@@ -486,9 +469,6 @@
             if (idSecao === 'sec-gerar-gift' && typeof window.carregarListaGiftCardsSC === 'function') {
                 window.carregarListaGiftCardsSC();
             }
-            if (idSecao === 'sec-acoes' && typeof window.carregarAtivos === 'function') {
-                window.carregarAtivos();
-            }
         };
 
         window.voltarMenu = function() {
@@ -496,8 +476,46 @@
             secoes.forEach(sec => sec.style.display = 'none');
             document.getElementById('menu-botoes').style.display = 'grid';
         };
+
+        // FUNÇÃO DE ADICIONAR ATIVO SOBRESCRITA À PROVA DE FALHAS
+        window.adicionarAtivoSolid = async function() {
+            const ticker = document.getElementById('ticker-ativo').value;
+            const tipo = document.getElementById('tipo-ativo').value;
+            const preco = document.getElementById('preco-ativo').value;
+
+            if (!ticker || !preco) {
+                alert('Preencha o Ticker e o Preço!');
+                return;
+            }
+
+            try {
+                // A URL exata que o backend (routes/investimentos.js) está à espera
+                const resposta = await fetch('/api/investimentos/admin/novo-ativo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        simbolo: ticker, 
+                        nome: ticker, // HTML não tem campo 'nome', então usamos o Ticker
+                        tipo: tipo, 
+                        precoBrl: preco 
+                    })
+                });
+                
+                const dados = await resposta.json();
+                
+                if (dados.sucesso) {
+                    alert('✅ Ativo cadastrado com sucesso!');
+                    document.getElementById('ticker-ativo').value = '';
+                    document.getElementById('preco-ativo').value = '';
+                } else {
+                    alert('❌ Erro: ' + dados.mensagem);
+                }
+            } catch (erro) {
+                console.error('Erro de conexão:', erro);
+                alert('Erro de comunicação. O servidor pode estar reiniciando.');
+            }
+        };
     </script>
-    <!-- O SCRIPT ATUALIZADO DEVE CONTINUAR AQUI -->
     <script src="admin-scripts.js"></script>
 </body>
 </html>

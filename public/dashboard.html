@@ -181,9 +181,9 @@
 
                 <p style="color: #ddd; font-size: 0.95em;">Convide seus amigos e ganhem juntos! Quando alguém usar seu código no cadastro:</p>
                 <ul style="color: #aaa; font-size: 0.9em; text-align: left; margin: 10px 0; padding-left: 20px;">
-                    <li>Você ganha <strong>250 SolidCoins</strong>[cite: 14]</li>
-                    <li>Seu amigo ganha <strong>250 SolidCoins</strong>[cite: 14]</li>
-                    <li>Se ele assinar um plano de Sócio, você ganha <strong>5% de Comissão</strong> do valor do plano na hora![cite: 14]</li>
+                    <li>Você ganha <strong>250 SolidCoins</strong></li>
+                    <li>Seu amigo ganha <strong>250 SolidCoins</strong></li>
+                    <li>Se ele assinar um plano de Sócio, você ganha <strong>5% de Comissão</strong> do valor do plano na hora!</li>
                 </ul>
                 <div style="background-color: #111; padding: 15px; border-radius: 8px; border: 1px dashed #f1c40f; margin-top: 15px;">
                     <p style="margin: 0 0 5px 0; color: #aaa; font-size: 0.85em;">Compartilhe seu código único:</p>
@@ -513,6 +513,7 @@
         </div>
     </div>
 
+    <!-- SCRIPT CORRIGIDO INJETADO AQUI PARA GARANTIR FUNCIONAMENTO -->
     <script>
         window.abrirSecao = function(idSecao) {
             document.getElementById('menu-botoes').style.display = 'none';
@@ -532,15 +533,22 @@
             document.getElementById('menu-botoes').style.display = 'grid';
         };
 
+        // FUNÇÃO DE CARREGAR ATIVOS SOBRESCRITA À PROVA DE FALHAS
         async function carregarAtivosInvestimento() {
             try {
-                const res = await fetch('/api/investimentos/lista');
-                if(!res.ok) throw new Error("Erro na rota");
+                // A URL exata que o backend (routes/investimentos.js) está à espera
+                const res = await fetch('/api/investimentos/ativos');
+                if(!res.ok) throw new Error("Erro na rota do servidor");
                 const data = await res.json();
                 
                 if (data.sucesso) {
                     const container = document.getElementById('lista-ativos-investimento');
                     container.innerHTML = ''; 
+                    
+                    if(data.ativos.length === 0) {
+                        container.innerHTML = '<div style="text-align: center; color: #aaa; padding: 20px;">Nenhum ativo disponível no mercado ainda. O ADM precisa cadastrá-los.</div>';
+                        return;
+                    }
                     
                     data.ativos.forEach(ativo => {
                         const card = document.createElement('div');
@@ -549,28 +557,30 @@
                         card.innerHTML = `
                             <h3 style="margin: 0 0 5px 0; color: #fff; font-size: 1.3em;">${ativo.simbolo}</h3>
                             <p style="margin: 0 0 10px 0; font-size: 0.85em; color: #aaa;">${ativo.nome}</p>
-                            <p style="margin: 0 0 5px 0; font-weight: bold; color: #f39c12; font-size: 1.4em;">${ativo.precoAtual.toFixed(2)} SC</p>
-                            <p style="margin: 0 0 15px 0; font-size: 0.85em; color: #2ecc71;">📈 Dividend Yield: ${ativo.dividendYield}% a.m.</p>
+                            <p style="margin: 0 0 5px 0; font-weight: bold; color: #f39c12; font-size: 1.4em;">R$ ${ativo.precoBrl.toFixed(2)}</p>
+                            <p style="margin: 0 0 15px 0; font-size: 0.85em; color: #2ecc71;">Custo: ${(ativo.precoBrl * data.cotacaoSC).toFixed(2)} SC</p>
                             
                             <div style="background: #0a0a0a; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px dashed #444; display: flex; justify-content: space-between; align-items: center;">
                                 <span style="font-size: 0.9em; color: #aaa;">Suas Cotas:</span>
-                                <strong style="color: #fff; font-size: 1.2em;">${ativo.cotasUsuario}</strong>
+                                <strong style="color: #fff; font-size: 1.2em;">${ativo.minhasCotas || 0}</strong>
                             </div>
                             
-                            <button onclick="abrirModalNegociacao('${ativo.simbolo}', '${ativo.nome}', ${ativo.precoAtual})" style="width: 100%; background: #333; color: #fff; border: 1px solid #555; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s;">Negociar Ativo</button>
+                            <button onclick="abrirModalNegociacao('${ativo.simbolo}', '${ativo.nome}', ${(ativo.precoBrl * data.cotacaoSC)})" style="width: 100%; background: #333; color: #fff; border: 1px solid #555; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s;">Negociar Ativo</button>
                         `;
                         container.appendChild(card);
                     });
+                } else {
+                    document.getElementById('lista-ativos-investimento').innerHTML = `<div style="text-align: center; color: #e74c3c; padding: 20px;">Falha: ${data.mensagem}</div>`;
                 }
             } catch (error) {
                 console.error("Erro ao carregar ativos:", error);
-                document.getElementById('lista-ativos-investimento').innerHTML = '<div style="text-align: center; color: #e74c3c; padding: 20px;">Falha ao carregar ativos do mercado.</div>';
+                document.getElementById('lista-ativos-investimento').innerHTML = '<div style="text-align: center; color: #e74c3c; padding: 20px;">Falha ao carregar ativos do mercado. Servidor pode estar offline.</div>';
             }
         }
 
-        window.abrirModalNegociacao = function(simbolo, nome, preco) {
+        window.abrirModalNegociacao = function(simbolo, nome, precoSC) {
             document.getElementById('modal-ativo-titulo').innerText = `Negociar ${simbolo}`;
-            document.getElementById('modal-ativo-preco').innerText = `Valor da Cota: ${preco.toFixed(2)} SC`;
+            document.getElementById('modal-ativo-preco').innerText = `Valor da Cota: ${precoSC.toFixed(2)} SC`;
             document.getElementById('modal-ativo-simbolo').value = simbolo;
             document.getElementById('modal-quantidade').value = '';
             document.getElementById('modal-negociacao').style.display = 'flex';
@@ -592,7 +602,12 @@
                 const res = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ simbolo, quantidade })
+                    body: JSON.stringify({ 
+                        simboloAtivo: simbolo, 
+                        quantidade: quantidade,
+                        formaPagamento: 'solidcoin',
+                        formaRecebimento: 'solidcoin'
+                    })
                 });
                 
                 const data = await res.json();
