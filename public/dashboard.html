@@ -513,7 +513,10 @@
         </div>
     </div>
 
-    <!-- SCRIPT CORRIGIDO INJETADO AQUI PARA GARANTIR FUNCIONAMENTO -->
+    <!-- 1º ARQUIVO EXTERNO CARREGADO PRIMEIRO -->
+    <script src="scripts.js"></script>
+
+    <!-- 2º SCRIPT CORRIGIDO INJETADO AQUI PARA GARANTIR FUNCIONAMENTO -->
     <script>
         window.abrirSecao = function(idSecao) {
             document.getElementById('menu-botoes').style.display = 'none';
@@ -533,7 +536,6 @@
             document.getElementById('menu-botoes').style.display = 'grid';
         };
 
-        // FUNÇÃO DE CARREGAR ATIVOS SOBRESCRITA À PROVA DE FALHAS COM CALCULO DA CARTEIRA
         async function carregarAtivosInvestimento() {
             try {
                 const res = await fetch('/api/investimentos/ativos');
@@ -580,7 +582,6 @@
                         container.appendChild(card);
                     });
                     
-                    // ATUALIZA A CAIXA DA CARTEIRA COM OS VALORES SOMADOS
                     carteiraContainer.innerHTML = `
                         <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
                             <div>
@@ -673,18 +674,53 @@
             }
         }
 
+        // =========================================================================
+        // LÓGICA DEFINITIVA DE CARREGAMENTO DAS IMAGENS DOS PLANOS
+        // =========================================================================
+        window.planosConfigDB = {}; // Variável global para armazenar os planos
+
         window.addEventListener('DOMContentLoaded', () => {
             fetch('/api/dados-dashboard')
                 .then(res => res.json())
                 .then(data => {
-                    if (data.sucesso && !data.usuario.jaUsouCodigo) {
-                        const bloco = document.getElementById('bloco-resgatar-indicacao');
-                        if(bloco) bloco.style.display = 'block'; 
+                    if (data.sucesso) {
+                        // 1. Mostrar input de indicação se necessário
+                        if (!data.usuario.jaUsouCodigo) {
+                            const bloco = document.getElementById('bloco-resgatar-indicacao');
+                            if(bloco) bloco.style.display = 'block'; 
+                        }
+                        
+                        // 2. SALVAR AS IMAGENS DO BANCO DE DADOS (PINATA/POSTIMAGE)
+                        if (data.planosImagens) {
+                            window.planosConfigDB = data.planosImagens;
+                        }
                     }
                 })
-                .catch(err => console.log('Erro ao checar indicação', err));
+                .catch(err => console.log('Erro ao checar dados', err));
         });
+
+        // Usamos um pequeno atraso (setTimeout) para garantir que este código 
+        // seja ativado DEPOIS do scripts.js, sobrescrevendo os erros dele.
+        setTimeout(() => {
+            const selectPlano = document.getElementById('socio-plano');
+            if(selectPlano) {
+                selectPlano.onchange = function() {
+                    const plano = this.value;
+                    const configs = window.planosConfigDB[plano];
+                    
+                    if(configs) {
+                        // Atualiza a imagem com o link do banco de dados (Pinata)
+                        document.getElementById('socio-img').src = configs.imagemUrl;
+                        document.getElementById('socio-desc').innerText = `Ao aderir a esse plano o Sócio terá ${configs.sc} SolidCoins mensais.`;
+                        
+                        // Mostra os detalhes e opções de pagamento
+                        document.getElementById('socio-detalhes').style.display = 'block';
+                        document.getElementById('socio-pagamento').style.display = 'block';
+                        document.getElementById('socio-btn').style.display = 'inline-block';
+                    }
+                };
+            }
+        }, 500);
     </script>
-    <script src="scripts.js"></script>
 </body>
 </html>
