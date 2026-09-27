@@ -365,14 +365,6 @@
                     </table>
                 </div>
 
-                <h3 style="color: #ff4757; margin-top: 30px;">Corrigir Cotas de Usuário (Manual)</h3>
-                <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center; flex-wrap: wrap; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333;">
-                    <input type="text" id="invUserEmail" class="input-admin" placeholder="E-mail do Usuário" style="flex: 1; min-width: 150px;">
-                    <input type="text" id="invUserSimbolo" class="input-admin" placeholder="Ticker (Ex: GARE11)" style="flex: 1; min-width: 100px;">
-                    <input type="number" id="invUserQuantidade" class="input-admin" placeholder="Qtd (+ adiciona, - retira)" style="flex: 1; min-width: 150px;">
-                    <button onclick="ajustarCotasUsuario()" class="btn-admin" style="background-color: #ff4757; color: #fff; min-width: 150px;">⚙️ Ajustar Cotas</button>
-                </div>
-
                 <!-- BLOCO ADICIONADO: DISTRIBUIR DIVIDENDOS -->
                 <h3 style="color: #ff4757; margin-top: 30px;">💰 Distribuir Dividendos</h3>
                 <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">O valor definido será multiplicado pelas cotas de cada usuário e pago em SolidCoins.</p>
@@ -381,7 +373,6 @@
                     <input type="number" id="div-valor" class="input-admin" placeholder="Valor por Cota (R$)" step="0.01" style="flex: 1; min-width: 150px;">
                     <button onclick="distribuirDividendos()" class="btn-admin" style="background-color: #2ecc71; color: #000; min-width: 150px;">💸 Pagar Rendimentos</button>
                 </div>
-                <!-- FIM DO BLOCO -->
             </div>
         </div>
 
@@ -479,12 +470,73 @@
             if (idSecao === 'sec-gerar-gift' && typeof window.carregarListaGiftCardsSC === 'function') {
                 window.carregarListaGiftCardsSC();
             }
+            if (idSecao === 'sec-acoes') {
+                carregarAtivos();
+            }
         };
 
         window.voltarMenu = function() {
             const secoes = document.querySelectorAll('.feature-section');
             secoes.forEach(sec => sec.style.display = 'none');
             document.getElementById('menu-botoes').style.display = 'grid';
+        };
+
+        // FUNÇÃO: CARREGAR A LISTA DE ATIVOS NA TABELA DO ADM
+        window.carregarAtivos = async function() {
+            try {
+                const resposta = await fetch('/api/investimentos/ativos');
+                const dados = await resposta.json();
+                
+                const tabela = document.getElementById('lista-ativos');
+                tabela.innerHTML = '';
+                
+                if (dados.sucesso && dados.ativos && dados.ativos.length > 0) {
+                    dados.ativos.forEach(ativo => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td style="font-weight: bold; color: #d4af37;">${ativo.simbolo}</td>
+                            <td>${ativo.tipo}</td>
+                            <td style="font-weight: bold; color: #2ecc71;">R$ ${ativo.precoBrl.toFixed(2)}</td>
+                            <td>
+                                <div style="display: flex; gap: 5px;">
+                                    <input type="number" id="preco-edit-${ativo.simbolo}" value="${ativo.precoBrl.toFixed(2)}" step="0.01" style="width: 80px; padding: 5px; background: #0a0a0a; border: 1px solid #333; color: #fff; border-radius: 4px;">
+                                    <button onclick="salvarNovoPreco('${ativo.simbolo}')" style="background-color: #3498db; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;">Atualizar</button>
+                                </div>
+                            </td>
+                        `;
+                        tabela.appendChild(tr);
+                    });
+                } else {
+                    tabela.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #aaa;">Nenhum ativo encontrado. Cadastre um novo acima.</td></tr>';
+                }
+            } catch (erro) {
+                console.error('Erro ao carregar ativos:', erro);
+                document.getElementById('lista-ativos').innerHTML = '<tr><td colspan="4" style="text-align: center; color: #e74c3c;">Erro ao carregar ativos do servidor.</td></tr>';
+            }
+        };
+
+        // FUNÇÃO: SALVAR NOVO PREÇO DIRETO NA TABELA
+        window.salvarNovoPreco = async function(simbolo) {
+            const novoPreco = parseFloat(document.getElementById(`preco-edit-${simbolo}`).value);
+            
+            if (!novoPreco || novoPreco <= 0) return alert('Digite um preço válido!');
+
+            try {
+                const resposta = await fetch('/api/investimentos/admin/atualizar-preco', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ simboloAtivo: simbolo, novoPrecoBrl: novoPreco })
+                });
+                
+                const dados = await resposta.json();
+                alert(dados.mensagem);
+                
+                if (dados.sucesso) {
+                    carregarAtivos(); 
+                }
+            } catch (erro) {
+                alert('Erro ao comunicar com o servidor.');
+            }
         };
 
         // FUNÇÃO DE ADICIONAR ATIVO SOBRESCRITA À PROVA DE FALHAS
@@ -499,13 +551,12 @@
             }
 
             try {
-                // A URL exata que o backend (routes/investimentos.js) está à espera
                 const resposta = await fetch('/api/investimentos/admin/novo-ativo', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         simbolo: ticker, 
-                        nome: ticker, // HTML não tem campo 'nome', então usamos o Ticker
+                        nome: ticker, 
                         tipo: tipo, 
                         precoBrl: preco 
                     })
@@ -517,6 +568,7 @@
                     alert('✅ Ativo cadastrado com sucesso!');
                     document.getElementById('ticker-ativo').value = '';
                     document.getElementById('preco-ativo').value = '';
+                    carregarAtivos(); // Recarrega a tabela imediatamente
                 } else {
                     alert('❌ Erro: ' + dados.mensagem);
                 }
@@ -526,7 +578,7 @@
             }
         };
 
-        // FUNÇÃO DE PAGAR DIVIDENDOS (NOVA)
+        // FUNÇÃO DE PAGAR DIVIDENDOS
         window.distribuirDividendos = async function() {
             const ticker = document.getElementById('div-ticker').value;
             const valor = parseFloat(document.getElementById('div-valor').value);
