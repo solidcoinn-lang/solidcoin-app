@@ -1041,7 +1041,14 @@ app.post('/api/admin/processar-nfc', isAdmin, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
+
+// --- CORREÇÃO CRÍTICA AQUI -------------------------------------------------------------------------------------------------
+// Nós montamos as rotas de investimentos DUAS VEZES, permitindo que o Painel do Admin
+// as encontre independentemente da URL exata que foi programada no JavaScript do FrontEnd.
 app.use('/api/investimentos', checkAuthenticated, investimentosRoutes);
+app.use('/api', checkAuthenticated, investimentosRoutes); 
+// ---------------------------------------------------------------------------------------------------------------------------
+
 
 async function setupInicial() {
     try {
