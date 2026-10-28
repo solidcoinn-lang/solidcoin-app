@@ -8,7 +8,7 @@ const path = require("path");
 const crypto = require('crypto');
 const fs = require('fs');
 const EfiPay = require('sdk-node-apis-efi');
-const { OAuth2Client } = require('google-auth-library'); // NOVO: Autenticação Google
+const { OAuth2Client } = require('google-auth-library'); 
 
 // =========================================================================
 // --- INTEGRAÇÃO EFÍ (API PIX) E GOOGLE AUTH ---
@@ -542,7 +542,6 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
                 new Transaction({ userId: user._id, tipo: 'Saque Pix Solicitado', descricao: `Pendente de Aprovação`, valor: -valorNum }).save()
             ]);
 
-            // Envia sucesso=true para o front-end não dar o ecrã de erro chato, mas mostra a mensagem amigável de moderação
             return res.json({ 
                 sucesso: true, 
                 mensagem: `⚠️ Transação enviada para aprovação do CEO. O pagamento será processado manualmente em breve!` 
@@ -624,7 +623,10 @@ app.post('/api/admin/verificar-pix-efi', isAdmin, async (req, res) => {
 app.post('/api/admin/ativar-webhook-efi', isAdmin, async (req, res) => {
     try {
         const chave = process.env.EFI_PIX_KEY;
-        const webhookUrl = "https://solidcoin-app.onrender.com/api/webhook/pix";
+        // =========================================================================
+        // URL DO WEBHOOK ATUALIZADA PARA O NOVO DOMÍNIO SOLIDCOINCOMMUNITY.COM
+        // =========================================================================
+        const webhookUrl = "https://solidcoincommunity.com/api/webhook/pix";
 
         if (!chave) return res.status(400).json({ sucesso: false, mensagem: "Chave Pix PF não encontrada." });
         
