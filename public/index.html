@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <title>SolidCoin - Login e Cadastro</title>
     <link rel="stylesheet" href="styles.css">
+    
+    <!-- SCRIPT OFICIAL DO GOOGLE -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
     <style>
         body { background-color: #0a0a0a; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
         .auth-container { background-color: #1a1a1a; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.8); border: 1px solid rgba(212, 175, 55, 0.2); width: 100%; max-width: 400px; text-align: center; }
@@ -13,12 +17,27 @@
         input:focus { border-color: #d4af37; outline: none; }
         button { width: 100%; padding: 12px; background-color: #d4af37; color: #000; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px; font-size: 1.1em; transition: 0.3s; }
         button:hover { background-color: #b5952f; }
-        .toggle-btn { background: none; color: #aaa; font-weight: normal; margin-top: 15px; font-size: 0.9em; text-decoration: underline; }
+        .toggle-btn { background: none; border: none; color: #aaa; font-weight: normal; margin-top: 20px; font-size: 0.9em; text-decoration: underline; cursor: pointer; padding: 0; }
         .toggle-btn:hover { background: none; color: #fff; }
+        
+        /* ESTILO DO SEPARADOR "OU" */
+        .divider { margin: 20px 0; display: flex; align-items: center; justify-content: center; color: #777; font-size: 0.9em; }
+        .divider::before, .divider::after { content: ""; flex: 1; border-bottom: 1px solid #333; margin: 0 10px; }
     </style>
 </head>
 <body>
 
+    <!-- CONFIGURAÇÃO INVISÍVEL DO GOOGLE -->
+    <!-- ATENÇÃO: Substitua "COLE_O_SEU_CLIENT_ID_AQUI" pelo seu Client ID real gerado no Google Cloud -->
+    <div id="g_id_onload"
+         data-client_id="230742170380-er6gr3g87kapg0frcnvvsujlvtkp1og3.apps.googleusercontent.com"
+         data-context="signin"
+         data-ux_mode="popup"
+         data-callback="lidarComRespostaGoogle"
+         data-auto_prompt="false">
+    </div>
+
+    <!-- TELA DE LOGIN -->
     <div class="auth-container" id="login-box">
         <h1>Entrar na SolidCoin</h1>
         <form action="/login" method="POST">
@@ -26,9 +45,26 @@
             <input type="password" name="senha" placeholder="Sua Senha" required>
             <button type="submit">Entrar</button>
         </form>
+
+        <div class="divider">ou</div>
+        
+        <!-- BOTAO DO GOOGLE (LOGIN) -->
+        <div style="display: flex; justify-content: center;">
+            <div class="g_id_signin"
+                 data-type="standard"
+                 data-shape="rectangular"
+                 data-theme="outline"
+                 data-text="signin_with"
+                 data-size="large"
+                 data-logo_alignment="center"
+                 data-width="320">
+            </div>
+        </div>
+
         <button class="toggle-btn" onclick="toggleAuth('register')">Ainda não tem conta? Cadastre-se</button>
     </div>
 
+    <!-- TELA DE CADASTRO -->
     <div class="auth-container" id="register-box" style="display: none;">
         <h1>Criar Conta</h1>
         <form action="/cadastrar" method="POST">
@@ -36,24 +72,70 @@
             <input type="email" name="email" placeholder="Seu E-mail" required>
             <input type="password" name="senha" placeholder="Crie uma Senha" required>
             
-            <!-- CAMPO: CÓDIGO DE INDICAÇÃO -->
-            <input type="text" name="codigoIndicacao" placeholder="Código de Indicação (Opcional)" style="border: 1px dashed #d4af37; text-transform: uppercase;">
-            <p style="font-size: 0.8em; color: #aaa; margin-top: -5px; text-align: left;">Tem um convite? Ganhe 250 SC ao usar o código de um amigo!</p>
+            <!-- CAMPO CÓDIGO DE INDICAÇÃO (O ID FOI ADICIONADO PARA O GOOGLE CAPTURAR O TEXTO) -->
+            <input type="text" id="codigoIndicacaoCadastro" name="codigoIndicacao" placeholder="Código de Indicação (Opcional)" style="border: 1px dashed #d4af37; text-transform: uppercase;">
+            <p style="font-size: 0.8em; color: #aaa; margin-top: -5px; text-align: left; line-height: 1.4;">Tem um convite? Digite acima para ganhar 250 SC!</p>
 
             <button type="submit">Cadastrar</button>
         </form>
+
+        <div class="divider">ou</div>
+        
+        <!-- BOTAO DO GOOGLE (CADASTRO) -->
+        <div style="display: flex; justify-content: center;">
+            <div class="g_id_signin"
+                 data-type="standard"
+                 data-shape="rectangular"
+                 data-theme="outline"
+                 data-text="signup_with"
+                 data-size="large"
+                 data-logo_alignment="center"
+                 data-width="320">
+            </div>
+        </div>
+
         <button class="toggle-btn" onclick="toggleAuth('login')">Já tem conta? Faça Login</button>
     </div>
 
+    <!-- SCRIPT DE AÇÕES DA PÁGINA -->
     <script>
+        // Função para alternar entre Login e Cadastro
         function toggleAuth(type) {
             document.getElementById('login-box').style.display = type === 'login' ? 'block' : 'none';
             document.getElementById('register-box').style.display = type === 'register' ? 'block' : 'none';
         }
         
+        // Alerta caso o cadastro tradicional (sem Google) dê certo
         if (window.location.search.includes('cadastro=sucesso')) {
             alert('Cadastro realizado com sucesso! Ganhou bônus? Verifique seu extrato ao fazer login.');
             toggleAuth('login');
+        }
+
+        // FUNÇÃO QUE COMUNICA COM O BACKEND AO CLICAR NO BOTÃO DO GOOGLE
+        function lidarComRespostaGoogle(resposta) {
+            // Tenta pegar o código de indicação, caso o usuário tenha preenchido antes de clicar no botão do Google
+            const inputIndicacao = document.getElementById('codigoIndicacaoCadastro');
+            const codigo = inputIndicacao ? inputIndicacao.value : '';
+
+            // Envia o token seguro e o código (se existir) para a sua API no Render
+            fetch('/api/auth/google', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ credential: resposta.credential, codigoIndicacao: codigo })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.sucesso) {
+                    // Login/Cadastro concluído com sucesso. Redireciona o utilizador para o Dashboard!
+                    window.location.href = data.redirecionar;
+                } else {
+                    alert(data.mensagem);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Erro ao comunicar com o servidor. Tente novamente.");
+            });
         }
     </script>
 </body>

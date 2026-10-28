@@ -8,13 +8,22 @@ const path = require("path");
 const crypto = require('crypto');
 const fs = require('fs');
 const EfiPay = require('sdk-node-apis-efi');
+const { OAuth2Client } = require('google-auth-library'); // NOVO: Autenticação Google
 
 // =========================================================================
-// --- INTEGRAÇÃO EFÍ (API PIX) - SPLIT DE CONTAS (PF E PJ) ---
+// --- INTEGRAÇÃO EFÍ (API PIX) E GOOGLE AUTH ---
 // =========================================================================
 
 const isSandbox = process.env.EFI_ENV !== 'producao';
 console.log(`🌍 MODO EFÍ: ${isSandbox ? 'HOMOLOGAÇÃO (TESTES)' : 'PRODUÇÃO (REAL)'}`);
+
+let googleClient = null;
+if (process.env.GOOGLE_CLIENT_ID) {
+    googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    console.log("✅ API Login do Google ativada!");
+} else {
+    console.warn("⚠️ AVISO: GOOGLE_CLIENT_ID não encontrado nas variáveis de ambiente.");
+}
 
 let certPathPF = path.join(__dirname, 'certificado.p12');
 if (process.env.EFI_CERT_BASE64) {
@@ -63,7 +72,6 @@ const STAKING_REWARD_RATE_MONTHLY = 0.05;
 const WHALE_THRESHOLD = 1000000; 
 const WHALE_YIELD_PER_DAY = 200;
 
-// MAPA ORIGINAL DE PLANOS E IMAGENS
 const PLANOS_SOCIO = {
     "Socio SolidCoin para Todos": { valorReais: 1, sc: 500, imagemUrl: "https://i.postimg.cc/QxzG1q50/Design-sem-nome.png" },
     "Iron": { valorReais: 5, sc: 3025, imagemUrl: "https://i.postimg.cc/9MwF9J8R/iron-plan.png" },
@@ -73,7 +81,6 @@ const PLANOS_SOCIO = {
     "Diamante": { valorReais: 100, sc: 71500, imagemUrl: "https://i.postimg.cc/mZhTbqQ4/diamond-plan.png" }
 };
 
-// NOVO: MODELO DE CONFIGURAÇÃO DE IMAGENS DO SISTEMA
 const ImagemConfigSchema = new mongoose.Schema({
     chave: { type: String, required: true, unique: true },
     url: { type: String, default: '' },
@@ -193,7 +200,70 @@ app.post('/logout', checkAuthenticated, (req, res) => {
     req.session.destroy(err => { res.clearCookie('connect.sid'); res.json({ sucesso: true }); });
 });
 
-// A ROTA DASHBOARD MESCLA AS IMAGENS DO BANCO DE DADOS COM OS PLANOS
+// =========================================================================
+// ROTA NOVA: LOGIN E CADASTRO VIA GOOGLE
+// =========================================================================
+app.post('/api/auth/google', async (req, res) => {
+    if (!googleClient) return res.status(500).json({ sucesso: false, mensagem: "Google Login não configurado no servidor (Falta GOOGLE_CLIENT_ID)." });
+    
+    const { credential, codigoIndicacao } = req.body;
+    if (!credential) return res.status(400).json({ sucesso: false, mensagem: "Token inválido." });
+
+    try {
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+        const email = payload.email;
+        const nome = payload.name;
+        
+        let user = await User.findOne({ email });
+        
+        // Se usuário não existe, faz o cadastro automático
+        if (!user) {
+            const admin = await User.findOne({ email: ADMIN_EMAIL });
+            let referrer = null;
+            if (codigoIndicacao) referrer = await User.findOne({ codigoIndicacao: codigoIndicacao.toUpperCase() });
+
+            // Cria uma senha aleatória complexa (usuário Google não precisa dela, mas o banco de dados exige)
+            const senhaHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+            
+            let novoCodigoUnico; let isCodeUnique = false;
+            while (!isCodeUnique) {
+                novoCodigoUnico = crypto.randomBytes(3).toString('hex').toUpperCase();
+                if (!(await User.findOne({ codigoIndicacao: novoCodigoUnico }))) isCodeUnique = true;
+            }
+
+            let saldoInicial = 0; let indicadoPorId = null;
+            if (referrer && admin && admin.saldo >= 500) {
+                saldoInicial = 250; indicadoPorId = referrer._id;
+                referrer.saldo += 250; admin.saldo -= 500; 
+                await Promise.all([
+                    referrer.save(), admin.save(),
+                    new Transaction({ userId: referrer._id, tipo: 'Bônus de Indicação', descricao: `Você convidou ${nome} (Google)`, valor: 250 }).save(),
+                    new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Bônus para ${referrer.nome}`, valor: -500 }).save()
+                ]);
+            }
+
+            user = new User({ nome, email, senha: senhaHash, saldo: saldoInicial, codigoIndicacao: novoCodigoUnico, indicadoPor: indicadoPorId });
+            await user.save();
+
+            if (saldoInicial > 0) {
+                await new Transaction({ userId: user._id, tipo: 'Bônus de Boas-Vindas', descricao: `Código de indicação`, valor: 250 }).save();
+            }
+        }
+        
+        // Inicia a sessão e envia o comando de redirecionar para o dashboard
+        req.session.user = { id: user._id, nome: user.nome, email: user.email };
+        res.json({ sucesso: true, redirecionar: '/dashboard.html' });
+        
+    } catch (error) {
+        console.error("Erro no Google Auth:", error);
+        res.status(401).json({ sucesso: false, mensagem: "Erro ao validar conta do Google. Tente novamente." });
+    }
+});
+
 app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
     try {
         const user = await User.findById(req.session.user.id);
@@ -214,7 +284,6 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
             }
         }
 
-        // Busca imagens personalizadas dos planos no banco de dados
         const imagensConfig = await ImagemConfig.find({});
         let planosDinamicos = JSON.parse(JSON.stringify(PLANOS_SOCIO));
         
@@ -229,7 +298,7 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
 
         res.json({
             sucesso: true, scRate: scRate,
-            planosImagens: planosDinamicos, // Usa os planos com as imagens atualizadas
+            planosImagens: planosDinamicos, 
             usuario: { 
                 nome: user.nome, saldo: user.saldo, stakedAmount: user.stakedAmount, canUnstakeAt: user.canUnstakeAt, 
                 solanaWallet: user.solanaWallet, tronWallet: user.tronWallet, isAdmin: user.email === ADMIN_EMAIL, 
@@ -387,6 +456,10 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
     }
 });
 
+
+// =========================================================================
+// CORREÇÃO: CONTINGÊNCIA (FALLBACK) PARA APROVAÇÃO MANUAL EM CASO DE ERRO
+// =========================================================================
 app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
     try {
         const { valorSC, tipoChave, chavePix } = req.body;
@@ -416,7 +489,6 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
         const taxaSC = valorNum * 0.05; 
         const valorLiquidoSC = valorNum - taxaSC;
         const valorBRL = valorLiquidoSC / scRate;
-
         const idEnvio = crypto.randomBytes(16).toString('hex');
 
         let bodyEnvioPix = {
@@ -426,12 +498,14 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
         };
 
         try {
+            // TENTA ENVIAR O PIX DE FORMA AUTOMÁTICA
             const envioResponse = await efipayPJ.pixSend({ idEnvio: idEnvio }, bodyEnvioPix);
             
             if (envioResponse.status === 'NAO_REALIZADO' || envioResponse.status === 'RECUSADO' || envioResponse.status === 'FALHA') {
-                return res.status(400).json({ sucesso: false, mensagem: `Saque cancelado pelo banco.` });
+                throw new Error('Pix Recusado pelo banco (CNPJ Bloqueado ou Limite excedido)');
             }
 
+            // SE DEU CERTO, DESCONTA NORMALMENTE E APROVA
             user.saldo -= valorNum;
             const admin = await User.findOne({ email: ADMIN_EMAIL });
             if (admin) admin.saldo += valorNum; 
@@ -449,8 +523,30 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
             ]);
 
             return res.json({ sucesso: true, mensagem: `✅ Saque de R$ ${valorBRL.toFixed(2)} transferido via Conta PJ.` });
+            
         } catch (erroPix) {
-            return res.status(500).json({ sucesso: false, mensagem: `Erro recusado pelo Banco Efí PJ.` });
+            // =================================================================================
+            // SE CAIR AQUI (COMO O SEU CNPJ INAPTO), O SISTEMA CONVERTE PARA APROVAÇÃO MANUAL
+            // =================================================================================
+            user.saldo -= valorNum; // Desconta o saldo do utilizador e deixa cativo (preso)
+            
+            const novoSaquePix = new PixWithdrawal({
+                userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, chavePix: chaveFavorecidoLimpa, tipoChavePix: tipoChave,
+                valorSC: valorNum, taxaSC: taxaSC, valorBRL: valorBRL, 
+                status: 'Pendente', txId: 'Aguardando CEO'
+            });
+
+            await Promise.all([
+                user.save(), 
+                novoSaquePix.save(),
+                new Transaction({ userId: user._id, tipo: 'Saque Pix Solicitado', descricao: `Pendente de Aprovação`, valor: -valorNum }).save()
+            ]);
+
+            // Envia sucesso=true para o front-end não dar o ecrã de erro chato, mas mostra a mensagem amigável de moderação
+            return res.json({ 
+                sucesso: true, 
+                mensagem: `⚠️ Transação enviada para aprovação do CEO. O pagamento será processado manualmente em breve!` 
+            });
         }
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro geral ao processar saque." }); }
 });
@@ -714,20 +810,14 @@ app.get('/api/extrato', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: 'Erro extrato.' }); }
 });
 
-// --- ADMIN ROTAS ---
-
-// ROTA NOVA: LISTAR IMAGENS PARA O PAINEL ADM
 app.get('/api/admin/listar-imagens', isAdmin, async (req, res) => {
     try {
         const imagensPlanos = await ImagemConfig.find({ chave: { $regex: '^plano_' } });
         const produtos = await Product.find({});
         res.json({ sucesso: true, planos: imagensPlanos, produtos: produtos });
-    } catch (error) {
-        res.status(500).json({ sucesso: false, mensagem: "Erro ao carregar imagens." });
-    }
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao carregar imagens." }); }
 });
 
-// ROTA NOVA: ATUALIZAR QUALQUER IMAGEM DO SISTEMA
 app.post('/api/admin/atualizar-imagem', isAdmin, async (req, res) => {
     try {
         const { tipo, idOuChave, novaUrl } = req.body;
@@ -740,11 +830,8 @@ app.post('/api/admin/atualizar-imagem', isAdmin, async (req, res) => {
         } else {
             return res.status(400).json({ sucesso: false, mensagem: "Tipo inválido." });
         }
-
         res.json({ sucesso: true, mensagem: "✅ Imagem atualizada com sucesso!" });
-    } catch (error) {
-        res.status(500).json({ sucesso: false, mensagem: "Erro ao atualizar a imagem." });
-    }
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao atualizar a imagem." }); }
 });
 
 app.get('/api/admin/usuarios', isAdmin, async (req, res) => {
@@ -793,9 +880,7 @@ app.post('/api/admin/gerar-giftcard-solidcoin', isAdmin, async (req, res) => {
         const diasValidade = parseInt(req.body.diasValidade) || 7; 
         const admin = await User.findOne({ email: ADMIN_EMAIL });
 
-        if (!valor || valor <= 0 || admin.saldo < valor) {
-            return res.status(400).json({ sucesso: false, mensagem: "Valor inválido ou saldo insuficiente no CEO." });
-        }
+        if (!valor || valor <= 0 || admin.saldo < valor) return res.status(400).json({ sucesso: false, mensagem: "Valor inválido/saldo insuficiente CEO." });
 
         const cod = 'SOLID-' + crypto.randomBytes(4).toString('hex').toUpperCase();
         const dataValidade = new Date(Date.now() + diasValidade * 24 * 60 * 60 * 1000);
@@ -806,54 +891,36 @@ app.post('/api/admin/gerar-giftcard-solidcoin', isAdmin, async (req, res) => {
             new SolidCoinGiftCard({ codigo: cod, valor: valor, validade: dataValidade, status: 'Disponivel' }).save(), 
             new Transaction({ userId: admin._id, tipo: 'Geração Gift SC', descricao: `${cod} (${diasValidade} dias)`, valor: -valor }).save() 
         ]);
-
-        res.json({ sucesso: true, mensagem: `✅ Gift Card Criado: ${cod} | Validade: ${diasValidade} dia(s)` });
-    } catch (error) { 
-        res.status(500).json({ sucesso: false, mensagem: "Erro ao gerar Gift Card." }); 
-    }
+        res.json({ sucesso: true, mensagem: `✅ Gift Card Criado: ${cod}` });
+    } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
 app.get('/api/admin/listar-giftcards-solidcoin', isAdmin, async (req, res) => {
     try {
         const lista = await SolidCoinGiftCard.find().sort({ criadoEm: -1 });
         res.json({ sucesso: true, giftcards: lista });
-    } catch (error) {
-        res.status(500).json({ sucesso: false });
-    }
+    } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
 app.post('/api/resgatar-giftcard-solidcoin', checkAuthenticated, async (req, res) => {
     try {
         const giftCard = await SolidCoinGiftCard.findOne({ codigo: req.body.codigo.toUpperCase() });
-        if (!giftCard || giftCard.isUsed || giftCard.status !== 'Disponivel') {
-            return res.status(400).json({ sucesso: false, mensagem: "Código inválido, já utilizado ou expirado." });
-        }
+        if (!giftCard || giftCard.isUsed || giftCard.status !== 'Disponivel') return res.status(400).json({ sucesso: false, mensagem: "Código inválido, já utilizado ou expirado." });
 
         if (new Date() > new Date(giftCard.validade)) {
-            giftCard.status = 'Expirado';
-            giftCard.isUsed = true;
-            await giftCard.save();
-            return res.status(400).json({ sucesso: false, mensagem: "⚠️ Este código promocional já expirou." });
+            giftCard.status = 'Expirado'; giftCard.isUsed = true; await giftCard.save();
+            return res.status(400).json({ sucesso: false, mensagem: "⚠️ Código expirado." });
         }
 
         const user = await User.findById(req.session.user.id);
-        user.saldo += giftCard.valor; 
-        giftCard.isUsed = true; 
-        giftCard.status = 'Resgatado';
-        giftCard.usedBy = user._id; 
-        giftCard.nomeResgatador = user.nome;
-        giftCard.usedAt = new Date();
+        user.saldo += giftCard.valor; giftCard.isUsed = true; giftCard.status = 'Resgatado'; giftCard.usedBy = user._id; giftCard.nomeResgatador = user.nome; giftCard.usedAt = new Date();
 
         await Promise.all([
-            user.save(), 
-            giftCard.save(), 
+            user.save(), giftCard.save(), 
             new Transaction({ userId: user._id, tipo: 'Resgate Gift SC', descricao: giftCard.codigo, valor: giftCard.valor }).save()
         ]);
-
-        res.json({ sucesso: true, mensagem: `🎉 Resgatado com sucesso! +${giftCard.valor} SC adicionados ao seu saldo.`, novoSaldo: user.saldo });
-    } catch (error) { 
-        res.status(500).json({ sucesso: false, mensagem: "Erro ao resgatar código." }); 
-    }
+        res.json({ sucesso: true, mensagem: `🎉 Resgatado com sucesso!`, novoSaldo: user.saldo });
+    } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
 app.get('/api/admin/pedidos-pendentes', isAdmin, async (req, res) => {
@@ -1020,7 +1087,6 @@ app.post('/api/admin/processar-nfc', isAdmin, async (req, res) => {
 app.use('/api/investimentos', checkAuthenticated, investimentosRoutes);
 app.use('/api', checkAuthenticated, investimentosRoutes); 
 
-// Injeta os planos no DB caso não existam
 async function setupInicial() {
     try {
         let ceo = await User.findOne({ email: ADMIN_EMAIL });
@@ -1039,7 +1105,6 @@ async function setupInicial() {
             ]);
         }
         
-        // Cadastra as imagens dos planos no Banco se elas não existirem
         const nomesDosPlanos = Object.keys(PLANOS_SOCIO);
         for (const planoNome of nomesDosPlanos) {
             const chavePlano = `plano_${planoNome}`;
