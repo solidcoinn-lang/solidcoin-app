@@ -626,7 +626,7 @@ app.post('/api/admin/ativar-webhook-efi', isAdmin, async (req, res) => {
         // =========================================================================
         // URL DO WEBHOOK ATUALIZADA PARA O NOVO DOMÍNIO SOLIDCOINCOMMUNITY.COM
         // =========================================================================
-        const webhookUrl = "https://solidcoincommunity.com/api/webhook/pix";
+        const webhookUrl = "https://www.solidcoincommunity.com/api/webhook/pix";
 
         if (!chave) return res.status(400).json({ sucesso: false, mensagem: "Chave Pix PF não encontrada." });
         
