@@ -223,6 +223,9 @@ window.carregarPendentes = async () => {
                 }
             }
 
+            // =================================================================================
+            // SAQUES CRIPTO / WEB3 / MINIPAY ATUALIZADO
+            // =================================================================================
             const saquesList = document.getElementById('saques-lista');
             if (saquesList) {
                 saquesList.innerHTML = '';
@@ -231,14 +234,24 @@ window.carregarPendentes = async () => {
                 } else {
                     data.saques.forEach(saq => {
                         const tr = document.createElement('tr');
+                        
+                        // Lógica Visual para Identificar a Automação Celo (MiniPay)
+                        let badgeWeb3 = '';
+                        let infoCarteira = saq.solanaWallet || '';
+                        const isMiniPay = infoCarteira.includes('MiniPay');
+                        
+                        if (isMiniPay) {
+                            badgeWeb3 = `<span style="background: #2ecc71; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: bold; margin-bottom: 5px; display: inline-block;">⚡ AUTOMÁTICO</span><br>`;
+                        }
+
                         tr.innerHTML = `
                             <td>${new Date(saq.data).toLocaleString('pt-BR')}</td>
                             <td>${saq.nomeUsuario} <br><small style="color: #888;">${saq.emailUsuario}</small></td>
                             <td><strong style="color:#d4af37">${saq.valor.toFixed(2)} SC</strong></td>
-                            <td style="font-size: 0.9em; word-break: break-all;">${saq.solanaWallet}</td>
+                            <td style="font-size: 0.9em; word-break: break-all;">${badgeWeb3}${infoCarteira}</td>
                             <td>
-                                <button class="aprovar-btn" onclick="processarSaque('${saq._id}', 'aprovar')">Aprovar</button>
-                                <button class="rejeitar-btn" onclick="processarSaque('${saq._id}', 'rejeitar')">Rejeitar</button>
+                                <button class="aprovar-btn" onclick="processarSaque('${saq._id}', 'aprovar', ${isMiniPay})">Aprovar</button>
+                                <button class="rejeitar-btn" onclick="processarSaque('${saq._id}', 'rejeitar', false)">Rejeitar</button>
                             </td>
                         `;
                         saquesList.appendChild(tr);
@@ -520,7 +533,14 @@ window.processarDeposito = async (id, acao) => {
     } catch (e) { alert("Erro ao processar depósito."); }
 };
 
-window.processarSaque = async (id, acao) => {
+// --- FUNÇÃO ATUALIZADA COM O AVISO DE AUTOMAÇÃO MINIPAY ---
+window.processarSaque = async (id, acao, isMiniPay) => {
+    if (acao === 'aprovar' && isMiniPay) {
+        if (!confirm('⚡ AUTOMAÇÃO CELO: Tem certeza que deseja aprovar? O servidor irá transferir Celo Dólar (cUSD) diretamente da sua carteira matriz para a MiniPay deste utilizador agora mesmo.')) return;
+    } else if (acao === 'aprovar') {
+        if (!confirm('Aprovando saque manual. Lembre-se de transferir os fundos na rede Tron ou Solana para a carteira do usuário. Continuar?')) return;
+    }
+
     if (acao === 'rejeitar' && !confirm('Tem certeza que deseja rejeitar este saque? (As moedas serão devolvidas para o usuário)')) return;
     
     try {
