@@ -112,7 +112,7 @@
                 <span class="icon">📥</span><span class="text">Aprovar Depósitos</span>
             </button>
             <button class="feature-btn btn-saquecripto" onclick="abrirSecaoPainel('sec-saques-cripto')">
-                <span class="icon">🪙</span><span class="text">Aprovar Saques Cripto</span>
+                <span class="icon">🪙</span><span class="text">Aprovar Saques Web3</span>
             </button>
             <button class="feature-btn btn-sociosaprov" onclick="abrirSecaoPainel('sec-socios')">
                 <span class="icon">💎</span><span class="text">Aprovar Planos Sócio</span>
@@ -130,13 +130,13 @@
                 <span class="icon">📊</span><span class="text">FIIs e Ações</span>
             </button>
             <button class="feature-btn btn-gerargift" onclick="abrirSecaoPainel('sec-gerar-gift')">
-                <span class="icon">🎟️</span><span class="text">Gerar Gift Card Interno</span>
+                <span class="icon">🎟️</span><span class="text">Gerar Gift Interno</span>
             </button>
             <button class="feature-btn btn-gifts" onclick="abrirSecaoPainel('sec-pedidos-gift')">
-                <span class="icon">🛍️</span><span class="text">Pedidos de Gift Cards</span>
+                <span class="icon">🛍️</span><span class="text">Pedidos Gift Cards</span>
             </button>
             <button class="feature-btn btn-recargas" onclick="abrirSecaoPainel('sec-recargas')">
-                <span class="icon">📱</span><span class="text">Pedidos de Recargas</span>
+                <span class="icon">📱</span><span class="text">Pedidos Recargas</span>
             </button>
         </div>
 
@@ -298,8 +298,8 @@
         <div id="sec-saques-cripto" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #f39c12;">
-                <h2 style="margin-top: 0;">Saques Pendentes (Cripto)</h2>
-                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Aprove transferências para as carteiras Solana ou Tron dos usuários.</p>
+                <h2 style="margin-top: 0;">Saques Pendentes (Cripto / Web3)</h2>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Aprove transferências automáticas para MiniPay (Rede Celo) ou manuais (Solana/Tron).</p>
                 <table>
                     <thead>
                         <tr>
@@ -511,7 +511,7 @@
 
     </div>
 
-    <!-- 1º CARREGA O SCRIPT ANTIGO -->
+    <!-- 1º CARREGA O SCRIPT ANTIGO COM A LOGICA DA MINIPAY -->
     <script src="admin-scripts.js"></script>
 
     <!-- 2º SCRIPT COM AS NOVAS FUNÇÕES DE IMAGEM E ATIVOS -->
