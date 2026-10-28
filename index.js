@@ -11,11 +11,11 @@ const EfiPay = require('sdk-node-apis-efi');
 const { OAuth2Client } = require('google-auth-library'); 
 
 // =========================================================================
-// --- INTEGRAÇÃO WEB3 MINIPAY (REDE CELO) ---
+// --- INTEGRAÇÃO WEB3 MINIPAY (REDE CELO - USDC) ---
 // =========================================================================
 let celoProvider = null;
 let celoWallet = null;
-let cUSDContract = null;
+let usdcContract = null;
 
 try {
     const { ethers } = require('ethers');
@@ -29,11 +29,11 @@ try {
     }
 
     if (celoWallet) {
-        // Contrato Oficial do Celo Dólar (cUSD)
-        const cUSD_ADDRESS = "0x765DE816845861e75A25fCA122bb6898B8B1282a";
+        // Contrato Oficial do USDC na Celo
+        const USDC_ADDRESS = "0xcebA9300f2b948710d2653dD7B07f33A8B32118C";
         const erc20Abi = ["function transfer(address to, uint256 value) public returns (bool)"];
-        cUSDContract = new ethers.Contract(cUSD_ADDRESS, erc20Abi, celoWallet);
-        console.log("✅ Carteira MiniPay (Celo) conectada para pagamentos automáticos!");
+        usdcContract = new ethers.Contract(USDC_ADDRESS, erc20Abi, celoWallet);
+        console.log("✅ Carteira MiniPay (Celo USDC) conectada para pagamentos automáticos!");
     } else {
         console.warn("⚠️ AVISO: MINIPAY_SEED_PHRASE não encontrada nas variáveis de ambiente.");
     }
@@ -257,6 +257,7 @@ app.post('/api/auth/google', async (req, res) => {
             let referrer = null;
             if (codigoIndicacao) referrer = await User.findOne({ codigoIndicacao: codigoIndicacao.toUpperCase() });
 
+            // Cria uma senha aleatória complexa (usuário Google não precisa dela, mas o banco de dados exige)
             const senhaHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
             
             let novoCodigoUnico; let isCodeUnique = false;
@@ -486,7 +487,6 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
     }
 });
 
-
 // =========================================================================
 // CORREÇÃO: CONTINGÊNCIA (FALLBACK) PARA APROVAÇÃO MANUAL EM CASO DE ERRO
 // =========================================================================
@@ -555,7 +555,7 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
             return res.json({ sucesso: true, mensagem: `✅ Saque de R$ ${valorBRL.toFixed(2)} transferido via Conta PJ.` });
             
         } catch (erroPix) {
-            user.saldo -= valorNum; // Desconta o saldo do utilizador e deixa cativo (preso)
+            user.saldo -= valorNum; 
             
             const novoSaquePix = new PixWithdrawal({
                 userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, chavePix: chaveFavorecidoLimpa, tipoChavePix: tipoChave,
@@ -1035,31 +1035,32 @@ app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
         
         if (acao === 'aprovar') {
             // =========================================================================
-            // LÓGICA DE PAGAMENTO AUTOMÁTICO MINIPAY (REDE CELO)
+            // LÓGICA DE PAGAMENTO AUTOMÁTICO MINIPAY (REDE CELO - USDC)
             // =========================================================================
             if (saque.solanaWallet && saque.solanaWallet.includes('MiniPay:')) {
-                if (!cUSDContract) return res.status(500).json({ sucesso: false, mensagem: "Erro: A carteira MiniPay do Servidor não está configurada (Falta a Seed Phrase no Render)." });
+                if (!usdcContract) return res.status(500).json({ sucesso: false, mensagem: "Erro: A carteira MiniPay do Servidor não está configurada (Falta a Seed Phrase no Render)." });
                 
                 try {
                     const enderecoDestino = saque.solanaWallet.replace('MiniPay:', '').trim();
                     const scRate = await getSCRate();
                     
-                    // --- NOVA LÓGICA: BUSCA A COTAÇÃO REAL DO DÓLAR NESTE EXATO SEGUNDO ---
+                    // --- BUSCA A COTAÇÃO REAL DO DÓLAR ---
                     const resMoeda = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
                     const dadosMoeda = await resMoeda.json();
-                    const cotacaoDolar = parseFloat(dadosMoeda.USDBRL.ask); // Valor de Venda do Dólar Atual
+                    const cotacaoDolar = parseFloat(dadosMoeda.USDBRL.ask);
                     
                     const valorBRL = saque.valor / scRate;
-                    const valorCUSD = valorBRL / cotacaoDolar;
+                    const valorUSDC = valorBRL / cotacaoDolar;
                     
                     const { ethers } = require('ethers');
-                    const amountWei = ethers.parseUnits(valorCUSD.toFixed(18), 18);
+                    // IMPORTANTE: USDC tem 6 casas decimais (10^6), não 18!
+                    const amountWei = ethers.parseUnits(valorUSDC.toFixed(6), 6);
                     
-                    const tx = await cUSDContract.transfer(enderecoDestino, amountWei);
+                    const tx = await usdcContract.transfer(enderecoDestino, amountWei);
                     saque.txId = tx.hash; // Salva o comprovante blockchain internamente
                 } catch (txError) {
                     console.error("Falha na Blockchain Celo:", txError);
-                    return res.status(500).json({ sucesso: false, mensagem: "A transação MiniPay falhou. Verifique se o servidor tem CELO (Gás) e cUSD suficientes." });
+                    return res.status(500).json({ sucesso: false, mensagem: "A transação MiniPay falhou. Verifique se o servidor tem CELO (Gás) e USDC suficientes." });
                 }
             }
 
