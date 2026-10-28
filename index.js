@@ -257,7 +257,6 @@ app.post('/api/auth/google', async (req, res) => {
             let referrer = null;
             if (codigoIndicacao) referrer = await User.findOne({ codigoIndicacao: codigoIndicacao.toUpperCase() });
 
-            // Cria uma senha aleatória complexa (usuário Google não precisa dela, mas o banco de dados exige)
             const senhaHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
             
             let novoCodigoUnico; let isCodeUnique = false;
@@ -285,7 +284,6 @@ app.post('/api/auth/google', async (req, res) => {
             }
         }
         
-        // Inicia a sessão e envia o comando de redirecionar para o dashboard
         req.session.user = { id: user._id, nome: user.nome, email: user.email };
         res.json({ sucesso: true, redirecionar: '/dashboard.html' });
         
@@ -332,7 +330,7 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
             planosImagens: planosDinamicos, 
             usuario: { 
                 nome: user.nome, saldo: user.saldo, stakedAmount: user.stakedAmount, canUnstakeAt: user.canUnstakeAt, 
-                solanaWallet: user.solanaWallet, tronWallet: user.tronWallet, minipayWallet: user.minipayWallet, // <-- CAMPO MINIPAY ADICIONADO
+                solanaWallet: user.solanaWallet, tronWallet: user.tronWallet, minipayWallet: user.minipayWallet,
                 isAdmin: user.email === ADMIN_EMAIL, statusSocio: user.statusSocio, planoSocio: user.planoSocio, 
                 vencimentoSocio: user.vencimentoSocio, codigoIndicacao: user.codigoIndicacao, 
                 limiteDeSaque: await calcularLimiteSaque(user._id, user.saldo, user.email), nfcToken: user.nfcToken || '',
@@ -557,9 +555,6 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
             return res.json({ sucesso: true, mensagem: `✅ Saque de R$ ${valorBRL.toFixed(2)} transferido via Conta PJ.` });
             
         } catch (erroPix) {
-            // =================================================================================
-            // SE CAIR AQUI (COMO O SEU CNPJ INAPTO), O SISTEMA CONVERTE PARA APROVAÇÃO MANUAL
-            // =================================================================================
             user.saldo -= valorNum; // Desconta o saldo do utilizador e deixa cativo (preso)
             
             const novoSaquePix = new PixWithdrawal({
@@ -655,9 +650,6 @@ app.post('/api/admin/verificar-pix-efi', isAdmin, async (req, res) => {
 app.post('/api/admin/ativar-webhook-efi', isAdmin, async (req, res) => {
     try {
         const chave = process.env.EFI_PIX_KEY;
-        // =========================================================================
-        // URL DO WEBHOOK ATUALIZADA PARA O NOVO DOMÍNIO SOLIDCOINCOMMUNITY.COM
-        // =========================================================================
         const webhookUrl = "https://www.solidcoincommunity.com/api/webhook/pix";
 
         if (!chave) return res.status(400).json({ sucesso: false, mensagem: "Chave Pix PF não encontrada." });
@@ -686,7 +678,7 @@ app.post('/api/salvar-carteira', checkAuthenticated, async (req, res) => {
         await User.findByIdAndUpdate(req.session.user.id, { 
             solanaWallet: req.body.solanaWallet || '', 
             tronWallet: req.body.tronWallet || '',
-            minipayWallet: req.body.minipayWallet || '' // <-- CAMPO MINIPAY ADICIONADO
+            minipayWallet: req.body.minipayWallet || '' 
         });
         res.json({ sucesso: true, mensagem: "Carteiras atualizadas com sucesso!" });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao salvar carteiras." }); }
@@ -695,12 +687,11 @@ app.post('/api/salvar-carteira', checkAuthenticated, async (req, res) => {
 app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
     try {
         const valor = parseFloat(req.body.valor);
-        const metodo = req.body.metodo; // <-- CAMPO METODO ADICIONADO PARA ESCOLHER A REDE
+        const metodo = req.body.metodo; 
         const user = await User.findById(req.session.user.id);
         
         if (!valor || valor <= 0) return res.status(400).json({ sucesso: false, mensagem: "Valor inválido." });
         
-        // --- LÓGICA DE IDENTIFICAÇÃO DA CARTEIRA ESCOLHIDA ---
         let carteiraParaSaque = '';
         if (metodo === 'MiniPay') {
             if (!user.minipayWallet) return res.status(400).json({ sucesso: false, mensagem: "Salve sua carteira MiniPay primeiro."});
@@ -709,7 +700,6 @@ app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
             if (!user.solanaWallet) return res.status(400).json({ sucesso: false, mensagem: "Salve sua carteira Solana primeiro."});
             carteiraParaSaque = `Solana: ${user.solanaWallet}`;
         } else {
-            // Se for Tron ou fallback de clientes antigos
             if (!user.tronWallet && !user.solanaWallet && !user.minipayWallet) return res.status(400).json({ sucesso: false, mensagem: "Você precisa salvar pelo menos uma carteira de saque."});
             carteiraParaSaque = metodo === 'Tron' ? `Tron: ${user.tronWallet}` : (user.solanaWallet ? `Solana: ${user.solanaWallet}` : (user.tronWallet ? `Tron: ${user.tronWallet}` : `MiniPay: ${user.minipayWallet}`));
         }
@@ -1053,7 +1043,11 @@ app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
                 try {
                     const enderecoDestino = saque.solanaWallet.replace('MiniPay:', '').trim();
                     const scRate = await getSCRate();
-                    const cotacaoDolar = 5.50; // Cotação fixa BRL->USD (cUSD)
+                    
+                    // --- NOVA LÓGICA: BUSCA A COTAÇÃO REAL DO DÓLAR NESTE EXATO SEGUNDO ---
+                    const resMoeda = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
+                    const dadosMoeda = await resMoeda.json();
+                    const cotacaoDolar = parseFloat(dadosMoeda.USDBRL.ask); // Valor de Venda do Dólar Atual
                     
                     const valorBRL = saque.valor / scRate;
                     const valorCUSD = valorBRL / cotacaoDolar;
