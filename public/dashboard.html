@@ -63,6 +63,20 @@
             gap: 8px; font-weight: bold; transition: 0.3s;
         }
         .voltar-btn:hover { background-color: #d4af37; color: #000; }
+
+        /* Estilos dos Inputs da MiniPay e Web3 */
+        .input-web3 {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background: #111;
+            color: #fff;
+            box-sizing: border-box;
+            font-family: monospace;
+            font-size: 1.05em;
+        }
     </style>
 </head>
 <body>
@@ -96,43 +110,43 @@
                 <span class="icon">📈</span><span class="text">Mercado (FIIs & Ações)</span>
             </button>
             <button class="feature-btn btn-tron" onclick="abrirSecao('sec-tron')">
-                <span class="icon">🌐</span><span class="text">Resgate Rendimento (Web3 Tron)</span>
+                <span class="icon">🌐</span><span class="text">Resgate Rendimento</span>
             </button>
             <button class="feature-btn btn-ind" onclick="abrirSecao('sec-indicacao')">
-                <span class="icon">🤝</span><span class="text">Programa de Indicação</span>
+                <span class="icon">🤝</span><span class="text">Programa Indicação</span>
             </button>
             <button class="feature-btn btn-stake" onclick="abrirSecao('sec-staking')">
-                <span class="icon">📈</span><span class="text">Staking SolidCoin (5% a.m)</span>
+                <span class="icon">📈</span><span class="text">Staking SolidCoin</span>
             </button>
             <button class="feature-btn btn-tarefas" onclick="abrirSecao('sec-tarefas')">
-                <span class="icon">🕹️</span><span class="text">Ganhar SC (Tarefas e Vídeos)</span>
+                <span class="icon">🕹️</span><span class="text">Ganhar SC (Vídeos)</span>
             </button>
             <button class="feature-btn btn-socio" onclick="abrirSecao('sec-socio')">
-                <span class="icon">💎</span><span class="text">Clube de Sócios SolidCoin</span>
+                <span class="icon">💎</span><span class="text">Clube de Sócios</span>
             </button>
             <button class="feature-btn btn-pix" onclick="abrirSecao('sec-saque-pix')">
                 <span class="icon">⚡</span><span class="text">Saque via Pix VIP</span>
             </button>
             <button class="feature-btn btn-cripto" onclick="abrirSecao('sec-saque-cripto')">
-                <span class="icon">🪙</span><span class="text">Saque via Cripto (SOL/TRX)</span>
+                <span class="icon">🪙</span><span class="text">Carteiras (MiniPay/Cripto)</span>
             </button>
             <button class="feature-btn btn-dep" onclick="abrirSecao('sec-depositar')">
-                <span class="icon">📥</span><span class="text">Depositar SolidCoins</span>
+                <span class="icon">📥</span><span class="text">Depositar SC</span>
             </button>
             <button class="feature-btn btn-trans" onclick="abrirSecao('sec-transferir')">
-                <span class="icon">💸</span><span class="text">Transferir SolidCoins</span>
+                <span class="icon">💸</span><span class="text">Transferir SC</span>
             </button>
             <button class="feature-btn btn-nfc" onclick="abrirSecao('sec-nfc')">
-                <span class="icon">💳</span><span class="text">Tecnologia NFC SolidCoin</span>
+                <span class="icon">💳</span><span class="text">Tecnologia NFC</span>
             </button>
             <button class="feature-btn btn-buygift" onclick="abrirSecao('sec-comprar-gift')">
                 <span class="icon">🎁</span><span class="text">Comprar Gift Card</span>
             </button>
             <button class="feature-btn btn-recarga" onclick="abrirSecao('sec-recarga')">
-                <span class="icon">📱</span><span class="text">Recarga de Celular</span>
+                <span class="icon">📱</span><span class="text">Recarga Celular</span>
             </button>
             <button class="feature-btn btn-resgift" onclick="abrirSecao('sec-resgatar-gift')">
-                <span class="icon">🎟️</span><span class="text">Resgatar Gift SolidCoin</span>
+                <span class="icon">🎟️</span><span class="text">Resgatar Gift SC</span>
             </button>
         </div>
 
@@ -342,20 +356,39 @@
             </div>
         </div>
 
+        <!-- ========================================================= -->
+        <!-- MÓDULO ATUALIZADO: SAQUE WEB3 & CARTEIRA MINIPAY CELO -->
+        <!-- ========================================================= -->
         <div id="sec-saque-cripto" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
-            <div class="card">
-                <h2>Saque via Cripto (SOL/TRX)</h2>
-                <p style="font-size: 0.9em; color: #aaa; margin-top: -10px;">Transfira para suas carteiras salvas seguindo os mesmos limites de vesting saudáveis da plataforma.</p>
+            <div class="card" style="border-left: 5px solid #3498db; background: linear-gradient(145deg, #0a1128, #1a2238);">
+                <h2 style="color: #3498db; margin-top: 0;">Saque via Web3 / Cripto</h2>
+                <p style="font-size: 0.9em; color: #aaa;">Solicite transferências diretas para suas carteiras salvas (Automação Web3).</p>
                 <form id="saque-form">
-                    <input type="number" id="valor-saque" placeholder="Valor do saque" step="0.01" required>
-                    <button type="submit">Solicitar Saque Cripto</button>
+                    <select id="metodo-saque-cripto" required class="input-web3" style="font-weight: bold;">
+                        <option value="" disabled selected>Escolha a Carteira de Destino</option>
+                        <option value="MiniPay">💳 Carteira MiniPay (Receber em Celo Dólar - cUSD)</option>
+                        <option value="Solana">🟣 Rede Solana (Receber SOL)</option>
+                        <option value="Tron">🔴 Rede Tron (Receber TRX / USDT)</option>
+                    </select>
+                    <input type="number" id="valor-saque" placeholder="Valor do saque em SC" step="0.01" required class="input-web3">
+                    <button type="submit" style="background: #3498db; color: #fff; width: 100%;">Solicitar Saque Web3</button>
                 </form>
-                <h3 style="margin-top: 20px; font-size: 1.1em;">Carteiras Salvas</h3>
+                
+                <hr style="border: 0; border-top: 1px dashed #333; margin: 20px 0;">
+                
+                <h3 style="margin-top: 20px; font-size: 1.1em; color: #3498db;">Salvar Minhas Carteiras</h3>
                 <form id="carteira-form">
-                    <input type="text" id="solana-wallet" placeholder="Endereço Solana (SOL)">
-                    <input type="text" id="tron-wallet" placeholder="Endereço Tron (TRX / TRC-20)">
-                    <button type="submit" class="secondary-btn">Salvar Carteiras</button>
+                    <label style="color: #aaa; font-size: 0.8em; margin-bottom: 2px; display: block;">Endereço MiniPay (Rede Celo)</label>
+                    <input type="text" id="minipay-wallet" class="input-web3" placeholder="0x...">
+                    
+                    <label style="color: #aaa; font-size: 0.8em; margin-bottom: 2px; display: block;">Endereço Solana</label>
+                    <input type="text" id="solana-wallet" class="input-web3" placeholder="SOL...">
+                    
+                    <label style="color: #aaa; font-size: 0.8em; margin-bottom: 2px; display: block;">Endereço Tron</label>
+                    <input type="text" id="tron-wallet" class="input-web3" placeholder="TRX...">
+                    
+                    <button type="submit" class="secondary-btn" style="width: 100%;">Atualizar Carteiras</button>
                 </form>
             </div>
         </div>
@@ -678,52 +711,100 @@
         }
 
         // =========================================================================
-        // LÓGICA DEFINITIVA DE CARREGAMENTO DAS IMAGENS DOS PLANOS
+        // LÓGICA DE INICIALIZAÇÃO E CARREGAMENTO DE DADOS E CARTEIRAS
         // =========================================================================
-        window.planosConfigDB = {}; // Variável global para armazenar os planos
+        window.planosConfigDB = {}; 
 
         window.addEventListener('DOMContentLoaded', () => {
             fetch('/api/dados-dashboard')
                 .then(res => res.json())
                 .then(data => {
                     if (data.sucesso) {
-                        // 1. Mostrar input de indicação se necessário
+                        // Indicação
                         if (!data.usuario.jaUsouCodigo) {
                             const bloco = document.getElementById('bloco-resgatar-indicacao');
                             if(bloco) bloco.style.display = 'block'; 
                         }
                         
-                        // 2. SALVAR AS IMAGENS DO BANCO DE DADOS (PINATA/POSTIMAGE)
+                        // Planos
                         if (data.planosImagens) {
                             window.planosConfigDB = data.planosImagens;
+                        }
+
+                        // PREENCHE AS CARTEIRAS (MINIPAY, SOLANA, TRON) SE EXISTIREM NO BD
+                        if (data.usuario) {
+                            const minipayInput = document.getElementById('minipay-wallet');
+                            if(minipayInput) minipayInput.value = data.usuario.minipayWallet || '';
+                            const solanaInput = document.getElementById('solana-wallet');
+                            if(solanaInput) solanaInput.value = data.usuario.solanaWallet || '';
+                            const tronInput = document.getElementById('tron-wallet');
+                            if(tronInput) tronInput.value = data.usuario.tronWallet || '';
                         }
                     }
                 })
                 .catch(err => console.log('Erro ao checar dados', err));
         });
 
-        // Usamos um pequeno atraso (setTimeout) para garantir que este código 
-        // seja ativado DEPOIS do scripts.js, sobrescrevendo os erros dele.
+        // =========================================================================
+        // SOBRESCREVE FORMULÁRIOS PARA A LÓGICA MINIPAY E PLANOS
+        // =========================================================================
         setTimeout(() => {
+            // Planos
             const selectPlano = document.getElementById('socio-plano');
             if(selectPlano) {
                 selectPlano.onchange = function() {
                     const plano = this.value;
                     const configs = window.planosConfigDB[plano];
-                    
                     if(configs) {
-                        // Atualiza a imagem com o link do banco de dados (Pinata)
                         document.getElementById('socio-img').src = configs.imagemUrl;
                         document.getElementById('socio-desc').innerText = `Ao aderir a esse plano o Sócio terá ${configs.sc} SolidCoins mensais.`;
-                        
-                        // Mostra os detalhes e opções de pagamento
                         document.getElementById('socio-detalhes').style.display = 'block';
                         document.getElementById('socio-pagamento').style.display = 'block';
                         document.getElementById('socio-btn').style.display = 'inline-block';
                     }
                 };
             }
-        }, 500);
+
+            // Submissão do Form de Salvar Carteiras
+            const carteiraForm = document.getElementById('carteira-form');
+            if (carteiraForm) {
+                carteiraForm.onsubmit = async function(e) {
+                    e.preventDefault();
+                    try {
+                        const res = await fetch('/api/salvar-carteira', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                solanaWallet: document.getElementById('solana-wallet').value, 
+                                tronWallet: document.getElementById('tron-wallet').value,
+                                minipayWallet: document.getElementById('minipay-wallet').value
+                            })
+                        });
+                        const data = await res.json();
+                        alert(data.mensagem);
+                    } catch(err) { alert('Erro ao salvar carteiras.'); }
+                }
+            }
+
+            // Submissão do Form de Saque Web3
+            const saqueForm = document.getElementById('saque-form');
+            if (saqueForm) {
+                saqueForm.onsubmit = async function(e) {
+                    e.preventDefault();
+                    const valor = document.getElementById('valor-saque').value;
+                    const metodo = document.getElementById('metodo-saque-cripto').value;
+                    
+                    try {
+                        const res = await fetch('/api/solicitar-saque', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ valor, metodo })
+                        });
+                        const data = await res.json();
+                        alert(data.mensagem);
+                        if (data.sucesso) window.location.reload();
+                    } catch(err) { alert('Erro na requisição de saque.'); }
+                }
+            }
+        }, 800);
     </script>
 </body>
 </html>

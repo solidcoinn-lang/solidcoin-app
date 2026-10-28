@@ -11,6 +11,37 @@ const EfiPay = require('sdk-node-apis-efi');
 const { OAuth2Client } = require('google-auth-library'); 
 
 // =========================================================================
+// --- INTEGRAÇÃO WEB3 MINIPAY (REDE CELO) ---
+// =========================================================================
+let celoProvider = null;
+let celoWallet = null;
+let cUSDContract = null;
+
+try {
+    const { ethers } = require('ethers');
+    celoProvider = new ethers.JsonRpcProvider('https://forno.celo.org');
+    
+    if (process.env.MINIPAY_SEED_PHRASE) {
+        // Conecta usando as 12 palavras-passe da Opera MiniPay
+        celoWallet = ethers.Wallet.fromPhrase(process.env.MINIPAY_SEED_PHRASE).connect(celoProvider);
+    } else if (process.env.MINIPAY_PRIVATE_KEY) {
+        celoWallet = new ethers.Wallet(process.env.MINIPAY_PRIVATE_KEY, celoProvider);
+    }
+
+    if (celoWallet) {
+        // Contrato Oficial do Celo Dólar (cUSD)
+        const cUSD_ADDRESS = "0x765DE816845861e75A25fCA122bb6898B8B1282a";
+        const erc20Abi = ["function transfer(address to, uint256 value) public returns (bool)"];
+        cUSDContract = new ethers.Contract(cUSD_ADDRESS, erc20Abi, celoWallet);
+        console.log("✅ Carteira MiniPay (Celo) conectada para pagamentos automáticos!");
+    } else {
+        console.warn("⚠️ AVISO: MINIPAY_SEED_PHRASE não encontrada nas variáveis de ambiente.");
+    }
+} catch (error) {
+    console.error("⚠️ Aviso: Biblioteca 'ethers' não instalada ou erro ao configurar carteira MiniPay.");
+}
+
+// =========================================================================
 // --- INTEGRAÇÃO EFÍ (API PIX) E GOOGLE AUTH ---
 // =========================================================================
 
@@ -301,9 +332,10 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
             planosImagens: planosDinamicos, 
             usuario: { 
                 nome: user.nome, saldo: user.saldo, stakedAmount: user.stakedAmount, canUnstakeAt: user.canUnstakeAt, 
-                solanaWallet: user.solanaWallet, tronWallet: user.tronWallet, isAdmin: user.email === ADMIN_EMAIL, 
-                statusSocio: user.statusSocio, planoSocio: user.planoSocio, vencimentoSocio: user.vencimentoSocio, 
-                codigoIndicacao: user.codigoIndicacao, limiteDeSaque: await calcularLimiteSaque(user._id, user.saldo, user.email), nfcToken: user.nfcToken || '',
+                solanaWallet: user.solanaWallet, tronWallet: user.tronWallet, minipayWallet: user.minipayWallet, // <-- CAMPO MINIPAY ADICIONADO
+                isAdmin: user.email === ADMIN_EMAIL, statusSocio: user.statusSocio, planoSocio: user.planoSocio, 
+                vencimentoSocio: user.vencimentoSocio, codigoIndicacao: user.codigoIndicacao, 
+                limiteDeSaque: await calcularLimiteSaque(user._id, user.saldo, user.email), nfcToken: user.nfcToken || '',
                 jaUsouCodigo: !!user.indicadoPor 
             },
             marketplace: produtos.map(p => ({ id: p._id, nome: p.nome, preco: p.preco, imagemUrl: p.imagemUrl, categoria: p.categoria || 'Cédulas' }))
@@ -651,7 +683,11 @@ app.post('/api/depositar', checkAuthenticated, async (req, res) => {
 
 app.post('/api/salvar-carteira', checkAuthenticated, async (req, res) => {
     try {
-        await User.findByIdAndUpdate(req.session.user.id, { solanaWallet: req.body.solanaWallet || '', tronWallet: req.body.tronWallet || '' });
+        await User.findByIdAndUpdate(req.session.user.id, { 
+            solanaWallet: req.body.solanaWallet || '', 
+            tronWallet: req.body.tronWallet || '',
+            minipayWallet: req.body.minipayWallet || '' // <-- CAMPO MINIPAY ADICIONADO
+        });
         res.json({ sucesso: true, mensagem: "Carteiras atualizadas com sucesso!" });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao salvar carteiras." }); }
 });
@@ -659,23 +695,37 @@ app.post('/api/salvar-carteira', checkAuthenticated, async (req, res) => {
 app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
     try {
         const valor = parseFloat(req.body.valor);
+        const metodo = req.body.metodo; // <-- CAMPO METODO ADICIONADO PARA ESCOLHER A REDE
         const user = await User.findById(req.session.user.id);
         
         if (!valor || valor <= 0) return res.status(400).json({ sucesso: false, mensagem: "Valor inválido." });
-        if (!user.solanaWallet && !user.tronWallet) return res.status(400).json({ sucesso: false, mensagem: "Você precisa salvar pelo menos uma carteira de saque."});
+        
+        // --- LÓGICA DE IDENTIFICAÇÃO DA CARTEIRA ESCOLHIDA ---
+        let carteiraParaSaque = '';
+        if (metodo === 'MiniPay') {
+            if (!user.minipayWallet) return res.status(400).json({ sucesso: false, mensagem: "Salve sua carteira MiniPay primeiro."});
+            carteiraParaSaque = `MiniPay: ${user.minipayWallet}`;
+        } else if (metodo === 'Solana') {
+            if (!user.solanaWallet) return res.status(400).json({ sucesso: false, mensagem: "Salve sua carteira Solana primeiro."});
+            carteiraParaSaque = `Solana: ${user.solanaWallet}`;
+        } else {
+            // Se for Tron ou fallback de clientes antigos
+            if (!user.tronWallet && !user.solanaWallet && !user.minipayWallet) return res.status(400).json({ sucesso: false, mensagem: "Você precisa salvar pelo menos uma carteira de saque."});
+            carteiraParaSaque = metodo === 'Tron' ? `Tron: ${user.tronWallet}` : (user.solanaWallet ? `Solana: ${user.solanaWallet}` : (user.tronWallet ? `Tron: ${user.tronWallet}` : `MiniPay: ${user.minipayWallet}`));
+        }
+
         if (user.saldo < valor) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente." });
         
         const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
         if (valor > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saque Bloqueado. Limite disponível: ${limiteDisponivel.toFixed(2)} SC.` });
 
-        const carteiraParaSaque = user.solanaWallet ? `Solana: ${user.solanaWallet}` : `Tron: ${user.tronWallet}`;
         user.saldo -= valor; await user.save();
 
         await Promise.all([
             new Withdrawal({ userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, solanaWallet: carteiraParaSaque, valor: valor, status: 'Pendente' }).save(),
-            new Transaction({ userId: user._id, tipo: 'Saque Cripto Solicitado', descricao: `Rede Cripto`, valor: -valor }).save()
+            new Transaction({ userId: user._id, tipo: 'Saque Cripto Solicitado', descricao: carteiraParaSaque.split(':')[0], valor: -valor }).save()
         ]);
-        res.json({ sucesso: true, mensagem: "Solicitação de saque Cripto enviada!" });
+        res.json({ sucesso: true, mensagem: `Solicitação de saque via ${carteiraParaSaque.split(':')[0]} enviada!` });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao solicitar saque." }); }
 });
 
@@ -994,11 +1044,37 @@ app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
         if (!saque || saque.status !== 'Pendente') return res.status(404).json({ sucesso: false });
         
         if (acao === 'aprovar') {
-            saque.status = 'Aprovado'; await saque.save(); res.json({ sucesso: true, mensagem: `APROVADO.`});
+            // =========================================================================
+            // LÓGICA DE PAGAMENTO AUTOMÁTICO MINIPAY (REDE CELO)
+            // =========================================================================
+            if (saque.solanaWallet && saque.solanaWallet.includes('MiniPay:')) {
+                if (!cUSDContract) return res.status(500).json({ sucesso: false, mensagem: "Erro: A carteira MiniPay do Servidor não está configurada (Falta a Seed Phrase no Render)." });
+                
+                try {
+                    const enderecoDestino = saque.solanaWallet.replace('MiniPay:', '').trim();
+                    const scRate = await getSCRate();
+                    const cotacaoDolar = 5.50; // Cotação fixa BRL->USD (cUSD)
+                    
+                    const valorBRL = saque.valor / scRate;
+                    const valorCUSD = valorBRL / cotacaoDolar;
+                    
+                    const { ethers } = require('ethers');
+                    const amountWei = ethers.parseUnits(valorCUSD.toFixed(18), 18);
+                    
+                    const tx = await cUSDContract.transfer(enderecoDestino, amountWei);
+                    saque.txId = tx.hash; // Salva o comprovante blockchain internamente
+                } catch (txError) {
+                    console.error("Falha na Blockchain Celo:", txError);
+                    return res.status(500).json({ sucesso: false, mensagem: "A transação MiniPay falhou. Verifique se o servidor tem CELO (Gás) e cUSD suficientes." });
+                }
+            }
+
+            saque.status = 'Aprovado'; await saque.save(); 
+            res.json({ sucesso: true, mensagem: `APROVADO.`});
         } else if (acao === 'rejeitar') {
             const user = await User.findById(saque.userId);
             user.saldo += saque.valor; saque.status = 'Rejeitado';
-            await Promise.all([user.save(), saque.save(), new Transaction({ userId: user._id, tipo: 'Estorno', descricao: 'Cripto', valor: saque.valor }).save()]);
+            await Promise.all([user.save(), saque.save(), new Transaction({ userId: user._id, tipo: 'Estorno', descricao: saque.solanaWallet.split(':')[0], valor: saque.valor }).save()]);
             res.json({ sucesso: true, mensagem: "REJEITADO." });
         }
     } catch (error) { res.status(500).json({ sucesso: false }); }

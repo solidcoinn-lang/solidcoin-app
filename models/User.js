@@ -7,6 +7,7 @@ const UserSchema = new mongoose.Schema({
     saldo: { type: Number, default: 0 },
     solanaWallet: { type: String, default: '' },
     tronWallet: { type: String, default: '' },
+    minipayWallet: { type: String, default: '' }, // <-- CAMPO DA MINIPAY ADICIONADO AQUI
     stakedAmount: { type: Number, default: 0 },
     canUnstakeAt: { type: Date, default: null },
     lastRewardClaim: { type: Date, default: Date.now },
