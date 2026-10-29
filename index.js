@@ -32,8 +32,6 @@ try {
         const erc20Abi = ["function transfer(address to, uint256 value) public returns (bool)"];
         usdcContract = new ethers.Contract(USDC_ADDRESS, erc20Abi, celoWallet);
         console.log("✅ Carteira MiniPay (Celo USDC) conectada para pagamentos automáticos!");
-    } else {
-        console.warn("⚠️ AVISO: MINIPAY_SEED_PHRASE não encontrada nas variáveis de ambiente.");
     }
 } catch (error) {
     console.error("⚠️ Aviso: Biblioteca 'ethers' não instalada ou erro ao configurar carteira MiniPay.");
@@ -42,16 +40,12 @@ try {
 // =========================================================================
 // --- INTEGRAÇÃO EFÍ (API PIX) E GOOGLE AUTH ---
 // =========================================================================
-
 const isSandbox = process.env.EFI_ENV !== 'producao';
 console.log(`🌍 MODO EFÍ: ${isSandbox ? 'HOMOLOGAÇÃO (TESTES)' : 'PRODUÇÃO (REAL)'}`);
 
 let googleClient = null;
 if (process.env.GOOGLE_CLIENT_ID) {
     googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-    console.log("✅ API Login do Google ativada!");
-} else {
-    console.warn("⚠️ AVISO: GOOGLE_CLIENT_ID não encontrado nas variáveis de ambiente.");
 }
 
 let certPathPF = path.join(__dirname, 'certificado.p12');
@@ -78,7 +72,6 @@ if (process.env.EFI_CLIENT_ID_PJ && process.env.EFI_CLIENT_SECRET_PJ && process.
 }
 
 // =========================================================================
-
 const User = require('./models/User');
 const Product = require('./models/Product');
 const Transaction = require('./models/Transaction');
@@ -111,29 +104,21 @@ const PLANOS_SOCIO = {
 };
 
 const ImagemConfigSchema = new mongoose.Schema({
-    chave: { type: String, required: true, unique: true },
-    url: { type: String, default: '' },
-    nomeExibicao: { type: String, default: '' }
+    chave: { type: String, required: true, unique: true }, url: { type: String, default: '' }, nomeExibicao: { type: String, default: '' }
 });
 const ImagemConfig = mongoose.models.ImagemConfig || mongoose.model('ImagemConfig', ImagemConfigSchema);
 
 const NfcOrderSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    nomeUsuario: String, emailUsuario: String, enderecoEntrega: String, nfcToken: String,
-    status: { type: String, default: 'Pendente' }, data: { type: Date, default: Date.now }
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, nomeUsuario: String, emailUsuario: String, enderecoEntrega: String, nfcToken: String, status: { type: String, default: 'Pendente' }, data: { type: Date, default: Date.now }
 });
 const NfcOrder = mongoose.models.NfcOrder || mongoose.model('NfcOrder', NfcOrderSchema);
 
 const ReferralLinkSchema = new mongoose.Schema({
-    titulo: { type: String, required: true },
-    descricao: { type: String, default: '' },
-    url: { type: String, required: true },
-    data: { type: Date, default: Date.now }
+    titulo: { type: String, required: true }, descricao: { type: String, default: '' }, url: { type: String, required: true }, data: { type: Date, default: Date.now }
 });
 const ReferralLink = mongoose.models.ReferralLink || mongoose.model('ReferralLink', ReferralLinkSchema);
 
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => { setupInicial(); }).catch(err => console.error(err));
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true }).then(() => { setupInicial(); }).catch(err => console.error(err));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -170,10 +155,10 @@ function normalizarChavePix(chave, tipo = '') {
 }
 
 // =========================================================================
-// NOVA LÓGICA DE CÁLCULO DE LIMITE (INFALÍVEL E SEPARADA)
+// CORREÇÃO INFALÍVEL: CÁLCULO DE LIMITE E VESTING DE SÓCIOS
 // =========================================================================
 async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
-    if (userEmail === ADMIN_EMAIL) return currentSaldo; // O CEO não tem limites
+    if (userEmail === ADMIN_EMAIL) return currentSaldo; // CEO tem acesso livre
     
     const txs = await Transaction.find({ userId: userId });
     let moedasBloqueadas = 0;
@@ -182,9 +167,19 @@ async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
     txs.forEach(tx => {
         // Encontra todas as vezes que o usuário RECEBEU um plano de Sócio
         if (tx.tipo === 'Assinatura Sócio SolidCoin' || tx.tipo === 'Assinatura') {
-            if (tx.valor > 0) { 
+            const valorAnalisado = parseFloat(tx.valor);
+            
+            if (!isNaN(valorAnalisado) && valorAnalisado > 0) { 
+                
+                // Extrator de Data Infalível (Para evitar falhas de NaN)
+                let dataTx = tx.data || tx.createdAt || tx.date || tx.criadoEm;
+                if (!dataTx && tx._id && typeof tx._id.getTimestamp === 'function') dataTx = tx._id.getTimestamp();
+                if (!dataTx) dataTx = Date.now();
+                
+                const timestampTx = new Date(dataTx).getTime();
+                
                 // Conta quantos meses se passaram desde a ativação
-                const mesesPassados = Math.floor(((agora - new Date(tx.data).getTime()) / (1000 * 60 * 60 * 24)) / 30);
+                const mesesPassados = Math.floor(((agora - timestampTx) / (1000 * 60 * 60 * 24)) / 30);
                 
                 // Libera 25% a cada 30 dias
                 let percentualLiberado = mesesPassados * 0.25;
@@ -192,7 +187,7 @@ async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
                 
                 // Calcula o que ainda continua preso na conta
                 const percentualBloqueado = 1.0 - percentualLiberado;
-                moedasBloqueadas += (tx.valor * percentualBloqueado);
+                moedasBloqueadas += (valorAnalisado * percentualBloqueado);
             }
         }
     });
@@ -200,7 +195,7 @@ async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
     // O limite real é o saldo da conta menos as moedas bloqueadas dos planos
     const limiteDisponivel = currentSaldo - moedasBloqueadas;
     
-    // Retorna no mínimo 0 (para evitar saldos negativos na tela se houver algum delay de banco)
+    // Retorna no mínimo 0
     return Math.max(0, limiteDisponivel);
 }
 // =========================================================================
@@ -252,21 +247,15 @@ app.post('/logout', checkAuthenticated, (req, res) => {
 });
 
 app.post('/api/auth/google', async (req, res) => {
-    if (!googleClient) return res.status(500).json({ sucesso: false, mensagem: "Google Login não configurado no servidor (Falta GOOGLE_CLIENT_ID)." });
+    if (!googleClient) return res.status(500).json({ sucesso: false, mensagem: "Google Login não configurado." });
     
     const { credential, codigoIndicacao } = req.body;
     if (!credential) return res.status(400).json({ sucesso: false, mensagem: "Token inválido." });
 
     try {
-        const ticket = await googleClient.verifyIdToken({
-            idToken: credential,
-            audience: process.env.GOOGLE_CLIENT_ID,
-        });
+        const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: process.env.GOOGLE_CLIENT_ID });
         const payload = ticket.getPayload();
-        const email = payload.email;
-        const nome = payload.name;
-        
-        let user = await User.findOne({ email });
+        let user = await User.findOne({ email: payload.email });
         
         if (!user) {
             const admin = await User.findOne({ email: ADMIN_EMAIL });
@@ -287,26 +276,18 @@ app.post('/api/auth/google', async (req, res) => {
                 referrer.saldo += 250; admin.saldo -= 500; 
                 await Promise.all([
                     referrer.save(), admin.save(),
-                    new Transaction({ userId: referrer._id, tipo: 'Bônus de Indicação', descricao: `Você convidou ${nome} (Google)`, valor: 250 }).save(),
-                    new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Bônus para ${referrer.nome}`, valor: -500 }).save()
+                    new Transaction({ userId: referrer._id, tipo: 'Bônus de Indicação', descricao: `Google`, valor: 250 }).save(),
+                    new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Bônus`, valor: -500 }).save()
                 ]);
             }
-
-            user = new User({ nome, email, senha: senhaHash, saldo: saldoInicial, codigoIndicacao: novoCodigoUnico, indicadoPor: indicadoPorId });
+            user = new User({ nome: payload.name, email: payload.email, senha: senhaHash, saldo: saldoInicial, codigoIndicacao: novoCodigoUnico, indicadoPor: indicadoPorId });
             await user.save();
-
-            if (saldoInicial > 0) {
-                await new Transaction({ userId: user._id, tipo: 'Bônus de Boas-Vindas', descricao: `Código de indicação`, valor: 250 }).save();
-            }
+            if (saldoInicial > 0) { await new Transaction({ userId: user._id, tipo: 'Bônus de Boas-Vindas', descricao: `Google`, valor: 250 }).save(); }
         }
         
         req.session.user = { id: user._id, nome: user.nome, email: user.email };
         res.json({ sucesso: true, redirecionar: '/dashboard.html' });
-        
-    } catch (error) {
-        console.error("Erro no Google Auth:", error);
-        res.status(401).json({ sucesso: false, mensagem: "Erro ao validar conta do Google. Tente novamente." });
-    }
+    } catch (error) { res.status(401).json({ sucesso: false, mensagem: "Erro Auth." }); }
 });
 
 app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
@@ -335,9 +316,7 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
         imagensConfig.forEach(img => {
             if (img.chave.startsWith('plano_') && img.url) {
                 const planoNome = img.chave.replace('plano_', '');
-                if (planosDinamicos[planoNome]) {
-                    planosDinamicos[planoNome].imagemUrl = img.url;
-                }
+                if (planosDinamicos[planoNome]) planosDinamicos[planoNome].imagemUrl = img.url;
             }
         });
 
@@ -470,7 +449,6 @@ app.post('/api/nfc/transferir-aproximacao', checkAuthenticated, async (req, res)
         if (!destinatario) return res.status(404).json({ sucesso: false, mensagem: "Cartão NFC não reconhecido." });
         if (remetente._id.toString() === destinatario._id.toString()) return res.status(400).json({ sucesso: false, mensagem: "Não pode enviar para si mesmo." });
         
-        // --- PROTEÇÃO DO PLANO SÓCIO (NFC) ---
         const limiteDisponivel = await calcularLimiteSaque(remetente._id, remetente.saldo, remetente.email);
         if (valorNum > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saldo bloqueado pelo vesting de Sócio. Disponível: ${limiteDisponivel.toFixed(2)} SC.` });
 
@@ -497,7 +475,6 @@ app.post('/api/nfc/cobrar-aproximacao', checkAuthenticated, async (req, res) => 
         if (!pagador) return res.status(404).json({ sucesso: false, mensagem: "Cartão NFC não reconhecido." });
         if (recebedor._id.toString() === pagador._id.toString()) return res.status(400).json({ sucesso: false, mensagem: "Inválido." });
         
-        // --- PROTEÇÃO DO PLANO SÓCIO (NFC) ---
         const limiteDisponivel = await calcularLimiteSaque(pagador._id, pagador.saldo, pagador.email);
         if (valorNum > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saldo insuficiente no cartão de ${pagador.nome} (moedas bloqueadas).` });
 
@@ -553,9 +530,7 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
             await novaOrdem.save();
             res.json({ sucesso: true, mensagem: `Aviso enviado!` });
         }
-    } catch (error) { 
-        res.status(500).json({ sucesso: false, mensagem: "Erro ao gerar cobrança Pix na conta PF." }); 
-    }
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao gerar cobrança Pix na conta PF." }); }
 });
 
 app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
@@ -564,21 +539,13 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
         const valorNum = parseFloat(valorSC);
 
         if (!valorNum || valorNum <= 0 || !tipoChave || !chavePix) return res.status(400).json({ sucesso: false, mensagem: "Dados inválidos." });
-
-        if (!efipayPJ) {
-            return res.status(500).json({ sucesso: false, mensagem: "A API de Pagamentos PJ não está configurada no servidor." });
-        }
+        if (!efipayPJ) return res.status(500).json({ sucesso: false, mensagem: "A API de Pagamentos PJ não está configurada no servidor." });
 
         const user = await User.findById(req.session.user.id);
-        if (user.statusSocio !== 'Ativo') {
-            return res.status(403).json({ sucesso: false, mensagem: "Exclusivo para Sócios ativos." });
-        }
+        if (user.statusSocio !== 'Ativo') return res.status(403).json({ sucesso: false, mensagem: "Exclusivo para Sócios ativos." });
         
-        // --- PROTEÇÃO DO PLANO SÓCIO ---
         const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
-        if (valorNum > limiteDisponivel) {
-            return res.status(400).json({ sucesso: false, mensagem: `Saque Bloqueado pelo Plano de Sócio! Valor 100% livre na conta: ${limiteDisponivel.toFixed(2)} SC.` });
-        }
+        if (valorNum > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saque Bloqueado pelo Plano de Sócio! Valor 100% livre na conta: ${limiteDisponivel.toFixed(2)} SC.` });
 
         const chaveFavorecidoLimpa = normalizarChavePix(chavePix, tipoChave);
         const chavePagadorLimpa = normalizarChavePix(process.env.EFI_PIX_KEY_PJ); 
@@ -590,9 +557,7 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
         const idEnvio = crypto.randomBytes(16).toString('hex');
 
         let bodyEnvioPix = {
-            valor: valorBRL.toFixed(2),
-            pagador: { chave: chavePagadorLimpa }, 
-            favorecido: { chave: chaveFavorecidoLimpa } 
+            valor: valorBRL.toFixed(2), pagador: { chave: chavePagadorLimpa }, favorecido: { chave: chaveFavorecidoLimpa } 
         };
 
         try {
@@ -608,8 +573,7 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
 
             const novoSaquePix = new PixWithdrawal({
                 userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, chavePix: chaveFavorecidoLimpa, tipoChavePix: tipoChave,
-                valorSC: valorNum, taxaSC: taxaSC, valorBRL: valorBRL, 
-                status: 'Aprovado', txId: envioResponse.e2eId || envioResponse.idEnvio || idEnvio
+                valorSC: valorNum, taxaSC: taxaSC, valorBRL: valorBRL, status: 'Aprovado', txId: envioResponse.e2eId || envioResponse.idEnvio || idEnvio
             });
 
             await Promise.all([
@@ -622,11 +586,9 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
             
         } catch (erroPix) {
             user.saldo -= valorNum; 
-            
             const novoSaquePix = new PixWithdrawal({
                 userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, chavePix: chaveFavorecidoLimpa, tipoChavePix: tipoChave,
-                valorSC: valorNum, taxaSC: taxaSC, valorBRL: valorBRL, 
-                status: 'Pendente', txId: 'Aguardando CEO'
+                valorSC: valorNum, taxaSC: taxaSC, valorBRL: valorBRL, status: 'Pendente', txId: 'Aguardando CEO'
             });
 
             await Promise.all([
@@ -718,9 +680,7 @@ app.post('/api/admin/ativar-webhook-efi', isAdmin, async (req, res) => {
         
         const response = await efipayPF.pixConfigWebhook({ chave: chave }, { webhookUrl: webhookUrl });
         res.json({ sucesso: true, mensagem: "Webhook cadastrado na Efí PF com sucesso!", detalhes: response });
-    } catch (error) {
-        res.status(500).json({ sucesso: false, mensagem: `A Efí PF recusou o cadastro do webhook.` });
-    }
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: `A Efí PF recusou o cadastro do webhook.` }); }
 });
 
 app.post('/api/depositar', checkAuthenticated, async (req, res) => {
@@ -738,9 +698,7 @@ app.post('/api/depositar', checkAuthenticated, async (req, res) => {
 app.post('/api/salvar-carteira', checkAuthenticated, async (req, res) => {
     try {
         await User.findByIdAndUpdate(req.session.user.id, { 
-            solanaWallet: req.body.solanaWallet || '', 
-            tronWallet: req.body.tronWallet || '',
-            minipayWallet: req.body.minipayWallet || '' 
+            solanaWallet: req.body.solanaWallet || '', tronWallet: req.body.tronWallet || '', minipayWallet: req.body.minipayWallet || '' 
         });
         res.json({ sucesso: true, mensagem: "Carteiras atualizadas com sucesso!" });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao salvar carteiras." }); }
@@ -766,9 +724,8 @@ app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
             carteiraParaSaque = metodo === 'Tron' ? `Tron: ${user.tronWallet}` : (user.solanaWallet ? `Solana: ${user.solanaWallet}` : (user.tronWallet ? `Tron: ${user.tronWallet}` : `MiniPay: ${user.minipayWallet}`));
         }
         
-        // --- PROTEÇÃO DO PLANO SÓCIO ---
         const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
-        if (valor > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saque Bloqueado pelo Plano de Sócio! Valor 100% livre na conta: ${limiteDisponivel.toFixed(2)} SC.` });
+        if (valor > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saque Bloqueado pelo Plano de Sócio! Valor livre na conta: ${limiteDisponivel.toFixed(2)} SC.` });
 
         user.saldo -= valor; await user.save();
 
@@ -797,7 +754,6 @@ app.post('/api/staking/stake', checkAuthenticated, async (req, res) => {
         const valor = parseFloat(req.body.valor);
         const user = await User.findById(req.session.user.id);
         
-        // --- PROTEÇÃO DO PLANO SÓCIO (Staking requer saldo livre para evitar abusos com moedas bloqueadas) ---
         const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
         if (valor > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Operação bloqueada pelo vesting! Saldo livre disponível para aplicar: ${limiteDisponivel.toFixed(2)} SC.` });
 
@@ -860,7 +816,6 @@ app.post('/api/giftcard/comprar', checkAuthenticated, async (req, res) => {
         const valorSC = valorR * scRate;
         const [user, admin] = await Promise.all([ User.findById(req.session.user.id), User.findOne({ email: ADMIN_EMAIL }) ]);
         
-        // --- PROTEÇÃO DO PLANO SÓCIO (Impedir compras com moedas bloqueadas) ---
         const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
         if (valorSC > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Operação bloqueada pelo vesting! Saldo livre disponível para uso: ${limiteDisponivel.toFixed(2)} SC.` });
 
@@ -878,7 +833,6 @@ app.post('/api/recharge/comprar', checkAuthenticated, async (req, res) => {
         const valorSC = parseFloat(valorReais) * scRate;
         const [user, admin] = await Promise.all([ User.findById(req.session.user.id), User.findOne({ email: ADMIN_EMAIL }) ]);
         
-        // --- PROTEÇÃO DO PLANO SÓCIO (Impedir recargas com moedas bloqueadas) ---
         const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
         if (valorSC > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Operação bloqueada pelo vesting! Saldo livre disponível para uso: ${limiteDisponivel.toFixed(2)} SC.` });
 
@@ -898,7 +852,6 @@ app.post('/api/transferir', checkAuthenticated, async (req, res) => {
         const destinatario = await User.findOne({ email: emailDestinatario });
         if (!destinatario || remetente.email === destinatario.email) return res.status(400).json({ sucesso: false, mensagem: "Destinatário inválido." });
         
-        // --- PROTEÇÃO DO PLANO SÓCIO (Impedir lavagem de moedas transferindo para outras contas) ---
         const limiteDisponivel = await calcularLimiteSaque(remetente._id, remetente.saldo, remetente.email);
         if (valorNum > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Transferência bloqueada pelo vesting do Sócio! Saldo livre para envio: ${limiteDisponivel.toFixed(2)} SC.` });
         

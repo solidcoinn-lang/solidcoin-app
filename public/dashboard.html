@@ -610,7 +610,6 @@
             if(idSecao === 'sec-investimentos') {
                 carregarAtivosInvestimento();
             }
-            // Sempre que abrir a seção de links, exige o desbloqueio de 10 SC
             if(idSecao === 'sec-links-ref') {
                 document.getElementById('bloqueio-links-box').style.display = 'block';
                 document.getElementById('conteudo-links-box').style.display = 'none';
@@ -624,7 +623,6 @@
             document.getElementById('menu-botoes').style.display = 'grid';
         };
 
-        // --- FUNÇÃO QUE COBRA 10 SC E ABRE A PÁGINA DE LINKS DE REFERÊNCIA ---
         window.desbloquearPaginaLinks = async function() {
             if (!confirm('Deseja pagar 10 SolidCoins para abrir a página de Links de Referência oficiais?')) return;
 
@@ -639,7 +637,6 @@
                     return alert(data.mensagem || 'Não foi possível desbloquear os links.');
                 }
 
-                // Atualiza o saldo na tela
                 const saldoEl = document.getElementById('saldo-usuario');
                 const cotacaoEl = document.getElementById('cotacao-atual');
                 const saldoReaisEl = document.getElementById('saldo-reais');
@@ -649,7 +646,6 @@
                     if (saldoReaisEl) saldoReaisEl.innerText = (data.novoSaldo / cot).toFixed(2);
                 }
 
-                // Esconde o bloqueio e exibe os links cadastrados pelo ADM
                 document.getElementById('bloqueio-links-box').style.display = 'none';
                 document.getElementById('conteudo-links-box').style.display = 'block';
 
@@ -800,15 +796,31 @@
         }
 
         // =========================================================================
-        // INICIALIZAÇÃO DOS DADOS E LÓGICA DINÂMICA (MINIPAY/SOLANA/TRON)
+        // INICIALIZAÇÃO DOS DADOS E CORREÇÃO DO LIMITE DE SAQUE NA TELA
         // =========================================================================
         window.planosConfigDB = {}; 
 
         window.addEventListener('DOMContentLoaded', () => {
+            // 1. O Guardião: Força a atualização do limite correto a cada 3 segundos
+            setInterval(() => {
+                fetch('/api/dados-dashboard').then(res => res.json()).then(data => {
+                    if (data.sucesso && data.usuario) {
+                        const limiteEl = document.getElementById('limite-saque-usuario');
+                        if (limiteEl) {
+                            limiteEl.innerText = data.usuario.limiteDeSaque.toFixed(2);
+                        }
+                    }
+                }).catch(e => {});
+            }, 3000);
+
+            // 2. Carregamento inicial padrão
             fetch('/api/dados-dashboard')
                 .then(res => res.json())
                 .then(data => {
                     if (data.sucesso) {
+                        const limiteEl = document.getElementById('limite-saque-usuario');
+                        if (limiteEl && data.usuario) limiteEl.innerText = data.usuario.limiteDeSaque.toFixed(2);
+
                         if (!data.usuario.jaUsouCodigo) {
                             const bloco = document.getElementById('bloco-resgatar-indicacao');
                             if(bloco) bloco.style.display = 'block'; 
@@ -828,7 +840,6 @@
         });
 
         setTimeout(() => {
-            // Lógica dos Planos de Sócio
             const selectPlano = document.getElementById('socio-plano');
             if(selectPlano) {
                 selectPlano.onchange = function() {
@@ -844,7 +855,6 @@
                 };
             }
 
-            // --- LÓGICA DINÂMICA DE ESCOLHA DA REDE DE SAQUE (MINIPAY, SOLANA, TRON) ---
             const selector = document.getElementById('metodo-saque-cripto');
             const areaOperacao = document.getElementById('area-operacao-cripto');
             const tituloRede = document.getElementById('titulo-rede-selecionada');
@@ -877,7 +887,6 @@
                 });
             }
 
-            // Submissão do Form de Salvar Carteiras
             const carteiraForm = document.getElementById('carteira-form');
             if (carteiraForm) {
                 carteiraForm.onsubmit = async function(e) {
@@ -897,7 +906,6 @@
                 }
             }
 
-            // Submissão do Form de Saque Web3
             const saqueForm = document.getElementById('saque-form');
             if (saqueForm) {
                 saqueForm.onsubmit = async function(e) {
@@ -919,4 +927,4 @@
         }, 800);
     </script>
 </body>
-</html>
+</html> tem algum erro?
