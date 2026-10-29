@@ -83,7 +83,6 @@ const Deposit = require('./models/Deposit');
 const SocioOrder = require('./models/SocioOrder'); 
 const SystemSettings = require('./models/SystemSettings'); 
 const PixWithdrawal = require('./models/PixWithdrawal');
-const ReferralLink = require('./models/ReferralLink');
 
 const investimentosRoutes = require('./routes/investimentos'); 
 
@@ -113,6 +112,12 @@ const NfcOrderSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, nomeUsuario: String, emailUsuario: String, enderecoEntrega: String, nfcToken: String, status: { type: String, default: 'Pendente' }, data: { type: Date, default: Date.now }
 });
 const NfcOrder = mongoose.models.NfcOrder || mongoose.model('NfcOrder', NfcOrderSchema);
+
+// --- MODELO DOS LINKS RESTAURADO AQUI NO INDEX.JS ---
+const ReferralLinkSchema = new mongoose.Schema({
+    titulo: { type: String, required: true }, descricao: { type: String, default: '' }, url: { type: String, required: true }, data: { type: Date, default: Date.now }
+});
+const ReferralLink = mongoose.models.ReferralLink || mongoose.model('ReferralLink', ReferralLinkSchema);
 
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true }).then(() => { setupInicial(); }).catch(err => console.error(err));
 
@@ -335,6 +340,8 @@ app.post('/api/links-referencia/acessar', checkAuthenticated, async (req, res) =
                 promises.push(new Transaction({ userId: admin._id, tipo: 'Recebimento Acesso Links', descricao: `Pago por ${user.nome}`, valor: TAXA_ACESSO }).save());
             }
             await Promise.all(promises);
+        } else {
+            await new Transaction({ userId: user._id, tipo: 'Teste Acesso Links (CEO)', descricao: 'Acesso administrativo aos links', valor: 0 }).save();
         }
 
         const links = await ReferralLink.find({}).sort({ data: -1 });
@@ -856,9 +863,6 @@ app.get('/api/extrato', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: 'Erro extrato.' }); }
 });
 
-// =========================================================================
-// ROBÔ DE SUPORTE INTELIGENTE (SOLIDBOT)
-// =========================================================================
 app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
     try {
         const { mensagem } = req.body;
@@ -893,8 +897,6 @@ app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
         res.status(500).json({ sucesso: false, resposta: "Desculpe, meu cérebro digital está reiniciando. Tente novamente em alguns segundos." });
     }
 });
-
-// =========================================================================
 
 app.get('/api/admin/listar-imagens', isAdmin, async (req, res) => {
     try {
