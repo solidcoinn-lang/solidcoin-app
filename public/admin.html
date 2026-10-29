@@ -70,6 +70,7 @@
         .btn-nfc { border-bottom: 4px solid #00cec9; }
         .btn-acoes { border-bottom: 4px solid #ff4757; } 
         .btn-imagens { border-bottom: 4px solid #e84393; }
+        .btn-links-adm { border-bottom: 4px solid #00ff88; }
 
         .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -98,10 +99,12 @@
 
         <!-- MENU DE BOTÕES DO ADM -->
         <div id="menu-botoes" class="feature-grid">
+            <button class="feature-btn btn-links-adm" onclick="abrirSecaoPainel('sec-links-adm')">
+                <span class="icon">🔗</span><span class="text">Gerenciar Links Ref</span>
+            </button>
             <button class="feature-btn btn-users" onclick="abrirSecaoPainel('sec-usuarios')">
                 <span class="icon">👥</span><span class="text">Gerenciar Usuários</span>
             </button>
-            <!-- NOVO BOTÃO: GERENCIAR IMAGENS -->
             <button class="feature-btn btn-imagens" onclick="abrirSecaoPainel('sec-imagens')">
                 <span class="icon">🖼️</span><span class="text">Gerenciar Imagens</span>
             </button>
@@ -142,7 +145,38 @@
 
         <!-- SEÇÕES OCULTAS DO ADM -->
 
-        <!-- NOVA SEÇÃO: GERENCIAR IMAGENS -->
+        <!-- NOVA SEÇÃO: GERENCIAR LINKS DE REFERÊNCIA -->
+        <div id="sec-links-adm" class="feature-section">
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #00ff88;">
+                <h2 style="margin-top: 0; color: #00ff88;">🔗 Gerenciar Links de Referência (Acesso 10 SC)</h2>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Cadastre os links de plataformas parceiras. Os usuários pagam 10 SolidCoins (que voltam para o saldo do CEO) toda vez que abrem a página de links no Dashboard.</p>
+                
+                <div style="display: flex; gap: 10px; margin-top: 15px; align-items: center; flex-wrap: wrap; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333;">
+                    <input type="text" id="titulo-link-adm" class="input-admin" placeholder="Nome/Título (Ex: MultSense)" style="flex: 1; min-width: 180px;">
+                    <input type="text" id="desc-link-adm" class="input-admin" placeholder="Breve descrição da plataforma..." style="flex: 2; min-width: 220px;">
+                    <input type="text" id="url-link-adm" class="input-admin" placeholder="URL (Ex: https://multsense.com.br/?ref=SolidCoin)" style="flex: 2; min-width: 250px;">
+                    <button onclick="adicionarLinkAdmin()" class="btn-admin" style="background-color: #00ff88; color: #000; min-width: 160px;">➕ Adicionar Link</button>
+                </div>
+
+                <h3 style="color: #00ff88; margin-top: 30px;">Links Ativos no Sistema</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Título</th>
+                            <th>Descrição</th>
+                            <th>URL de Cadastro</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-links-adm">
+                        <tr><td colspan="4" style="text-align: center;">Carregando links...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- GERENCIAR IMAGENS -->
         <div id="sec-imagens" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #e84393;">
@@ -514,7 +548,7 @@
     <!-- 1º CARREGA O SCRIPT ANTIGO COM A LOGICA DA MINIPAY -->
     <script src="admin-scripts.js"></script>
 
-    <!-- 2º SCRIPT COM AS NOVAS FUNÇÕES DE IMAGEM E ATIVOS -->
+    <!-- 2º SCRIPT COM AS FUNÇÕES DE LINKS, IMAGEM E ATIVOS -->
     <script>
         window.fecharTodasSecoes = function() {
             const secoes = document.querySelectorAll('.feature-section');
@@ -539,9 +573,85 @@
             if (idSecao === 'sec-acoes') {
                 carregarAtivos();
             }
-            // NOVA ROTA PARA CARREGAR AS IMAGENS DO SISTEMA
             if (idSecao === 'sec-imagens') {
                 carregarImagensSistema();
+            }
+            if (idSecao === 'sec-links-adm') {
+                carregarLinksAdmin();
+            }
+        };
+
+        // ==========================================
+        // GESTÃO DE LINKS DE REFERÊNCIA DO ADM
+        // ==========================================
+        window.carregarLinksAdmin = async function() {
+            const tbody = document.getElementById('tabela-links-adm');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Carregando links...</td></tr>';
+
+            try {
+                const res = await fetch('/api/admin/links-referencia');
+                const data = await res.json();
+
+                tbody.innerHTML = '';
+                if (!data.sucesso || !data.links || data.links.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #888;">Nenhum link cadastrado ainda.</td></tr>';
+                    return;
+                }
+
+                data.links.forEach(link => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong style="color: #00ff88;">${link.titulo}</strong></td>
+                        <td>${link.descricao || '-'}</td>
+                        <td><a href="${link.url}" target="_blank" style="color: #d4af37; word-break: break-all;">${link.url}</a></td>
+                        <td>
+                            <button class="rejeitar-btn" onclick="excluirLinkAdmin('${link._id}')">Excluir</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #e74c3c;">Erro ao carregar links.</td></tr>';
+            }
+        };
+
+        window.adicionarLinkAdmin = async function() {
+            const titulo = document.getElementById('titulo-link-adm').value;
+            const descricao = document.getElementById('desc-link-adm').value;
+            const url = document.getElementById('url-link-adm').value;
+
+            if (!titulo || !url) return alert('Preencha pelo menos o Título e a URL do link!');
+
+            try {
+                const res = await fetch('/api/admin/links-referencia/adicionar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ titulo, descricao, url })
+                });
+                const data = await res.json();
+                alert(data.mensagem);
+                if (data.sucesso) {
+                    document.getElementById('titulo-link-adm').value = '';
+                    document.getElementById('desc-link-adm').value = '';
+                    document.getElementById('url-link-adm').value = '';
+                    carregarLinksAdmin();
+                }
+            } catch (err) {
+                alert('Erro ao cadastrar novo link.');
+            }
+        };
+
+        window.excluirLinkAdmin = async function(id) {
+            if (!confirm('Tem certeza que deseja remover este link de referência?')) return;
+
+            try {
+                const res = await fetch(`/api/admin/links-referencia/excluir/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                alert(data.mensagem);
+                if (data.sucesso) carregarLinksAdmin();
+            } catch (err) {
+                alert('Erro ao excluir o link.');
             }
         };
 
@@ -560,7 +670,6 @@
                     tabelaPlanos.innerHTML = '';
                     tabelaProdutos.innerHTML = '';
 
-                    // Preenche a tabela de Planos
                     if (data.planos.length > 0) {
                         data.planos.forEach(p => {
                             tabelaPlanos.innerHTML += `
@@ -576,7 +685,6 @@
                         tabelaPlanos.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhum plano encontrado.</td></tr>';
                     }
 
-                    // Preenche a tabela de Produtos do Marketplace
                     if (data.produtos.length > 0) {
                         data.produtos.forEach(p => {
                             tabelaProdutos.innerHTML += `

@@ -52,6 +52,7 @@
         .btn-nfc { border-bottom: 4px solid #00cec9; }
         .btn-tarefas { border-bottom: 4px solid #8e44ad; }
         .btn-invest { border-bottom: 4px solid #f39c12; }
+        .btn-links { border-bottom: 4px solid #00ff88; }
 
         .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -107,6 +108,9 @@
         </div>
 
         <div id="menu-botoes" class="feature-grid">
+            <button class="feature-btn btn-links" onclick="abrirSecao('sec-links-ref')">
+                <span class="icon">🔗</span><span class="text">Links & Parcerias (10 SC)</span>
+            </button>
             <button class="feature-btn btn-invest" onclick="abrirSecao('sec-investimentos')">
                 <span class="icon">📈</span><span class="text">Mercado (FIIs & Ações)</span>
             </button>
@@ -149,6 +153,32 @@
             <button class="feature-btn btn-resgift" onclick="abrirSecao('sec-resgatar-gift')">
                 <span class="icon">🎟️</span><span class="text">Resgatar Gift SC</span>
             </button>
+        </div>
+
+        <!-- NOVA SEÇÃO: MURAL DE LINKS DE REFERÊNCIA (COBRA 10 SC) -->
+        <div id="sec-links-ref" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
+            <div class="card" style="border-left: 5px solid #00ff88; background: linear-gradient(145deg, #071a12, #0d2a1e);">
+                <h2 style="color: #00ff88; margin-top: 0;">🔗 Links de Referência & Oportunidades</h2>
+                <p style="color: #ddd; font-size: 0.95em;">Acesse plataformas parceiras selecionadas pela administração da SolidCoin para você se cadastrar e aproveitar vantagens exclusivas.</p>
+
+                <!-- TELA DE BLOQUEIO (COBRANÇA DE 10 SC) -->
+                <div id="bloqueio-links-box" style="background: #0a0a0a; border: 2px dashed #00ff88; border-radius: 12px; padding: 35px 20px; text-align: center; margin-top: 20px;">
+                    <div style="font-size: 3em; margin-bottom: 10px;">🔒</div>
+                    <h3 style="color: #d4af37; margin: 0 0 10px 0;">Acesso Exclusivo aos Links Oficiais</h3>
+                    <p style="color: #aaa; font-size: 0.95em; max-width: 500px; margin: 0 auto 20px auto; line-height: 1.5;">
+                        Para abrir a página com os links de cadastro recomendados pelo ADM, é cobrada uma taxa de acesso de <strong style="color: #00ff88;">10 SolidCoins</strong>.
+                    </p>
+                    <button onclick="desbloquearPaginaLinks()" style="background: #00ff88; color: #000; font-weight: bold; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 1.05em; max-width: 350px; width: 100%; transition: 0.3s;">
+                        🔓 Pagar 10 SC e Abrir Links
+                    </button>
+                </div>
+
+                <!-- CONTEÚDO DESBLOQUEADO COM OS LINKS -->
+                <div id="conteudo-links-box" style="display: none; margin-top: 20px;">
+                    <div id="lista-links-referencia" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px;"></div>
+                </div>
+            </div>
         </div>
 
         <div id="sec-investimentos" class="feature-section">
@@ -353,7 +383,7 @@
         </div>
 
         <!-- ========================================================= -->
-        <!-- MÓDULO CORRIGIDO: SAQUE WEB3 & CARTEIRAS DINÂMICAS -->
+        <!-- MÓDULO SAQUE WEB3 & CARTEIRAS DINÂMICAS -->
         <!-- ========================================================= -->
         <div id="sec-saque-cripto" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
@@ -377,7 +407,6 @@
                         <form id="carteira-form" style="margin-bottom: 20px; background: #0a0a0a; padding: 15px; border-radius: 6px; border: 1px solid #222;">
                             <label style="color: #d4af37; font-size: 0.9em; margin-bottom: 8px; display: block; font-weight: bold;">1. Salve ou Atualize sua Carteira:</label>
                             
-                            <!-- DIVS PARA CADA INPUT COM A SUA PRÓPRIA LABEL ESCONDIDA POR DEFEITO -->
                             <div id="div-minipay" style="display: none;">
                                 <label style="color: #aaa; font-size: 0.8em; margin-bottom: 2px; display: block;">Endereço MiniPay (Rede Celo)</label>
                                 <input type="text" id="minipay-wallet" class="input-web3" placeholder="Ex: 0x..." style="margin-bottom: 10px;">
@@ -581,12 +610,75 @@
             if(idSecao === 'sec-investimentos') {
                 carregarAtivosInvestimento();
             }
+            // Sempre que abrir a seção de links, exige o desbloqueio de 10 SC
+            if(idSecao === 'sec-links-ref') {
+                document.getElementById('bloqueio-links-box').style.display = 'block';
+                document.getElementById('conteudo-links-box').style.display = 'none';
+                document.getElementById('lista-links-referencia').innerHTML = '';
+            }
         };
 
         window.voltarMenu = function() {
             const secoes = document.querySelectorAll('.feature-section');
             secoes.forEach(sec => sec.style.display = 'none');
             document.getElementById('menu-botoes').style.display = 'grid';
+        };
+
+        // --- FUNÇÃO QUE COBRA 10 SC E ABRE A PÁGINA DE LINKS DE REFERÊNCIA ---
+        window.desbloquearPaginaLinks = async function() {
+            if (!confirm('Deseja pagar 10 SolidCoins para abrir a página de Links de Referência oficiais?')) return;
+
+            try {
+                const res = await fetch('/api/links-referencia/acessar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+
+                if (!data.sucesso) {
+                    return alert(data.mensagem || 'Não foi possível desbloquear os links.');
+                }
+
+                // Atualiza o saldo na tela
+                const saldoEl = document.getElementById('saldo-usuario');
+                const cotacaoEl = document.getElementById('cotacao-atual');
+                const saldoReaisEl = document.getElementById('saldo-reais');
+                if (saldoEl && data.novoSaldo !== undefined) {
+                    saldoEl.innerText = parseFloat(data.novoSaldo).toFixed(2);
+                    const cot = parseFloat(cotacaoEl ? cotacaoEl.innerText : 500) || 500;
+                    if (saldoReaisEl) saldoReaisEl.innerText = (data.novoSaldo / cot).toFixed(2);
+                }
+
+                // Esconde o bloqueio e exibe os links cadastrados pelo ADM
+                document.getElementById('bloqueio-links-box').style.display = 'none';
+                document.getElementById('conteudo-links-box').style.display = 'block';
+
+                const container = document.getElementById('lista-links-referencia');
+                container.innerHTML = '';
+
+                if (!data.links || data.links.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; color: #aaa; padding: 20px;">Nenhum link cadastrado pelo ADM no momento.</div>';
+                    return;
+                }
+
+                data.links.forEach(link => {
+                    const card = document.createElement('div');
+                    card.style.cssText = 'background: #111; border: 1px solid #00ff88; padding: 20px; border-radius: 10px; text-align: left; display: flex; flex-direction: column; justify-content: space-between;';
+                    card.innerHTML = `
+                        <div>
+                            <h3 style="margin: 0 0 8px 0; color: #00ff88; font-size: 1.2em;">🔗 ${link.titulo}</h3>
+                            <p style="margin: 0 0 15px 0; font-size: 0.9em; color: #ccc; line-height: 1.4;">${link.descricao || 'Cadastre-se através do nosso link oficial de parceiro.'}</p>
+                        </div>
+                        <a href="${link.url}" target="_blank" style="display: block; text-align: center; background: #d4af37; color: #000; font-weight: bold; text-decoration: none; padding: 12px; border-radius: 6px; transition: 0.3s;">
+                            🚀 Acessar e Cadastrar
+                        </a>
+                    `;
+                    container.appendChild(card);
+                });
+
+            } catch (error) {
+                alert('Erro de conexão com o servidor ao tentar abrir os links.');
+            }
         };
 
         async function carregarAtivosInvestimento() {
@@ -757,22 +849,18 @@
             const areaOperacao = document.getElementById('area-operacao-cripto');
             const tituloRede = document.getElementById('titulo-rede-selecionada');
             
-            // Aqui apanhamos as 3 DIVS que criámos acima (que têm a label + input juntas)
             const divMinipay = document.getElementById('div-minipay');
             const divSolana = document.getElementById('div-solana');
             const divTron = document.getElementById('div-tron');
 
             if (selector) {
                 selector.addEventListener('change', function() {
-                    // Revela a área inferior ao escolher a rede
                     areaOperacao.style.display = 'block';
                     
-                    // Esconde os blocos inteiros primeiro (label + input)
                     divMinipay.style.display = 'none';
                     divSolana.style.display = 'none';
                     divTron.style.display = 'none';
 
-                    // Mostra apenas o selecionado e altera a mensagem do Título
                     if (this.value === 'MiniPay') {
                         tituloRede.innerHTML = '💳 Carteira Celo (MiniPay)';
                         tituloRede.style.color = '#2ecc71';

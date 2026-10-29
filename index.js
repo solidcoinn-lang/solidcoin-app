@@ -126,6 +126,15 @@ const NfcOrderSchema = new mongoose.Schema({
 });
 const NfcOrder = mongoose.models.NfcOrder || mongoose.model('NfcOrder', NfcOrderSchema);
 
+// --- NOVO MODELO: LINKS DE REFERÊNCIA DO ADM ---
+const ReferralLinkSchema = new mongoose.Schema({
+    titulo: { type: String, required: true },
+    descricao: { type: String, default: '' },
+    url: { type: String, required: true },
+    data: { type: Date, default: Date.now }
+});
+const ReferralLink = mongoose.models.ReferralLink || mongoose.model('ReferralLink', ReferralLinkSchema);
+
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => { setupInicial(); }).catch(err => console.error(err));
 
@@ -232,7 +241,7 @@ app.post('/logout', checkAuthenticated, (req, res) => {
 });
 
 // =========================================================================
-// ROTA NOVA: LOGIN E CADASTRO VIA GOOGLE
+// ROTA: LOGIN E CADASTRO VIA GOOGLE
 // =========================================================================
 app.post('/api/auth/google', async (req, res) => {
     if (!googleClient) return res.status(500).json({ sucesso: false, mensagem: "Google Login não configurado no servidor (Falta GOOGLE_CLIENT_ID)." });
@@ -251,13 +260,11 @@ app.post('/api/auth/google', async (req, res) => {
         
         let user = await User.findOne({ email });
         
-        // Se usuário não existe, faz o cadastro automático
         if (!user) {
             const admin = await User.findOne({ email: ADMIN_EMAIL });
             let referrer = null;
             if (codigoIndicacao) referrer = await User.findOne({ codigoIndicacao: codigoIndicacao.toUpperCase() });
 
-            // Cria uma senha aleatória complexa (usuário Google não precisa dela, mas o banco de dados exige)
             const senhaHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
             
             let novoCodigoUnico; let isCodeUnique = false;
@@ -341,6 +348,86 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
         });
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
+
+// =========================================================================
+// --- ROTAS DE LINKS DE REFERÊNCIA (COBRANÇA DE 10 SC REVERTIDA AO CEO) ---
+// =========================================================================
+app.post('/api/links-referencia/acessar', checkAuthenticated, async (req, res) => {
+    try {
+        const TAXA_ACESSO = 10;
+        const user = await User.findById(req.session.user.id);
+        
+        if (!user) return res.status(404).json({ sucesso: false, mensagem: "Usuário não encontrado." });
+        if (user.saldo < TAXA_ACESSO) {
+            return res.status(400).json({ sucesso: false, mensagem: `Saldo insuficiente! Você precisa de ${TAXA_ACESSO} SolidCoins para abrir a página de links.` });
+        }
+
+        // Desconta do usuário e envia sempre para o CEO
+        if (user.email !== ADMIN_EMAIL) {
+            const admin = await User.findOne({ email: ADMIN_EMAIL });
+            user.saldo -= TAXA_ACESSO;
+            
+            const promises = [
+                user.save(),
+                new Transaction({ userId: user._id, tipo: 'Acesso Página de Links', descricao: 'Desbloqueio de Links de Referência', valor: -TAXA_ACESSO }).save()
+            ];
+
+            if (admin) {
+                admin.saldo += TAXA_ACESSO;
+                promises.push(admin.save());
+                promises.push(new Transaction({ userId: admin._id, tipo: 'Recebimento Acesso Links', descricao: `Pago por ${user.nome}`, valor: TAXA_ACESSO }).save());
+            }
+
+            await Promise.all(promises);
+        } else {
+            // Caso o próprio CEO esteja testando, registra no extrato sem duplicar objeto
+            await new Transaction({ userId: user._id, tipo: 'Teste Acesso Links (CEO)', descricao: 'Acesso administrativo aos links', valor: 0 }).save();
+        }
+
+        const links = await ReferralLink.find({}).sort({ data: -1 });
+        res.json({ 
+            sucesso: true, 
+            mensagem: "✅ Acesso liberado! Foram descontadas 10 SolidCoins.", 
+            novoSaldo: user.saldo, 
+            links: links 
+        });
+    } catch (error) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao liberar página de links." });
+    }
+});
+
+app.get('/api/admin/links-referencia', isAdmin, async (req, res) => {
+    try {
+        const links = await ReferralLink.find({}).sort({ data: -1 });
+        res.json({ sucesso: true, links });
+    } catch (error) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao listar links." });
+    }
+});
+
+app.post('/api/admin/links-referencia/adicionar', isAdmin, async (req, res) => {
+    try {
+        const { titulo, descricao, url } = req.body;
+        if (!titulo || !url || !url.startsWith('http')) {
+            return res.status(400).json({ sucesso: false, mensagem: "Preencha o título e uma URL válida (iniciando com http:// ou https://)." });
+        }
+        await new ReferralLink({ titulo: titulo.trim(), descricao: (descricao || '').trim(), url: url.trim() }).save();
+        res.json({ sucesso: true, mensagem: "✅ Link de referência cadastrado com sucesso!" });
+    } catch (error) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao cadastrar link." });
+    }
+});
+
+app.delete('/api/admin/links-referencia/excluir/:id', isAdmin, async (req, res) => {
+    try {
+        await ReferralLink.findByIdAndDelete(req.params.id);
+        res.json({ sucesso: true, mensagem: "🗑️ Link removido com sucesso!" });
+    } catch (error) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao remover link." });
+    }
+});
+
+// =========================================================================
 
 app.post('/api/indicacao/resgatar', checkAuthenticated, async (req, res) => {
     try {
@@ -488,7 +575,7 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
 });
 
 // =========================================================================
-// CORREÇÃO: CONTINGÊNCIA (FALLBACK) PARA APROVAÇÃO MANUAL EM CASO DE ERRO
+// CONTINGÊNCIA (FALLBACK) PARA APROVAÇÃO MANUAL EM CASO DE ERRO
 // =========================================================================
 app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
     try {
@@ -528,14 +615,12 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
         };
 
         try {
-            // TENTA ENVIAR O PIX DE FORMA AUTOMÁTICA
             const envioResponse = await efipayPJ.pixSend({ idEnvio: idEnvio }, bodyEnvioPix);
             
             if (envioResponse.status === 'NAO_REALIZADO' || envioResponse.status === 'RECUSADO' || envioResponse.status === 'FALHA') {
                 throw new Error('Pix Recusado pelo banco (CNPJ Bloqueado ou Limite excedido)');
             }
 
-            // SE DEU CERTO, DESCONTA NORMALMENTE E APROVA
             user.saldo -= valorNum;
             const admin = await User.findOne({ email: ADMIN_EMAIL });
             if (admin) admin.saldo += valorNum; 
@@ -1185,6 +1270,15 @@ async function setupInicial() {
             if (!imagemExistente) {
                 await new ImagemConfig({ chave: chavePlano, nomeExibicao: `Imagem: ${planoNome}`, url: PLANOS_SOCIO[planoNome].imagemUrl }).save();
             }
+        }
+
+        // --- CADASTRA AUTOMATICAMENTE O PRIMEIRO LINK DE REFERÊNCIA ---
+        if (await ReferralLink.countDocuments() === 0) {
+            await new ReferralLink({
+                titulo: 'MultSense - Parceiro Oficial SolidCoin',
+                descricao: 'Cadastre-se na plataforma MultSense através do nosso link oficial de referência.',
+                url: 'https://multsense.com.br/?ref=SolidCoin'
+            }).save();
         }
 
         if (!(await SystemSettings.findOne())) { await new SystemSettings({ scPorReal: 500 }).save(); }
