@@ -22,14 +22,12 @@ try {
     celoProvider = new ethers.JsonRpcProvider('https://forno.celo.org');
     
     if (process.env.MINIPAY_SEED_PHRASE) {
-        // Conecta usando as 12 palavras-passe da Opera MiniPay
         celoWallet = ethers.Wallet.fromPhrase(process.env.MINIPAY_SEED_PHRASE).connect(celoProvider);
     } else if (process.env.MINIPAY_PRIVATE_KEY) {
         celoWallet = new ethers.Wallet(process.env.MINIPAY_PRIVATE_KEY, celoProvider);
     }
 
     if (celoWallet) {
-        // Contrato Oficial do USDC na Celo
         const USDC_ADDRESS = "0xcebA9300f2b948710d2653dD7B07f33A8B32118C";
         const erc20Abi = ["function transfer(address to, uint256 value) public returns (bool)"];
         usdcContract = new ethers.Contract(USDC_ADDRESS, erc20Abi, celoWallet);
@@ -126,7 +124,6 @@ const NfcOrderSchema = new mongoose.Schema({
 });
 const NfcOrder = mongoose.models.NfcOrder || mongoose.model('NfcOrder', NfcOrderSchema);
 
-// --- NOVO MODELO: LINKS DE REFERÊNCIA DO ADM ---
 const ReferralLinkSchema = new mongoose.Schema({
     titulo: { type: String, required: true },
     descricao: { type: String, default: '' },
@@ -172,27 +169,41 @@ function normalizarChavePix(chave, tipo = '') {
     return nums;
 }
 
+// =========================================================================
+// NOVA LÓGICA DE CÁLCULO DE LIMITE (INFALÍVEL E SEPARADA)
+// =========================================================================
 async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
-    if (userEmail === ADMIN_EMAIL) return currentSaldo;
+    if (userEmail === ADMIN_EMAIL) return currentSaldo; // O CEO não tem limites
+    
     const txs = await Transaction.find({ userId: userId });
-    let limiteBruto = 0; let saquesEfetuados = 0;
-
-    const tiposLivres = [ 'Depósito Aprovado', 'Transferência Recebida', 'Venda no Marketplace', 'Recompensa de Staking', 'Rendimento Automático', 'Bônus de Indicação', 'Comissão de Indicação', 'Comissão de Indicação (Sócio)', 'Bônus de Boas-Vindas', 'Resgate Gift Card SC', 'Estorno Saque Pix', 'Estorno de Saque', 'Recompensa Monlix' ];
-
+    let moedasBloqueadas = 0;
     const agora = Date.now();
+
     txs.forEach(tx => {
-        if (tiposLivres.includes(tx.tipo)) {
-            limiteBruto += tx.valor;
-        } else if (tx.tipo === 'Assinatura Sócio SolidCoin') {
-            const mesesPassados = Math.floor(((agora - new Date(tx.data).getTime()) / (1000 * 60 * 60 * 24)) / 30);
-            if (mesesPassados > 0) limiteBruto += (tx.valor * Math.min(mesesPassados * 0.25, 1.0));
-        } else if (tx.tipo === 'Saque Cripto Solicitado' || tx.tipo === 'Saque Pix Solicitado' || tx.tipo === 'Saque Pix Automático') {
-            saquesEfetuados += Math.abs(tx.valor);
+        // Encontra todas as vezes que o usuário RECEBEU um plano de Sócio
+        if (tx.tipo === 'Assinatura Sócio SolidCoin' || tx.tipo === 'Assinatura') {
+            if (tx.valor > 0) { 
+                // Conta quantos meses se passaram desde a ativação
+                const mesesPassados = Math.floor(((agora - new Date(tx.data).getTime()) / (1000 * 60 * 60 * 24)) / 30);
+                
+                // Libera 25% a cada 30 dias
+                let percentualLiberado = mesesPassados * 0.25;
+                if (percentualLiberado > 1.0) percentualLiberado = 1.0;
+                
+                // Calcula o que ainda continua preso na conta
+                const percentualBloqueado = 1.0 - percentualLiberado;
+                moedasBloqueadas += (tx.valor * percentualBloqueado);
+            }
         }
     });
 
-    return Math.max(0, Math.min(currentSaldo, limiteBruto - saquesEfetuados));
+    // O limite real é o saldo da conta menos as moedas bloqueadas dos planos
+    const limiteDisponivel = currentSaldo - moedasBloqueadas;
+    
+    // Retorna no mínimo 0 (para evitar saldos negativos na tela se houver algum delay de banco)
+    return Math.max(0, limiteDisponivel);
 }
+// =========================================================================
 
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
@@ -240,9 +251,6 @@ app.post('/logout', checkAuthenticated, (req, res) => {
     req.session.destroy(err => { res.clearCookie('connect.sid'); res.json({ sucesso: true }); });
 });
 
-// =========================================================================
-// ROTA: LOGIN E CADASTRO VIA GOOGLE
-// =========================================================================
 app.post('/api/auth/google', async (req, res) => {
     if (!googleClient) return res.status(500).json({ sucesso: false, mensagem: "Google Login não configurado no servidor (Falta GOOGLE_CLIENT_ID)." });
     
@@ -349,85 +357,55 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
-// =========================================================================
-// --- ROTAS DE LINKS DE REFERÊNCIA (COBRANÇA DE 10 SC REVERTIDA AO CEO) ---
-// =========================================================================
 app.post('/api/links-referencia/acessar', checkAuthenticated, async (req, res) => {
     try {
         const TAXA_ACESSO = 10;
         const user = await User.findById(req.session.user.id);
         
         if (!user) return res.status(404).json({ sucesso: false, mensagem: "Usuário não encontrado." });
-        if (user.saldo < TAXA_ACESSO) {
-            return res.status(400).json({ sucesso: false, mensagem: `Saldo insuficiente! Você precisa de ${TAXA_ACESSO} SolidCoins para abrir a página de links.` });
-        }
+        if (user.saldo < TAXA_ACESSO) return res.status(400).json({ sucesso: false, mensagem: `Saldo insuficiente! Você precisa de ${TAXA_ACESSO} SolidCoins para abrir a página de links.` });
 
-        // Desconta do usuário e envia sempre para o CEO
         if (user.email !== ADMIN_EMAIL) {
             const admin = await User.findOne({ email: ADMIN_EMAIL });
             user.saldo -= TAXA_ACESSO;
-            
-            const promises = [
-                user.save(),
-                new Transaction({ userId: user._id, tipo: 'Acesso Página de Links', descricao: 'Desbloqueio de Links de Referência', valor: -TAXA_ACESSO }).save()
-            ];
-
+            const promises = [user.save(), new Transaction({ userId: user._id, tipo: 'Acesso Página de Links', descricao: 'Desbloqueio de Links de Referência', valor: -TAXA_ACESSO }).save()];
             if (admin) {
                 admin.saldo += TAXA_ACESSO;
                 promises.push(admin.save());
                 promises.push(new Transaction({ userId: admin._id, tipo: 'Recebimento Acesso Links', descricao: `Pago por ${user.nome}`, valor: TAXA_ACESSO }).save());
             }
-
             await Promise.all(promises);
         } else {
-            // Caso o próprio CEO esteja testando, registra no extrato sem duplicar objeto
             await new Transaction({ userId: user._id, tipo: 'Teste Acesso Links (CEO)', descricao: 'Acesso administrativo aos links', valor: 0 }).save();
         }
 
         const links = await ReferralLink.find({}).sort({ data: -1 });
-        res.json({ 
-            sucesso: true, 
-            mensagem: "✅ Acesso liberado! Foram descontadas 10 SolidCoins.", 
-            novoSaldo: user.saldo, 
-            links: links 
-        });
-    } catch (error) {
-        res.status(500).json({ sucesso: false, mensagem: "Erro ao liberar página de links." });
-    }
+        res.json({ sucesso: true, mensagem: "✅ Acesso liberado! Foram descontadas 10 SolidCoins.", novoSaldo: user.saldo, links: links });
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao liberar página de links." }); }
 });
 
 app.get('/api/admin/links-referencia', isAdmin, async (req, res) => {
     try {
         const links = await ReferralLink.find({}).sort({ data: -1 });
         res.json({ sucesso: true, links });
-    } catch (error) {
-        res.status(500).json({ sucesso: false, mensagem: "Erro ao listar links." });
-    }
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao listar links." }); }
 });
 
 app.post('/api/admin/links-referencia/adicionar', isAdmin, async (req, res) => {
     try {
         const { titulo, descricao, url } = req.body;
-        if (!titulo || !url || !url.startsWith('http')) {
-            return res.status(400).json({ sucesso: false, mensagem: "Preencha o título e uma URL válida (iniciando com http:// ou https://)." });
-        }
+        if (!titulo || !url || !url.startsWith('http')) return res.status(400).json({ sucesso: false, mensagem: "Preencha o título e uma URL válida." });
         await new ReferralLink({ titulo: titulo.trim(), descricao: (descricao || '').trim(), url: url.trim() }).save();
         res.json({ sucesso: true, mensagem: "✅ Link de referência cadastrado com sucesso!" });
-    } catch (error) {
-        res.status(500).json({ sucesso: false, mensagem: "Erro ao cadastrar link." });
-    }
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao cadastrar link." }); }
 });
 
 app.delete('/api/admin/links-referencia/excluir/:id', isAdmin, async (req, res) => {
     try {
         await ReferralLink.findByIdAndDelete(req.params.id);
         res.json({ sucesso: true, mensagem: "🗑️ Link removido com sucesso!" });
-    } catch (error) {
-        res.status(500).json({ sucesso: false, mensagem: "Erro ao remover link." });
-    }
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao remover link." }); }
 });
-
-// =========================================================================
 
 app.post('/api/indicacao/resgatar', checkAuthenticated, async (req, res) => {
     try {
@@ -491,7 +469,10 @@ app.post('/api/nfc/transferir-aproximacao', checkAuthenticated, async (req, res)
 
         if (!destinatario) return res.status(404).json({ sucesso: false, mensagem: "Cartão NFC não reconhecido." });
         if (remetente._id.toString() === destinatario._id.toString()) return res.status(400).json({ sucesso: false, mensagem: "Não pode enviar para si mesmo." });
-        if (remetente.saldo < valorNum) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente." });
+        
+        // --- PROTEÇÃO DO PLANO SÓCIO (NFC) ---
+        const limiteDisponivel = await calcularLimiteSaque(remetente._id, remetente.saldo, remetente.email);
+        if (valorNum > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saldo bloqueado pelo vesting de Sócio. Disponível: ${limiteDisponivel.toFixed(2)} SC.` });
 
         remetente.saldo -= valorNum; destinatario.saldo += valorNum;
 
@@ -515,7 +496,10 @@ app.post('/api/nfc/cobrar-aproximacao', checkAuthenticated, async (req, res) => 
 
         if (!pagador) return res.status(404).json({ sucesso: false, mensagem: "Cartão NFC não reconhecido." });
         if (recebedor._id.toString() === pagador._id.toString()) return res.status(400).json({ sucesso: false, mensagem: "Inválido." });
-        if (pagador.saldo < valorNum) return res.status(400).json({ sucesso: false, mensagem: `Saldo insuficiente no cartão de ${pagador.nome}.` });
+        
+        // --- PROTEÇÃO DO PLANO SÓCIO (NFC) ---
+        const limiteDisponivel = await calcularLimiteSaque(pagador._id, pagador.saldo, pagador.email);
+        if (valorNum > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saldo insuficiente no cartão de ${pagador.nome} (moedas bloqueadas).` });
 
         pagador.saldo -= valorNum; recebedor.saldo += valorNum;
 
@@ -574,9 +558,6 @@ app.post('/api/socio/assinar', checkAuthenticated, async (req, res) => {
     }
 });
 
-// =========================================================================
-// CONTINGÊNCIA (FALLBACK) PARA APROVAÇÃO MANUAL EM CASO DE ERRO
-// =========================================================================
 app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
     try {
         const { valorSC, tipoChave, chavePix } = req.body;
@@ -592,11 +573,11 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
         if (user.statusSocio !== 'Ativo') {
             return res.status(403).json({ sucesso: false, mensagem: "Exclusivo para Sócios ativos." });
         }
-        if (user.saldo < valorNum) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente." });
-
+        
+        // --- PROTEÇÃO DO PLANO SÓCIO ---
         const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
         if (valorNum > limiteDisponivel) {
-            return res.status(400).json({ sucesso: false, mensagem: `Limite disponível: ${limiteDisponivel.toFixed(2)} SC.` });
+            return res.status(400).json({ sucesso: false, mensagem: `Saque Bloqueado pelo Plano de Sócio! Valor 100% livre na conta: ${limiteDisponivel.toFixed(2)} SC.` });
         }
 
         const chaveFavorecidoLimpa = normalizarChavePix(chavePix, tipoChave);
@@ -618,7 +599,7 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
             const envioResponse = await efipayPJ.pixSend({ idEnvio: idEnvio }, bodyEnvioPix);
             
             if (envioResponse.status === 'NAO_REALIZADO' || envioResponse.status === 'RECUSADO' || envioResponse.status === 'FALHA') {
-                throw new Error('Pix Recusado pelo banco (CNPJ Bloqueado ou Limite excedido)');
+                throw new Error('Pix Recusado pelo banco');
             }
 
             user.saldo -= valorNum;
@@ -649,15 +630,11 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
             });
 
             await Promise.all([
-                user.save(), 
-                novoSaquePix.save(),
+                user.save(), novoSaquePix.save(),
                 new Transaction({ userId: user._id, tipo: 'Saque Pix Solicitado', descricao: `Pendente de Aprovação`, valor: -valorNum }).save()
             ]);
 
-            return res.json({ 
-                sucesso: true, 
-                mensagem: `⚠️ Transação enviada para aprovação do CEO. O pagamento será processado manualmente em breve!` 
-            });
+            return res.json({ sucesso: true, mensagem: `⚠️ Transação enviada para aprovação do CEO. O pagamento será processado manualmente em breve!` });
         }
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro geral ao processar saque." }); }
 });
@@ -788,11 +765,10 @@ app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
             if (!user.tronWallet && !user.solanaWallet && !user.minipayWallet) return res.status(400).json({ sucesso: false, mensagem: "Você precisa salvar pelo menos uma carteira de saque."});
             carteiraParaSaque = metodo === 'Tron' ? `Tron: ${user.tronWallet}` : (user.solanaWallet ? `Solana: ${user.solanaWallet}` : (user.tronWallet ? `Tron: ${user.tronWallet}` : `MiniPay: ${user.minipayWallet}`));
         }
-
-        if (user.saldo < valor) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente." });
         
+        // --- PROTEÇÃO DO PLANO SÓCIO ---
         const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
-        if (valor > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saque Bloqueado. Limite disponível: ${limiteDisponivel.toFixed(2)} SC.` });
+        if (valor > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saque Bloqueado pelo Plano de Sócio! Valor 100% livre na conta: ${limiteDisponivel.toFixed(2)} SC.` });
 
         user.saldo -= valor; await user.save();
 
@@ -820,7 +796,10 @@ app.post('/api/staking/stake', checkAuthenticated, async (req, res) => {
     try {
         const valor = parseFloat(req.body.valor);
         const user = await User.findById(req.session.user.id);
-        if (!valor || valor <= 0 || user.saldo < valor) return res.status(400).json({ sucesso: false, mensagem: "Inválido ou saldo insuficiente." });
+        
+        // --- PROTEÇÃO DO PLANO SÓCIO (Staking requer saldo livre para evitar abusos com moedas bloqueadas) ---
+        const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
+        if (valor > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Operação bloqueada pelo vesting! Saldo livre disponível para aplicar: ${limiteDisponivel.toFixed(2)} SC.` });
 
         user.saldo -= valor; user.stakedAmount += valor; user.canUnstakeAt = new Date(Date.now() + 48 * 60 * 60 * 1000); user.lastRewardClaim = new Date(); 
         await user.save();
@@ -880,7 +859,10 @@ app.post('/api/giftcard/comprar', checkAuthenticated, async (req, res) => {
         const scRate = await getSCRate();
         const valorSC = valorR * scRate;
         const [user, admin] = await Promise.all([ User.findById(req.session.user.id), User.findOne({ email: ADMIN_EMAIL }) ]);
-        if (user.saldo < valorSC) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente." });
+        
+        // --- PROTEÇÃO DO PLANO SÓCIO (Impedir compras com moedas bloqueadas) ---
+        const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
+        if (valorSC > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Operação bloqueada pelo vesting! Saldo livre disponível para uso: ${limiteDisponivel.toFixed(2)} SC.` });
 
         user.saldo -= valorSC; admin.saldo += valorSC;
         const order = new GiftCardOrder({ userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, tipoGift: tipo, tipo: tipo, valorReais: valorR, valorBRL: valorR, valorSolidCoin: valorSC, custoSolidCoin: valorSC, status: 'Pendente' });
@@ -895,7 +877,10 @@ app.post('/api/recharge/comprar', checkAuthenticated, async (req, res) => {
         const scRate = await getSCRate();
         const valorSC = parseFloat(valorReais) * scRate;
         const [user, admin] = await Promise.all([ User.findById(req.session.user.id), User.findOne({ email: ADMIN_EMAIL }) ]);
-        if (user.saldo < valorSC) return res.status(400).json({ sucesso: false, mensagem: "Saldo insuficiente." });
+        
+        // --- PROTEÇÃO DO PLANO SÓCIO (Impedir recargas com moedas bloqueadas) ---
+        const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
+        if (valorSC > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Operação bloqueada pelo vesting! Saldo livre disponível para uso: ${limiteDisponivel.toFixed(2)} SC.` });
 
         user.saldo -= valorSC; admin.saldo += valorSC;
         const order = new RechargeOrder({ userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, operadora, numeroCelular, valorReais: parseFloat(valorReais), valorSolidCoin: valorSC, status: 'Pendente' });
@@ -911,7 +896,11 @@ app.post('/api/transferir', checkAuthenticated, async (req, res) => {
     try {
         const remetente = await User.findById(req.session.user.id);
         const destinatario = await User.findOne({ email: emailDestinatario });
-        if (!destinatario || remetente.email === destinatario.email || remetente.saldo < valorNum) return res.status(400).json({ sucesso: false, mensagem: "Invalido ou insuficiente." });
+        if (!destinatario || remetente.email === destinatario.email) return res.status(400).json({ sucesso: false, mensagem: "Destinatário inválido." });
+        
+        // --- PROTEÇÃO DO PLANO SÓCIO (Impedir lavagem de moedas transferindo para outras contas) ---
+        const limiteDisponivel = await calcularLimiteSaque(remetente._id, remetente.saldo, remetente.email);
+        if (valorNum > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Transferência bloqueada pelo vesting do Sócio! Saldo livre para envio: ${limiteDisponivel.toFixed(2)} SC.` });
         
         remetente.saldo -= valorNum; destinatario.saldo += valorNum;
         await Promise.all([remetente.save(), destinatario.save(), new Transaction({ userId: remetente._id, tipo: 'Transferência Enviada', descricao: `Para ${destinatario.nome}`, valor: -valorNum }).save(), new Transaction({ userId: destinatario._id, tipo: 'Transferência Recebida', descricao: `De ${remetente.nome}`, valor: valorNum }).save()]);
@@ -1119,9 +1108,6 @@ app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
         if (!saque || saque.status !== 'Pendente') return res.status(404).json({ sucesso: false });
         
         if (acao === 'aprovar') {
-            // =========================================================================
-            // LÓGICA DE PAGAMENTO AUTOMÁTICO MINIPAY (REDE CELO - USDC)
-            // =========================================================================
             if (saque.solanaWallet && saque.solanaWallet.includes('MiniPay:')) {
                 if (!usdcContract) return res.status(500).json({ sucesso: false, mensagem: "Erro: A carteira MiniPay do Servidor não está configurada (Falta a Seed Phrase no Render)." });
                 
@@ -1129,7 +1115,6 @@ app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
                     const enderecoDestino = saque.solanaWallet.replace('MiniPay:', '').trim();
                     const scRate = await getSCRate();
                     
-                    // --- BUSCA A COTAÇÃO REAL DO DÓLAR ---
                     const resMoeda = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
                     const dadosMoeda = await resMoeda.json();
                     const cotacaoDolar = parseFloat(dadosMoeda.USDBRL.ask);
@@ -1138,11 +1123,10 @@ app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
                     const valorUSDC = valorBRL / cotacaoDolar;
                     
                     const { ethers } = require('ethers');
-                    // IMPORTANTE: USDC tem 6 casas decimais (10^6), não 18!
                     const amountWei = ethers.parseUnits(valorUSDC.toFixed(6), 6);
                     
                     const tx = await usdcContract.transfer(enderecoDestino, amountWei);
-                    saque.txId = tx.hash; // Salva o comprovante blockchain internamente
+                    saque.txId = tx.hash; 
                 } catch (txError) {
                     console.error("Falha na Blockchain Celo:", txError);
                     return res.status(500).json({ sucesso: false, mensagem: "A transação MiniPay falhou. Verifique se o servidor tem CELO (Gás) e USDC suficientes." });
@@ -1272,7 +1256,6 @@ async function setupInicial() {
             }
         }
 
-        // --- CADASTRA AUTOMATICAMENTE O PRIMEIRO LINK DE REFERÊNCIA ---
         if (await ReferralLink.countDocuments() === 0) {
             await new ReferralLink({
                 titulo: 'MultSense - Parceiro Oficial SolidCoin',
