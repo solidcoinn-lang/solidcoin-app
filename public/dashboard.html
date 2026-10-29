@@ -79,6 +79,32 @@
             font-size: 1.05em;
         }
         .input-web3:focus { border-color: #3498db; outline: none; }
+
+        /* ALERTA DE VENCIMENTO DO SÓCIO */
+        .alerta-vencimento {
+            display: none;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        .alerta-amarelo {
+            background-color: rgba(241, 196, 15, 0.1);
+            border: 2px dashed #f1c40f;
+            color: #f1c40f;
+        }
+        .alerta-vermelho {
+            background-color: rgba(231, 76, 60, 0.1);
+            border: 2px dashed #e74c3c;
+            color: #e74c3c;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
@@ -90,6 +116,9 @@
                 <button id="logout-btn">Sair</button>
             </div>
         </header>
+
+        <!-- AVISO DE VENCIMENTO DINÂMICO -->
+        <div id="aviso-vencimento-socio" class="alerta-vencimento"></div>
 
         <div class="card saldo-card">
             <h2 style="display: flex; align-items: center; justify-content: center; gap: 10px;">
@@ -155,14 +184,14 @@
             </button>
         </div>
 
-        <!-- NOVA SEÇÃO: MURAL DE LINKS DE REFERÊNCIA (COBRA 10 SC) -->
+        <!-- SEÇÕES OCULTAS... (Todo o resto do HTML se mantém igual) -->
+        
         <div id="sec-links-ref" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #00ff88; background: linear-gradient(145deg, #071a12, #0d2a1e);">
                 <h2 style="color: #00ff88; margin-top: 0;">🔗 Links de Referência & Oportunidades</h2>
                 <p style="color: #ddd; font-size: 0.95em;">Acesse plataformas parceiras selecionadas pela administração da SolidCoin para você se cadastrar e aproveitar vantagens exclusivas.</p>
 
-                <!-- TELA DE BLOQUEIO (COBRANÇA DE 10 SC) -->
                 <div id="bloqueio-links-box" style="background: #0a0a0a; border: 2px dashed #00ff88; border-radius: 12px; padding: 35px 20px; text-align: center; margin-top: 20px;">
                     <div style="font-size: 3em; margin-bottom: 10px;">🔒</div>
                     <h3 style="color: #d4af37; margin: 0 0 10px 0;">Acesso Exclusivo aos Links Oficiais</h3>
@@ -174,7 +203,6 @@
                     </button>
                 </div>
 
-                <!-- CONTEÚDO DESBLOQUEADO COM OS LINKS -->
                 <div id="conteudo-links-box" style="display: none; margin-top: 20px;">
                     <div id="lista-links-referencia" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px;"></div>
                 </div>
@@ -382,9 +410,6 @@
             </div>
         </div>
 
-        <!-- ========================================================= -->
-        <!-- MÓDULO SAQUE WEB3 & CARTEIRAS DINÂMICAS -->
-        <!-- ========================================================= -->
         <div id="sec-saque-cripto" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #3498db; background: linear-gradient(145deg, #0a1128, #1a2238);">
@@ -437,8 +462,7 @@
                 </div>
             </div>
         </div>
-        <!-- ========================================================= -->
-
+        
         <div id="sec-depositar" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #2ecc71;">
@@ -820,6 +844,32 @@
                     if (data.sucesso) {
                         const limiteEl = document.getElementById('limite-saque-usuario');
                         if (limiteEl && data.usuario) limiteEl.innerText = data.usuario.limiteDeSaque.toFixed(2);
+
+                        // --- NOVA LÓGICA: VERIFICAÇÃO DE VENCIMENTO DO PLANO SÓCIO ---
+                        if (data.usuario.statusSocio === 'Ativo' && data.usuario.vencimentoSocio) {
+                            const dataVencimento = new Date(data.usuario.vencimentoSocio);
+                            const hoje = new Date();
+                            
+                            // Zera as horas para comparar apenas os dias
+                            dataVencimento.setHours(0,0,0,0);
+                            hoje.setHours(0,0,0,0);
+
+                            const diferencaTempo = dataVencimento.getTime() - hoje.getTime();
+                            const diasRestantes = Math.ceil(diferencaTempo / (1000 * 3600 * 24));
+                            
+                            const avisoEl = document.getElementById('aviso-vencimento-socio');
+
+                            if (diasRestantes === 0) {
+                                avisoEl.innerHTML = `🚨 URGENTE: O seu plano <strong>${data.usuario.planoSocio}</strong> vence <strong>HOJE</strong>! Renove agora para não perder os seus benefícios diários.`;
+                                avisoEl.className = 'alerta-vencimento alerta-vermelho';
+                                avisoEl.style.display = 'block';
+                            } else if (diasRestantes > 0 && diasRestantes <= 3) {
+                                avisoEl.innerHTML = `⚠️ ATENÇÃO: O seu plano <strong>${data.usuario.planoSocio}</strong> vence em <strong>${diasRestantes} dia(s)</strong>. Fique atento à renovação!`;
+                                avisoEl.className = 'alerta-vencimento alerta-amarelo';
+                                avisoEl.style.display = 'block';
+                            }
+                        }
+                        // -------------------------------------------------------------
 
                         if (!data.usuario.jaUsouCodigo) {
                             const bloco = document.getElementById('bloco-resgatar-indicacao');
