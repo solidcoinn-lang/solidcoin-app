@@ -83,6 +83,7 @@ const Deposit = require('./models/Deposit');
 const SocioOrder = require('./models/SocioOrder'); 
 const SystemSettings = require('./models/SystemSettings'); 
 const PixWithdrawal = require('./models/PixWithdrawal');
+const ReferralLink = require('./models/ReferralLink');
 
 const investimentosRoutes = require('./routes/investimentos'); 
 
@@ -112,11 +113,6 @@ const NfcOrderSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, nomeUsuario: String, emailUsuario: String, enderecoEntrega: String, nfcToken: String, status: { type: String, default: 'Pendente' }, data: { type: Date, default: Date.now }
 });
 const NfcOrder = mongoose.models.NfcOrder || mongoose.model('NfcOrder', NfcOrderSchema);
-
-const ReferralLinkSchema = new mongoose.Schema({
-    titulo: { type: String, required: true }, descricao: { type: String, default: '' }, url: { type: String, required: true }, data: { type: Date, default: Date.now }
-});
-const ReferralLink = mongoose.models.ReferralLink || mongoose.model('ReferralLink', ReferralLinkSchema);
 
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true }).then(() => { setupInicial(); }).catch(err => console.error(err));
 
@@ -154,51 +150,36 @@ function normalizarChavePix(chave, tipo = '') {
     return nums;
 }
 
-// =========================================================================
-// CORREÇÃO INFALÍVEL: CÁLCULO DE LIMITE E VESTING DE SÓCIOS
-// =========================================================================
 async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
-    if (userEmail === ADMIN_EMAIL) return currentSaldo; // CEO tem acesso livre
+    if (userEmail === ADMIN_EMAIL) return currentSaldo; 
     
     const txs = await Transaction.find({ userId: userId });
     let moedasBloqueadas = 0;
     const agora = Date.now();
 
     txs.forEach(tx => {
-        // Encontra todas as vezes que o usuário RECEBEU um plano de Sócio
         if (tx.tipo === 'Assinatura Sócio SolidCoin' || tx.tipo === 'Assinatura') {
             const valorAnalisado = parseFloat(tx.valor);
-            
             if (!isNaN(valorAnalisado) && valorAnalisado > 0) { 
-                
-                // Extrator de Data Infalível (Para evitar falhas de NaN)
                 let dataTx = tx.data || tx.createdAt || tx.date || tx.criadoEm;
                 if (!dataTx && tx._id && typeof tx._id.getTimestamp === 'function') dataTx = tx._id.getTimestamp();
                 if (!dataTx) dataTx = Date.now();
                 
                 const timestampTx = new Date(dataTx).getTime();
-                
-                // Conta quantos meses se passaram desde a ativação
                 const mesesPassados = Math.floor(((agora - timestampTx) / (1000 * 60 * 60 * 24)) / 30);
                 
-                // Libera 25% a cada 30 dias
                 let percentualLiberado = mesesPassados * 0.25;
                 if (percentualLiberado > 1.0) percentualLiberado = 1.0;
                 
-                // Calcula o que ainda continua preso na conta
                 const percentualBloqueado = 1.0 - percentualLiberado;
                 moedasBloqueadas += (valorAnalisado * percentualBloqueado);
             }
         }
     });
 
-    // O limite real é o saldo da conta menos as moedas bloqueadas dos planos
     const limiteDisponivel = currentSaldo - moedasBloqueadas;
-    
-    // Retorna no mínimo 0
     return Math.max(0, limiteDisponivel);
 }
-// =========================================================================
 
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
@@ -354,8 +335,6 @@ app.post('/api/links-referencia/acessar', checkAuthenticated, async (req, res) =
                 promises.push(new Transaction({ userId: admin._id, tipo: 'Recebimento Acesso Links', descricao: `Pago por ${user.nome}`, valor: TAXA_ACESSO }).save());
             }
             await Promise.all(promises);
-        } else {
-            await new Transaction({ userId: user._id, tipo: 'Teste Acesso Links (CEO)', descricao: 'Acesso administrativo aos links', valor: 0 }).save();
         }
 
         const links = await ReferralLink.find({}).sort({ data: -1 });
@@ -675,9 +654,7 @@ app.post('/api/admin/ativar-webhook-efi', isAdmin, async (req, res) => {
     try {
         const chave = process.env.EFI_PIX_KEY;
         const webhookUrl = "https://www.solidcoincommunity.com/api/webhook/pix";
-
         if (!chave) return res.status(400).json({ sucesso: false, mensagem: "Chave Pix PF não encontrada." });
-        
         const response = await efipayPF.pixConfigWebhook({ chave: chave }, { webhookUrl: webhookUrl });
         res.json({ sucesso: true, mensagem: "Webhook cadastrado na Efí PF com sucesso!", detalhes: response });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: `A Efí PF recusou o cadastro do webhook.` }); }
@@ -878,6 +855,46 @@ app.get('/api/extrato', checkAuthenticated, async (req, res) => {
         res.json({ sucesso: true, transacoes });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: 'Erro extrato.' }); }
 });
+
+// =========================================================================
+// ROBÔ DE SUPORTE INTELIGENTE (SOLIDBOT)
+// =========================================================================
+app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
+    try {
+        const { mensagem } = req.body;
+        const msg = (mensagem || '').toLowerCase();
+        
+        let resposta = "Olá! Eu sou o Assistente SolidCoin 🤖. Como posso te ajudar hoje?\n\nTente perguntar sobre: 'saque', 'pix', 'minipay', 'sócio', 'staking', 'nfc', 'indicação' ou 'investimentos'.";
+
+        if (msg.includes('saque') || msg.includes('sacar') || msg.includes('retirar')) {
+            if (msg.includes('pix')) {
+                resposta = "💸 **Saque Pix VIP:** É exclusivo para Sócios da plataforma. Tem uma taxa de 5% e o valor cai direto na sua conta bancária conectada. Importante: moedas ganhas pelos planos de sócio são liberadas aos poucos (25% a cada 30 dias para segurança do sistema).";
+            } else if (msg.includes('minipay') || msg.includes('celo')) {
+                resposta = "💳 **Saque MiniPay (Web3):** O saque via MiniPay na Rede Celo é automatizado! Você recebe em dólares digitais (USDC) direto na sua carteira do Opera, podendo converter via Pix por lá. Não esqueça de salvar sua carteira na seção 'Carteiras'.";
+            } else {
+                resposta = "🏦 **Tipos de Saques:** Temos saque via Pix (Exclusivo para Sócios) e Saque Cripto (MiniPay Celo automatizado, Solana e Tron). Vá no menu e escolha o tipo de saque que deseja. Dica: A MiniPay é a forma mais rápida!";
+            }
+        } else if (msg.includes('sócio') || msg.includes('socio') || msg.includes('plano')) {
+            resposta = "💎 **Clube de Sócios:** Sendo sócio você recebe moedas garantidas todos os meses, libera o cobiçado Saque Pix VIP e ganha 5% de comissão sobre os planos de quem você indicar! Lembre-se: O saldo comprado no plano entra em 'Vesting', ou seja, fica bloqueado e libera 25% a cada 30 dias na sua conta.";
+        } else if (msg.includes('staking') || msg.includes('stake') || msg.includes('render')) {
+            resposta = "📈 **Staking:** Coloque suas moedas para trabalhar para você! O Staking da SolidCoin paga 5% ao mês sobre o valor guardado. Seus fundos ficam trancados por um mínimo de 48 horas antes de você poder clicar em resgatar o capital.";
+        } else if (msg.includes('nfc') || msg.includes('cartão') || msg.includes('cartao') || msg.includes('maquininha')) {
+            resposta = "💳 **Tecnologia NFC:** Transforme seu celular numa maquininha! Você pode cobrar de outros usuários apenas encostando o cartão deles no seu celular. Vá na seção 'Tecnologia NFC' para gerar seu código ou pedir o Cartão Black físico de PVC na sua casa.";
+        } else if (msg.includes('indica') || msg.includes('convid') || msg.includes('amigo')) {
+            resposta = "🤝 **Programa de Indicação:** Convide amigos e ganhe! Você e seu amigo ganham 250 SC quando ele usar seu código. Melhor ainda: Se o seu amigo virar Sócio, você ganha 5% de comissão do plano dele NA HORA e com saldo 100% livre para saque!";
+        } else if (msg.includes('invest') || msg.includes('fii') || msg.includes('ação') || msg.includes('acao') || msg.includes('mercado')) {
+            resposta = "📊 **Mercado de Ativos:** Use suas SolidCoins para comprar cotas de Fundos Imobiliários (FIIs) e Ações de empresas reais no nosso simulador atrelado à vida real. Você receberá dividendos sempre que o ADM distribuir os lucros no sistema!";
+        } else if (msg.includes('bloquea') || msg.includes('vesting') || msg.includes('limite')) {
+            resposta = "⚠️ **Saldo Bloqueado / Limite (Vesting):** Para garantir a vida longa do sistema, as moedas que você *compra* nos Planos de Sócio não podem ser sacadas de uma vez só. Elas liberam 25% a cada 30 dias de conta ativa. Porém, ganhos extras de tarefas, indicações, vendas e depósitos são 100% livres desde o primeiro dia!";
+        }
+
+        res.json({ sucesso: true, resposta });
+    } catch (error) {
+        res.status(500).json({ sucesso: false, resposta: "Desculpe, meu cérebro digital está reiniciando. Tente novamente em alguns segundos." });
+    }
+});
+
+// =========================================================================
 
 app.get('/api/admin/listar-imagens', isAdmin, async (req, res) => {
     try {
