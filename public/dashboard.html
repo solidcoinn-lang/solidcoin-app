@@ -134,7 +134,6 @@
                 🔓 Disponível para Saque: <span id="limite-saque-usuario">...</span> SC
             </p>
             
-            <!-- BLOCO DE COTAÇÃO RESTAURADO -->
             <p style="font-size: 0.95em; color: #aaa; margin-top: 10px;">
                 ≈ R$ <span id="saldo-reais">0.00</span> <br>
                 <small style="color: #666; font-size: 0.8em;">(Cotação atual: <span id="cotacao-atual">500</span> SC = R$ 1,00)</small>
@@ -142,7 +141,6 @@
         </div>
 
         <div id="menu-botoes" class="feature-grid">
-            <!-- BOTÃO NOVO NFT MARKETPLACE -->
             <button class="feature-btn btn-nft" onclick="abrirSecao('sec-nft-marketplace')">
                 <span class="icon">🖼️</span><span class="text">NFTs, Avatar & Farm</span>
             </button>
@@ -827,13 +825,20 @@
                         const farmAttrValue = nft.metadata.attributes.find(a => a.trait_type === "Farm (SolidCoin/Dia)");
                         const farmValue = farmAttrValue ? farmAttrValue.value : 0;
                         
+                        const maxBatteryAttr = nft.metadata.attributes.find(a => a.trait_type === "Carga Máxima de Bateria");
+                        const maxBattery = maxBatteryAttr ? parseFloat(maxBatteryAttr.value) : 100;
+                        
                         let buttonsHtml = '';
                         if(nft.isForSale) {
                             buttonsHtml = `<p style="color:#f39c12; font-weight:bold;">À VENDA POR ${nft.salePrice} SC</p>
                                            <button class="nft-btn nft-btn-danger" onclick="cancelarVendaNft('${nft._id}')">Cancelar Venda</button>`;
                         } else if(nft.isEquipped) {
                             buttonsHtml = `<p style="color:#00ff88; font-weight:bold;">⭐ EQUIPADO (Farm Ativo)</p>
-                                           <p style="font-size:0.8em; color:#aaa;">Bateria: ${nft.battery}%</p>`;
+                                           <p style="font-size:0.85em; color:#aaa; margin-bottom:5px;">Bateria: ${Math.round(nft.battery)}/${maxBattery}</p>`;
+                                           
+                            if(nft.battery < maxBattery) {
+                                buttonsHtml += `<button class="nft-btn" style="background:#3498db; color:#fff;" onclick="recarregarBateriaNft('${nft._id}', '${nft.metadata.name}')">⚡ Recarregar Bateria (10 SC)</button>`;
+                            }
                         } else {
                             buttonsHtml = `<button class="nft-btn nft-btn-primary" onclick="equiparNft('${nft._id}')">Equipar Avatar</button>
                                            <button class="nft-btn" style="background:#555; color:#fff;" onclick="venderNft('${nft._id}', ${nft.mintPrice})">Vender</button>`;
@@ -865,6 +870,19 @@
         window.equiparNft = async function(nftId) {
             try {
                 const res = await fetch('/api/nfts/equipar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nftId }) });
+                const data = await res.json();
+                alert(data.mensagem);
+                if(data.sucesso) {
+                    carregarMeusNfts();
+                    fetchDashboardData();
+                }
+            } catch(e) {}
+        };
+
+        window.recarregarBateriaNft = async function(nftId, nome) {
+            if(!confirm(`Deseja pagar 10 SC para recarregar completamente a bateria do NFT ${nome}?`)) return;
+            try {
+                const res = await fetch('/api/nfts/recarregar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nftId }) });
                 const data = await res.json();
                 alert(data.mensagem);
                 if(data.sucesso) {
@@ -1203,7 +1221,7 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             fetchDashboardData();
-            setInterval(fetchDashboardData, 3000); 
+            setInterval(fetchDashboardData, 3000); // Atualiza os dados (saldo e limites) a cada 3s
         });
 
         setTimeout(() => {
