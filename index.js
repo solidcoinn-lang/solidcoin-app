@@ -487,7 +487,6 @@ app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
     }
 });
 
-// Lista todos os NFTs no Painel ADM indicando a quem pertence cada um
 app.get('/api/admin/nft-templates', isAdmin, async (req, res) => {
     try {
         const templates = await NftTemplate.find().lean();
@@ -530,14 +529,12 @@ app.delete('/api/admin/nft-templates/:id', isAdmin, async (req, res) => {
     } catch(e) { res.status(500).json({ sucesso: false }); }
 });
 
-// CORRIGIDO: Filtra e desativa automaticamente qualquer NFT que já tenha sido mintado (mesmo antes da atualização)
 app.get('/api/nfts/disponiveis', checkAuthenticated, async (req, res) => {
     try {
         const itensMintados = await NftItem.find({}).select('templateId metadata.name').lean();
         const idsMintados = itensMintados.map(i => i.templateId ? i.templateId.toString() : null).filter(Boolean);
         const nomesMintados = itensMintados.map(i => i.metadata && i.metadata.name ? i.metadata.name : null).filter(Boolean);
 
-        // Sincroniza no banco de dados os NFTs que foram comprados antes da atualização
         if (idsMintados.length > 0 || nomesMintados.length > 0) {
             await NftTemplate.updateMany(
                 { 
@@ -562,7 +559,6 @@ app.get('/api/nfts/disponiveis', checkAuthenticated, async (req, res) => {
     } catch(e) { res.status(500).json({ sucesso: false }); }
 });
 
-// CORRIGIDO: Verifica por ID e Nome se já foi mintado e desativa imediatamente na loja
 app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
     try {
         const { templateId } = req.body;
@@ -639,6 +635,20 @@ app.post('/api/nfts/equipar', checkAuthenticated, async (req, res) => {
 
         res.json({ sucesso: true, mensagem: "NFT equipado com sucesso no seu perfil!" });
     } catch(e) { res.status(500).json({ sucesso: false }); }
+});
+
+// NOVA ROTA: Permite retirar o NFT do perfil (desequipar)
+app.post('/api/nfts/desequipar', checkAuthenticated, async (req, res) => {
+    try {
+        const { nftId } = req.body;
+        const nft = await NftItem.findOne({ _id: nftId, ownerId: req.session.user.id });
+        if (!nft) return res.status(404).json({ sucesso: false, mensagem: "NFT não encontrado na sua carteira." });
+
+        nft.isEquipped = false;
+        await nft.save();
+
+        res.json({ sucesso: true, mensagem: "NFT retirado do perfil com sucesso! Agora você pode vendê-lo ou equipar outro." });
+    } catch(e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao desequipar NFT." }); }
 });
 
 app.post('/api/nfts/vender', checkAuthenticated, async (req, res) => {
@@ -1323,7 +1333,7 @@ app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
                        "✨ **Mint & Raridade (1/1):** Você pode Mintar (gerar) novos NFTs na aba de Lançamentos. Cada NFT é único e sai da loja assim que alguém o compra! Eles possuem raridades (Comum, Incomum, Raro e Lendário) que definem o poder de Farm e os efeitos visuais de brilho no seu card!\n\n" +
                        "⛏️ **Farm Diário & Avatar:** Vá no seu Inventário e clique em 'Equipar Avatar'. Sua foto de perfil mudará e o NFT começará a minerar SolidCoins automaticamente a cada 24 horas!\n\n" +
                        "🔋 **Bateria:** O Farm consome a bateria do seu NFT. Fique de olho na carga máxima!\n\n" +
-                       "🤝 **Mercado P2P:** Quer lucrar? Você pode listar seu NFT único no mercado para outros jogadores comprarem. Para proteger a economia, o sistema não permite vender abaixo do preço de custo (Mintagem). Lembre-se: para vender, você precisa desequipar o NFT primeiro!";
+                       "🤝 **Mercado P2P:** Quer lucrar? Você pode listar seu NFT único no mercado para outros jogadores comprarem. Para proteger a economia, o sistema não permite vender abaixo do preço de custo (Mintagem). Lembre-se: para vender, você precisa clicar em 'Desequipar Avatar' primeiro!";
         } else if (msg.includes('bloquea') || msg.includes('vesting') || msg.includes('limite')) {
             resposta = "⚠️ **Saldo Bloqueado / Limite (Vesting):** Para garantir a vida longa do sistema, as moedas que você *compra* nos Planos de Sócio não podem ser sacadas de uma vez só. Elas liberam 25% a cada 30 dias de conta ativa. Porém, ganhos extras de tarefas, indicações, vendas e depósitos são 100% livres desde o primeiro dia!";
         }

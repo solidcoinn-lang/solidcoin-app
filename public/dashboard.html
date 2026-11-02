@@ -207,7 +207,7 @@
                 </div>
 
                 <div id="nft-tab-mint" style="display: block;">
-                    <h3 style="color: #ff9f43; text-align: center;">Disponíveis para Mintar (Gerar Novo)</h3>
+                    <h3 style="color: #ff9f43; text-align: center;">Disponíveis para Mintar (Peças Únicas)</h3>
                     <div id="lista-nft-mint" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;"></div>
                 </div>
 
@@ -748,7 +748,7 @@
         };
 
         // ==========================================
-        // LÓGICA DO MARKETPLACE NFT (COM AURA/ESTRELAS)
+        // LÓGICA DO MARKETPLACE NFT (COM AURA/ESTRELAS E DESEQUIPAR)
         // ==========================================
         window.mudarAbaNft = function(aba) {
             document.getElementById('nft-tab-mint').style.display = aba === 'mint' ? 'block' : 'none';
@@ -768,7 +768,7 @@
                 const data = await res.json();
                 if(data.sucesso) {
                     container.innerHTML = '';
-                    if(data.templates.length === 0) return container.innerHTML = '<p style="text-align:center; color:#aaa;">Nenhuma coleção disponível.</p>';
+                    if(data.templates.length === 0) return container.innerHTML = '<p style="text-align:center; color:#aaa;">Todos os NFTs desta coleção já foram mintados! Confira o Mercado P2P.</p>';
                     
                     data.templates.forEach(t => {
                         const price = data.prices[t.rarity] || 0;
@@ -799,7 +799,7 @@
         }
 
         window.mintarNft = async function(templateId, nome) {
-            if(!confirm(`Deseja pagar e gerar o NFT ${nome} na sua conta?`)) return;
+            if(!confirm(`Deseja pagar e gerar o NFT exclusivo ${nome} na sua conta?`)) return;
             try {
                 const res = await fetch('/api/nfts/mintar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ templateId }) });
                 const data = await res.json();
@@ -839,6 +839,8 @@
                             if(nft.battery < maxBattery) {
                                 buttonsHtml += `<button class="nft-btn" style="background:#3498db; color:#fff;" onclick="recarregarBateriaNft('${nft._id}', '${nft.metadata.name}')">⚡ Recarregar Bateria (10 SC)</button>`;
                             }
+                            // NOVO BOTÃO: Desequipar Avatar do Perfil
+                            buttonsHtml += `<button class="nft-btn nft-btn-danger" onclick="desequiparNft('${nft._id}')">❌ Desequipar Avatar</button>`;
                         } else {
                             buttonsHtml = `<button class="nft-btn nft-btn-primary" onclick="equiparNft('${nft._id}')">Equipar Avatar</button>
                                            <button class="nft-btn" style="background:#555; color:#fff;" onclick="venderNft('${nft._id}', ${nft.mintPrice})">Vender</button>`;
@@ -870,6 +872,20 @@
         window.equiparNft = async function(nftId) {
             try {
                 const res = await fetch('/api/nfts/equipar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nftId }) });
+                const data = await res.json();
+                alert(data.mensagem);
+                if(data.sucesso) {
+                    carregarMeusNfts();
+                    fetchDashboardData();
+                }
+            } catch(e) {}
+        };
+
+        // NOVA FUNÇÃO: Desequipar NFT do Perfil
+        window.desequiparNft = async function(nftId) {
+            if(!confirm('Deseja retirar este NFT do seu perfil? Ele pausará o farm diário e ficará livre para venda.')) return;
+            try {
+                const res = await fetch('/api/nfts/desequipar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nftId }) });
                 const data = await res.json();
                 alert(data.mensagem);
                 if(data.sucesso) {
@@ -1221,7 +1237,7 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             fetchDashboardData();
-            setInterval(fetchDashboardData, 3000); // Atualiza os dados (saldo e limites) a cada 3s
+            setInterval(fetchDashboardData, 3000); 
         });
 
         setTimeout(() => {
