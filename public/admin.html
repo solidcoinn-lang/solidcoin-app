@@ -16,7 +16,7 @@
         th, td { padding: 12px 15px; border-bottom: 1px solid #333; text-align: left; color: #e0e0e0; vertical-align: middle; }
         th { background-color: #222; font-weight: bold; color: #d4af37; }
         tr:hover { background-color: #2a2a2a; }
-        .input-admin { background-color: #0a0a0a; color: #fff; border: 1px solid #333; padding: 12px; border-radius: 6px; }
+        .input-admin { background-color: #0a0a0a; color: #fff; border: 1px solid #333; padding: 12px; border-radius: 6px; width: 100%; box-sizing: border-box; }
         .input-admin:focus { outline: none; border-color: #d4af37; }
         
         /* ESTILOS DOS BOTÕES GERAIS E DE AÇÃO */
@@ -71,6 +71,7 @@
         .btn-acoes { border-bottom: 4px solid #ff4757; } 
         .btn-imagens { border-bottom: 4px solid #e84393; }
         .btn-links-adm { border-bottom: 4px solid #00ff88; }
+        .btn-nfts { border-bottom: 4px solid #ff9f43; } /* Novo Botão NFT */
 
         .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -104,6 +105,10 @@
             </button>
             <button class="feature-btn btn-users" onclick="abrirSecaoPainel('sec-usuarios')">
                 <span class="icon">👥</span><span class="text">Gerenciar Usuários</span>
+            </button>
+            <!-- NOVO BOTÃO NFT MARKETPLACE -->
+            <button class="feature-btn btn-nfts" onclick="abrirSecaoPainel('sec-nfts')">
+                <span class="icon">🖼️</span><span class="text">Gerenciar NFTs</span>
             </button>
             <button class="feature-btn btn-imagens" onclick="abrirSecaoPainel('sec-imagens')">
                 <span class="icon">🖼️</span><span class="text">Gerenciar Imagens</span>
@@ -145,7 +150,47 @@
 
         <!-- SEÇÕES OCULTAS DO ADM -->
 
-        <!-- NOVA SEÇÃO: GERENCIAR LINKS DE REFERÊNCIA -->
+        <!-- NOVA SEÇÃO: GERENCIAR NFTs -->
+        <div id="sec-nfts" class="feature-section">
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #ff9f43;">
+                <h2 style="margin-top: 0; color: #ff9f43;">🖼️ Gerenciar Coleção de NFTs</h2>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Adicione novos templates de NFTs disponíveis para mintagem e defina os preços por raridade.</p>
+                
+                <h3 style="color: #ff9f43; margin-top: 20px;">1. Preços Base de Mintagem (Por Raridade)</h3>
+                <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333;">
+                    <div style="flex:1;"><label style="color:#aaa; font-size: 0.8em;">Comum (SC):</label><input type="number" id="preco-comum" class="input-admin"></div>
+                    <div style="flex:1;"><label style="color:#aaa; font-size: 0.8em;">Incomum (SC):</label><input type="number" id="preco-incomum" class="input-admin"></div>
+                    <div style="flex:1;"><label style="color:#aaa; font-size: 0.8em;">Raro (SC):</label><input type="number" id="preco-raro" class="input-admin"></div>
+                    <div style="flex:1;"><label style="color:#aaa; font-size: 0.8em;">Lendário (SC):</label><input type="number" id="preco-lendario" class="input-admin"></div>
+                    <button onclick="salvarPrecosNfts()" class="btn-admin" style="background-color: #ff9f43; width: 100%; margin-top: 10px;">Salvar Tabela de Preços</button>
+                </div>
+
+                <h3 style="color: #ff9f43; margin-top: 30px;">2. Adicionar Novo Template de NFT</h3>
+                <div style="background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333;">
+                    <label style="color:#aaa; font-size: 0.8em;">URL da Imagem do NFT:</label>
+                    <input type="text" id="nft-image-url" class="input-admin" placeholder="https://exemplo.com/imagem.png" style="margin-bottom: 10px;">
+                    
+                    <label style="color:#aaa; font-size: 0.8em;">Código Metadata (JSON com Atributos):</label>
+                    <textarea id="nft-metadata" class="input-admin" rows="8" placeholder='{\n  "name":"SolidCoin NFT #1",\n  "description":"...",\n  "attributes": [\n    { "trait_type": "Classificação", "value": "Comum" }\n  ]\n}'></textarea>
+                    
+                    <button onclick="adicionarTemplateNft()" class="btn-admin" style="background-color: #2ecc71; color: #000; width: 100%; margin-top: 10px;">➕ Disponibilizar para Mintagem</button>
+                </div>
+
+                <h3 style="color: #ff9f43; margin-top: 30px;">Templates Ativos no Catálogo</h3>
+                <div style="max-height: 400px; overflow-y: auto; border: 1px solid #333; border-radius: 6px;">
+                    <table>
+                        <thead style="position: sticky; top: 0; z-index: 10;">
+                            <tr><th>Imagem</th><th>Nome do NFT</th><th>Raridade</th><th>Farm/Dia</th><th>Ação</th></tr>
+                        </thead>
+                        <tbody id="tabela-nft-templates">
+                            <tr><td colspan="5" style="text-align: center;">Carregando templates...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <div id="sec-links-adm" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #00ff88;">
@@ -176,7 +221,6 @@
             </div>
         </div>
 
-        <!-- GERENCIAR IMAGENS -->
         <div id="sec-imagens" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #e84393;">
@@ -219,7 +263,6 @@
             </div>
         </div>
 
-        <!-- 1. USUÁRIOS -->
         <div id="sec-usuarios" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #9b59b6;">
@@ -250,7 +293,6 @@
             </div>
         </div>
 
-        <!-- PEDIDOS DE CARTÃO NFC -->
         <div id="sec-pedidos-nfc" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #00cec9;">
@@ -273,7 +315,6 @@
             </div>
         </div>
 
-        <!-- 2. APROVAR SAQUES PIX -->
         <div id="sec-saques-pix" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #00b894;">
@@ -305,7 +346,6 @@
             </div>
         </div>
 
-        <!-- 3. APROVAR DEPÓSITOS -->
         <div id="sec-depositos" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #2ecc71;">
@@ -328,7 +368,6 @@
             </div>
         </div>
 
-        <!-- 4. APROVAR SAQUES CRIPTO -->
         <div id="sec-saques-cripto" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #f39c12;">
@@ -351,7 +390,6 @@
             </div>
         </div>
 
-        <!-- 5. APROVAR PLANOS SÓCIO -->
         <div id="sec-socios" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #8e44ad;">
@@ -375,7 +413,6 @@
             </div>
         </div>
 
-        <!-- 6. INADIMPLENTES -->
         <div id="sec-inadimplentes" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #e74c3c;">
@@ -398,7 +435,6 @@
             </div>
         </div>
 
-        <!-- 7. COTAÇÃO SC -->
         <div id="sec-cotacao" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #3498db; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
@@ -415,7 +451,6 @@
             </div>
         </div>
 
-        <!-- GERENCIAR FIIS E AÇÕES -->
         <div id="sec-acoes" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #ff4757;">
@@ -463,7 +498,6 @@
             </div>
         </div>
 
-        <!-- 8. GERAR & GERENCIAR GIFT CARDS SOLIDCOIN (INTERNOS) -->
         <div id="sec-gerar-gift" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #d4af37;">
@@ -495,7 +529,6 @@
             </div>
         </div>
 
-        <!-- 9. PEDIDOS DE GIFT CARDS -->
         <div id="sec-pedidos-gift" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #27ae60;">
@@ -519,7 +552,6 @@
             </div>
         </div>
 
-        <!-- 10. PEDIDOS DE RECARGAS -->
         <div id="sec-recargas" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #0984e3;">
@@ -545,10 +577,10 @@
 
     </div>
 
-    <!-- 1º CARREGA O SCRIPT ANTIGO COM A LOGICA DA MINIPAY -->
+    <!-- 1º CARREGA O SCRIPT ANTIGO COM A LÓGICA DE APROVAÇÕES -->
     <script src="admin-scripts.js"></script>
 
-    <!-- 2º SCRIPT COM AS FUNÇÕES DE LINKS, IMAGEM E ATIVOS -->
+    <!-- 2º SCRIPT COM AS FUNÇÕES ADICIONAIS E MARKETPLACE NFT -->
     <script>
         window.fecharTodasSecoes = function() {
             const secoes = document.querySelectorAll('.feature-section');
@@ -579,7 +611,102 @@
             if (idSecao === 'sec-links-adm') {
                 carregarLinksAdmin();
             }
+            if (idSecao === 'sec-nfts') {
+                carregarConfigsNft();
+                carregarTemplatesNft();
+            }
         };
+
+        // ==========================================
+        // GESTÃO DE NFTs MARKETPLACE (CEO)
+        // ==========================================
+        async function carregarConfigsNft() {
+            try {
+                const res = await fetch('/api/admin/nft-configs');
+                const data = await res.json();
+                if(data.sucesso && data.prices) {
+                    document.getElementById('preco-comum').value = data.prices.Comum || 1000;
+                    document.getElementById('preco-incomum').value = data.prices.Incomum || 2500;
+                    document.getElementById('preco-raro').value = data.prices.Raro || 5000;
+                    document.getElementById('preco-lendario').value = data.prices.Lendario || 10000;
+                }
+            } catch(e) {}
+        }
+
+        async function salvarPrecosNfts() {
+            const prices = {
+                Comum: document.getElementById('preco-comum').value,
+                Incomum: document.getElementById('preco-incomum').value,
+                Raro: document.getElementById('preco-raro').value,
+                Lendario: document.getElementById('preco-lendario').value
+            };
+            try {
+                const res = await fetch('/api/admin/nft-configs', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prices })
+                });
+                const data = await res.json();
+                alert(data.mensagem);
+            } catch(e) { alert('Erro ao salvar preços.'); }
+        }
+
+        async function adicionarTemplateNft() {
+            const imageUrl = document.getElementById('nft-image-url').value;
+            const metadataJson = document.getElementById('nft-metadata').value;
+
+            if(!imageUrl || !metadataJson) return alert('Preencha a imagem e cole o JSON do Metadata!');
+
+            try {
+                const res = await fetch('/api/admin/nft-templates', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageUrl, metadataJson })
+                });
+                const data = await res.json();
+                alert(data.mensagem);
+                if(data.sucesso) {
+                    document.getElementById('nft-image-url').value = '';
+                    document.getElementById('nft-metadata').value = '';
+                    carregarTemplatesNft();
+                }
+            } catch(e) { alert('Erro ao adicionar template. Verifique se o JSON não contém erros.'); }
+        }
+
+        async function carregarTemplatesNft() {
+            const tbody = document.getElementById('tabela-nft-templates');
+            try {
+                const res = await fetch('/api/admin/nft-templates');
+                const data = await res.json();
+                
+                tbody.innerHTML = '';
+                if(data.templates.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Nenhum NFT disponível.</td></tr>';
+                    return;
+                }
+
+                data.templates.forEach(t => {
+                    const farmAttr = t.metadata.attributes.find(a => a.trait_type === "Farm (SolidCoin/Dia)");
+                    const farm = farmAttr ? farmAttr.value : 0;
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><img src="${t.imageUrl}" class="img-preview"></td>
+                            <td>${t.metadata.name}</td>
+                            <td style="color: #ff9f43; font-weight:bold;">${t.rarity}</td>
+                            <td style="color: #2ecc71; font-weight:bold;">${farm} SC/dia</td>
+                            <td><button onclick="excluirTemplateNft('${t._id}')" class="rejeitar-btn">Excluir</button></td>
+                        </tr>
+                    `;
+                });
+            } catch(e) { tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Erro ao carregar.</td></tr>'; }
+        }
+
+        window.excluirTemplateNft = async function(id) {
+            if(!confirm('Deletar este template? Isso não afeta quem já comprou.')) return;
+            try {
+                const res = await fetch(`/api/admin/nft-templates/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                alert(data.mensagem);
+                carregarTemplatesNft();
+            } catch(e) {}
+        }
 
         // ==========================================
         // GESTÃO DE LINKS DE REFERÊNCIA DO ADM

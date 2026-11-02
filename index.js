@@ -81,9 +81,7 @@ const RechargeOrder = require('./models/RechargeOrder');
 const SolidCoinGiftCard = require('./models/SolidCoinGiftCard');
 const Deposit = require('./models/Deposit');
 const SocioOrder = require('./models/SocioOrder'); 
-const SystemSettings = require('./models/SystemSettings'); 
 const PixWithdrawal = require('./models/PixWithdrawal');
-
 const investimentosRoutes = require('./routes/investimentos'); 
 
 const app = express();
@@ -113,11 +111,47 @@ const NfcOrderSchema = new mongoose.Schema({
 });
 const NfcOrder = mongoose.models.NfcOrder || mongoose.model('NfcOrder', NfcOrderSchema);
 
-// --- MODELO DOS LINKS RESTAURADO AQUI NO INDEX.JS ---
 const ReferralLinkSchema = new mongoose.Schema({
     titulo: { type: String, required: true }, descricao: { type: String, default: '' }, url: { type: String, required: true }, data: { type: Date, default: Date.now }
 });
 const ReferralLink = mongoose.models.ReferralLink || mongoose.model('ReferralLink', ReferralLinkSchema);
+
+// --- MODELOS DE NFT RESTAURADOS ---
+const NftTemplateSchema = new mongoose.Schema({
+    imageUrl: { type: String, required: true },
+    metadata: { type: Object, required: true },
+    rarity: { type: String, required: true },
+    ativo: { type: Boolean, default: true }
+});
+const NftTemplate = mongoose.models.NftTemplate || mongoose.model('NftTemplate', NftTemplateSchema);
+
+const NftItemSchema = new mongoose.Schema({
+    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'NftTemplate' },
+    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    imageUrl: String,
+    metadata: Object,
+    mintPrice: Number,
+    isEquipped: { type: Boolean, default: false },
+    isForSale: { type: Boolean, default: false },
+    salePrice: { type: Number, default: 0 },
+    lastFarmDate: { type: Date, default: Date.now },
+    battery: { type: Number, default: 100 },
+    mintDate: { type: Date, default: Date.now }
+});
+const NftItem = mongoose.models.NftItem || mongoose.model('NftItem', NftItemSchema);
+
+const SystemSettingsSchema = new mongoose.Schema({
+    scPorReal: { type: Number, default: 500 },
+    nftPrices: {
+        Comum: { type: Number, default: 1000 },
+        Incomum: { type: Number, default: 2500 },
+        Raro: { type: Number, default: 5000 },
+        Lendario: { type: Number, default: 10000 }
+    }
+});
+if(mongoose.models.SystemSettings) delete mongoose.models.SystemSettings;
+const SysSettings = mongoose.model('SystemSettings', SystemSettingsSchema);
+
 
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true }).then(() => { setupInicial(); }).catch(err => console.error(err));
 
@@ -137,8 +171,8 @@ function isAdmin(req, res, next) {
 }
 
 async function getSCRate() {
-    let settings = await SystemSettings.findOne();
-    if (!settings) settings = await new SystemSettings({ scPorReal: 500 }).save(); 
+    let settings = await SysSettings.findOne();
+    if (!settings) settings = await new SysSettings({ scPorReal: 500 }).save(); 
     return settings.scPorReal;
 }
 
@@ -280,7 +314,8 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
     try {
         const user = await User.findById(req.session.user.id);
         const produtos = await Product.find({});
-        const scRate = await getSCRate();
+        const settings = await SysSettings.findOne() || new SysSettings();
+        const scRate = settings.scPorReal;
 
         if (!user.codigoIndicacao) { user.codigoIndicacao = crypto.randomBytes(3).toString('hex').toUpperCase(); await user.save(); }
         if (user.statusSocio === 'Ativo' && user.vencimentoSocio && new Date() > new Date(user.vencimentoSocio)) { user.statusSocio = 'Inadimplente'; await user.save(); }
@@ -294,6 +329,46 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
                 admin.saldo -= rendimentoGanho; user.saldo += rendimentoGanho; user.lastYieldApplied = Date.now();
                 await Promise.all([user.save(), admin.save(), new Transaction({ userId: user._id, tipo: 'Rendimento Automático', descricao: `Rendimento de ${diasInteiros} dia(s)`, valor: rendimentoGanho }).save()]);
             }
+        }
+
+        // --- LÓGICA DE FARM DO NFT ---
+        let equippedNftData = null;
+        const equippedNft = await NftItem.findOne({ ownerId: user._id, isEquipped: true });
+        
+        if (equippedNft) {
+            const admin = await User.findOne({ email: ADMIN_EMAIL });
+            const farmTrait = equippedNft.metadata.attributes.find(a => a.trait_type === "Farm (SolidCoin/Dia)");
+            const rechargeTrait = equippedNft.metadata.attributes.find(a => a.trait_type === "Taxa de Recarga");
+            
+            if (farmTrait && admin) {
+                const scPorDia = parseFloat(farmTrait.value);
+                const descBateriaPorDia = rechargeTrait ? parseFloat(rechargeTrait.value) : 10;
+                
+                const diasPassadosNft = (Date.now() - new Date(equippedNft.lastFarmDate)) / (1000 * 60 * 60 * 24);
+                const diasInteirosNft = Math.floor(diasPassadosNft);
+
+                if (diasInteirosNft >= 1 && equippedNft.battery > 0) {
+                    const maxDiasPossiveis = Math.floor(equippedNft.battery / descBateriaPorDia);
+                    const diasReais = Math.min(diasInteirosNft, maxDiasPossiveis);
+
+                    if (diasReais > 0) {
+                        const ganhoNft = diasReais * scPorDia;
+                        if (admin.saldo >= ganhoNft) {
+                            admin.saldo -= ganhoNft;
+                            user.saldo += ganhoNft;
+                            equippedNft.battery -= (diasReais * descBateriaPorDia);
+                            if (equippedNft.battery < 0) equippedNft.battery = 0;
+                            equippedNft.lastFarmDate = Date.now();
+
+                            await Promise.all([
+                                user.save(), admin.save(), equippedNft.save(),
+                                new Transaction({ userId: user._id, tipo: 'Farm NFT (Diário)', descricao: `${equippedNft.metadata.name}`, valor: ganhoNft }).save()
+                            ]);
+                        }
+                    }
+                }
+            }
+            equippedNftData = { id: equippedNft._id, imageUrl: equippedNft.imageUrl, name: equippedNft.metadata.name, battery: equippedNft.battery };
         }
 
         const imagensConfig = await ImagemConfig.find({});
@@ -315,12 +390,195 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
                 isAdmin: user.email === ADMIN_EMAIL, statusSocio: user.statusSocio, planoSocio: user.planoSocio, 
                 vencimentoSocio: user.vencimentoSocio, codigoIndicacao: user.codigoIndicacao, 
                 limiteDeSaque: await calcularLimiteSaque(user._id, user.saldo, user.email), nfcToken: user.nfcToken || '',
-                jaUsouCodigo: !!user.indicadoPor 
+                jaUsouCodigo: !!user.indicadoPor,
+                equippedNft: equippedNftData
             },
             marketplace: produtos.map(p => ({ id: p._id, nome: p.nome, preco: p.preco, imagemUrl: p.imagemUrl, categoria: p.categoria || 'Cédulas' }))
         });
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
+
+// =========================================================================
+// --- ROTAS DO MARKETPLACE NFT ---
+// =========================================================================
+
+app.get('/api/admin/nft-configs', isAdmin, async (req, res) => {
+    try {
+        let settings = await SysSettings.findOne();
+        res.json({ sucesso: true, prices: settings.nftPrices });
+    } catch(e) { res.status(500).json({ sucesso: false }); }
+});
+
+app.post('/api/admin/nft-configs', isAdmin, async (req, res) => {
+    try {
+        let settings = await SysSettings.findOne() || new SysSettings();
+        settings.nftPrices = { ...settings.nftPrices, ...req.body.prices };
+        await settings.save();
+        res.json({ sucesso: true, mensagem: "Preços de Mintagem atualizados!" });
+    } catch(e) { res.status(500).json({ sucesso: false }); }
+});
+
+app.post('/api/admin/nft-templates', isAdmin, async (req, res) => {
+    try {
+        const { imageUrl, metadataJson } = req.body;
+        const metadata = JSON.parse(metadataJson);
+        const rarityAttr = metadata.attributes.find(a => a.trait_type === "Classificação");
+        const rarity = rarityAttr ? rarityAttr.value : "Comum";
+
+        await new NftTemplate({ imageUrl, metadata, rarity }).save();
+        res.json({ sucesso: true, mensagem: "NFT adicionado ao catálogo para Mintagem!" });
+    } catch(e) { res.status(400).json({ sucesso: false, mensagem: "Erro. Verifique se o JSON é válido." }); }
+});
+
+app.get('/api/admin/nft-templates', isAdmin, async (req, res) => {
+    try {
+        const templates = await NftTemplate.find();
+        res.json({ sucesso: true, templates });
+    } catch(e) { res.status(500).json({ sucesso: false }); }
+});
+
+app.delete('/api/admin/nft-templates/:id', isAdmin, async (req, res) => {
+    try {
+        await NftTemplate.findByIdAndDelete(req.params.id);
+        res.json({ sucesso: true, mensagem: "NFT removido do catálogo." });
+    } catch(e) { res.status(500).json({ sucesso: false }); }
+});
+
+app.get('/api/nfts/disponiveis', checkAuthenticated, async (req, res) => {
+    try {
+        const templates = await NftTemplate.find({ ativo: true });
+        const settings = await SysSettings.findOne();
+        const prices = settings.nftPrices;
+        res.json({ sucesso: true, templates, prices });
+    } catch(e) { res.status(500).json({ sucesso: false }); }
+});
+
+app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
+    try {
+        const { templateId } = req.body;
+        const template = await NftTemplate.findById(templateId);
+        if (!template) return res.status(404).json({ sucesso: false, mensagem: "NFT não encontrado." });
+
+        const settings = await SysSettings.findOne();
+        const price = settings.nftPrices[template.rarity];
+
+        const user = await User.findById(req.session.user.id);
+        const admin = await User.findOne({ email: ADMIN_EMAIL });
+
+        const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
+        if (price > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saldo bloqueado pelo vesting! Saldo livre disponível: ${limiteDisponivel.toFixed(2)} SC.` });
+
+        user.saldo -= price; admin.saldo += price;
+
+        const maxBatteryAttr = template.metadata.attributes.find(a => a.trait_type === "Carga Máxima de Bateria");
+        const maxBattery = maxBatteryAttr ? maxBatteryAttr.value : 100;
+
+        const newItem = new NftItem({
+            templateId: template._id, ownerId: user._id, imageUrl: template.imageUrl, metadata: template.metadata,
+            mintPrice: price, battery: maxBattery
+        });
+
+        await Promise.all([
+            user.save(), admin.save(), newItem.save(),
+            new Transaction({ userId: user._id, tipo: 'Mint NFT', descricao: template.metadata.name, valor: -price }).save(),
+            new Transaction({ userId: admin._id, tipo: 'Venda NFT (Mint)', descricao: `Para ${user.nome}`, valor: price }).save()
+        ]);
+
+        res.json({ sucesso: true, mensagem: `Você mintou o ${template.metadata.name} com sucesso!` });
+    } catch(e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao mintar NFT." }); }
+});
+
+app.get('/api/nfts/meus', checkAuthenticated, async (req, res) => {
+    try {
+        const nfts = await NftItem.find({ ownerId: req.session.user.id }).sort({ mintDate: -1 });
+        res.json({ sucesso: true, nfts });
+    } catch(e) { res.status(500).json({ sucesso: false }); }
+});
+
+app.post('/api/nfts/equipar', checkAuthenticated, async (req, res) => {
+    try {
+        const { nftId } = req.body;
+        const nft = await NftItem.findOne({ _id: nftId, ownerId: req.session.user.id });
+        if (!nft) return res.status(404).json({ sucesso: false, mensagem: "NFT não encontrado na sua carteira." });
+        if (nft.isForSale) return res.status(400).json({ sucesso: false, mensagem: "Você não pode equipar um NFT que está à venda." });
+
+        await NftItem.updateMany({ ownerId: req.session.user.id, isEquipped: true }, { $set: { isEquipped: false } });
+        
+        nft.isEquipped = true;
+        nft.lastFarmDate = Date.now();
+        await nft.save();
+
+        res.json({ sucesso: true, mensagem: "NFT equipado com sucesso no seu perfil!" });
+    } catch(e) { res.status(500).json({ sucesso: false }); }
+});
+
+app.post('/api/nfts/vender', checkAuthenticated, async (req, res) => {
+    try {
+        const { nftId, price } = req.body;
+        const priceNum = parseFloat(price);
+
+        const nft = await NftItem.findOne({ _id: nftId, ownerId: req.session.user.id });
+        if (!nft) return res.status(404).json({ sucesso: false, mensagem: "NFT não encontrado." });
+        
+        if (nft.isEquipped) return res.status(400).json({ sucesso: false, mensagem: "Desequipe o NFT do seu perfil primeiro." });
+        if (priceNum < nft.mintPrice) return res.status(400).json({ sucesso: false, mensagem: `O sistema protege o valor. Mínimo: ${nft.mintPrice} SC.` });
+
+        nft.isForSale = true;
+        nft.salePrice = priceNum;
+        await nft.save();
+
+        res.json({ sucesso: true, mensagem: "NFT listado no Marketplace com sucesso!" });
+    } catch(e) { res.status(500).json({ sucesso: false }); }
+});
+
+app.post('/api/nfts/cancelar-venda', checkAuthenticated, async (req, res) => {
+    try {
+        const nft = await NftItem.findOne({ _id: req.body.nftId, ownerId: req.session.user.id });
+        if (!nft) return res.status(404).json({ sucesso: false });
+        nft.isForSale = false; nft.salePrice = 0; await nft.save();
+        res.json({ sucesso: true, mensagem: "Venda cancelada." });
+    } catch(e) { res.status(500).json({ sucesso: false }); }
+});
+
+app.get('/api/nfts/marketplace', checkAuthenticated, async (req, res) => {
+    try {
+        const nfts = await NftItem.find({ isForSale: true, ownerId: { $ne: req.session.user.id } }).populate('ownerId', 'nome');
+        res.json({ sucesso: true, nfts });
+    } catch(e) { res.status(500).json({ sucesso: false }); }
+});
+
+app.post('/api/nfts/comprar', checkAuthenticated, async (req, res) => {
+    try {
+        const { nftId } = req.body;
+        const nft = await NftItem.findById(nftId);
+        
+        if (!nft || !nft.isForSale) return res.status(400).json({ sucesso: false, mensagem: "NFT não disponível." });
+        if (nft.ownerId.toString() === req.session.user.id) return res.status(400).json({ sucesso: false, mensagem: "Você já é o dono." });
+
+        const comprador = await User.findById(req.session.user.id);
+        const vendedor = await User.findById(nft.ownerId);
+        
+        const limiteDisponivel = await calcularLimiteSaque(comprador._id, comprador.saldo, comprador.email);
+        if (nft.salePrice > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saldo livre disponível: ${limiteDisponivel.toFixed(2)} SC.` });
+
+        comprador.saldo -= nft.salePrice; vendedor.saldo += nft.salePrice;
+        
+        nft.ownerId = comprador._id;
+        nft.isForSale = false;
+        nft.isEquipped = false;
+        nft.salePrice = 0;
+
+        await Promise.all([
+            comprador.save(), vendedor.save(), nft.save(),
+            new Transaction({ userId: comprador._id, tipo: 'Compra NFT (Mercado)', descricao: nft.metadata.name, valor: -nft.salePrice }).save(),
+            new Transaction({ userId: vendedor._id, tipo: 'Venda NFT (Mercado)', descricao: `Para ${comprador.nome}`, valor: nft.salePrice }).save()
+        ]);
+
+        res.json({ sucesso: true, mensagem: "NFT comprado com sucesso!" });
+    } catch(e) { res.status(500).json({ sucesso: false, mensagem: "Erro na compra." }); }
+});
+
+// =========================================================================
 
 app.post('/api/links-referencia/acessar', checkAuthenticated, async (req, res) => {
     try {
@@ -792,77 +1050,6 @@ app.post('/api/staking/claim-rewards', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao reivindicar." }); }
 });
 
-app.post('/api/giftcard/comprar', checkAuthenticated, async (req, res) => {
-    try {
-        const { tipo, valorReais } = req.body;
-        const valorR = parseFloat(valorReais);
-        const scRate = await getSCRate();
-        const valorSC = valorR * scRate;
-        const [user, admin] = await Promise.all([ User.findById(req.session.user.id), User.findOne({ email: ADMIN_EMAIL }) ]);
-        
-        const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
-        if (valorSC > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Operação bloqueada pelo vesting! Saldo livre disponível para uso: ${limiteDisponivel.toFixed(2)} SC.` });
-
-        user.saldo -= valorSC; admin.saldo += valorSC;
-        const order = new GiftCardOrder({ userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, tipoGift: tipo, tipo: tipo, valorReais: valorR, valorBRL: valorR, valorSolidCoin: valorSC, custoSolidCoin: valorSC, status: 'Pendente' });
-        await Promise.all([user.save(), admin.save(), order.save(), new Transaction({ userId: user._id, tipo: 'Compra Gift Card', descricao: `Pedido ${tipo}`, valor: -valorSC }).save(), new Transaction({ userId: admin._id, tipo: 'Venda Gift Card', descricao: `Para ${user.nome}`, valor: valorSC }).save()]);
-        res.json({ sucesso: true, mensagem: `Pedido enviado! O ADM enviará o PIN no extrato.`, novoSaldo: user.saldo });
-    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro compra Gift Card." }); }
-});
-
-app.post('/api/recharge/comprar', checkAuthenticated, async (req, res) => {
-    try {
-        const { operadora, valorReais, numeroCelular } = req.body;
-        const scRate = await getSCRate();
-        const valorSC = parseFloat(valorReais) * scRate;
-        const [user, admin] = await Promise.all([ User.findById(req.session.user.id), User.findOne({ email: ADMIN_EMAIL }) ]);
-        
-        const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
-        if (valorSC > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Operação bloqueada pelo vesting! Saldo livre disponível para uso: ${limiteDisponivel.toFixed(2)} SC.` });
-
-        user.saldo -= valorSC; admin.saldo += valorSC;
-        const order = new RechargeOrder({ userId: user._id, nomeUsuario: user.nome, emailUsuario: user.email, operadora, numeroCelular, valorReais: parseFloat(valorReais), valorSolidCoin: valorSC, status: 'Pendente' });
-        await Promise.all([user.save(), admin.save(), order.save(), new Transaction({ userId: user._id, tipo: 'Recarga de Celular', descricao: `Pedido ${operadora}`, valor: -valorSC }).save(), new Transaction({ userId: admin._id, tipo: 'Venda Recarga', descricao: `Para ${user.nome}`, valor: valorSC }).save()]);
-        res.json({ sucesso: true, mensagem: `Pedido enviado! NSU em breve.`, novoSaldo: user.saldo });
-    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao pedir Recarga." }); }
-});
-
-app.post('/api/transferir', checkAuthenticated, async (req, res) => {
-    const { emailDestinatario, valor } = req.body;
-    const valorNum = parseFloat(valor);
-    if (!emailDestinatario || !valorNum || valorNum <= 0) return res.status(400).json({ sucesso: false, mensagem: "Inválido." });
-    try {
-        const remetente = await User.findById(req.session.user.id);
-        const destinatario = await User.findOne({ email: emailDestinatario });
-        if (!destinatario || remetente.email === destinatario.email) return res.status(400).json({ sucesso: false, mensagem: "Destinatário inválido." });
-        
-        const limiteDisponivel = await calcularLimiteSaque(remetente._id, remetente.saldo, remetente.email);
-        if (valorNum > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Transferência bloqueada pelo vesting do Sócio! Saldo livre para envio: ${limiteDisponivel.toFixed(2)} SC.` });
-        
-        remetente.saldo -= valorNum; destinatario.saldo += valorNum;
-        await Promise.all([remetente.save(), destinatario.save(), new Transaction({ userId: remetente._id, tipo: 'Transferência Enviada', descricao: `Para ${destinatario.nome}`, valor: -valorNum }).save(), new Transaction({ userId: destinatario._id, tipo: 'Transferência Recebida', descricao: `De ${remetente.nome}`, valor: valorNum }).save()]);
-        res.json({ sucesso: true, mensagem: "Transferência realizada!", novoSaldo: remetente.saldo });
-    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro." }); }
-});
-
-app.post('/api/comprar', checkAuthenticated, async (req, res) => {
-    try {
-        const [comprador, admin, produto] = await Promise.all([ User.findById(req.session.user.id), User.findOne({ email: ADMIN_EMAIL }), Product.findById(req.body.produtoId) ]);
-        if (!produto || comprador.saldo < produto.preco) return res.status(400).json({ sucesso: false, mensagem: "Inválido/Insuficiente." });
-        
-        comprador.saldo -= produto.preco; admin.saldo += produto.preco;
-        await Promise.all([comprador.save(), admin.save(), new Transaction({ userId: comprador._id, tipo: 'Compra no Marketplace', descricao: `${produto.nome}`, valor: -produto.preco }).save(), new Transaction({ userId: admin._id, tipo: 'Venda no Marketplace', descricao: `${comprador.nome}`, valor: produto.preco }).save()]);
-        res.json({ sucesso: true, mensagem: `Comprado!`, novoSaldo: comprador.saldo });
-    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro." }); }
-});
-
-app.get('/api/extrato', checkAuthenticated, async (req, res) => {
-    try {
-        const transacoes = await Transaction.find({ userId: req.session.user.id }).sort({ data: -1 }).limit(50);
-        res.json({ sucesso: true, transacoes });
-    } catch (error) { res.status(500).json({ sucesso: false, mensagem: 'Erro extrato.' }); }
-});
-
 app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
     try {
         const { mensagem } = req.body;
@@ -896,6 +1083,24 @@ app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
     } catch (error) {
         res.status(500).json({ sucesso: false, resposta: "Desculpe, meu cérebro digital está reiniciando. Tente novamente em alguns segundos." });
     }
+});
+
+app.post('/api/comprar', checkAuthenticated, async (req, res) => {
+    try {
+        const [comprador, admin, produto] = await Promise.all([ User.findById(req.session.user.id), User.findOne({ email: ADMIN_EMAIL }), Product.findById(req.body.produtoId) ]);
+        if (!produto || comprador.saldo < produto.preco) return res.status(400).json({ sucesso: false, mensagem: "Inválido/Insuficiente." });
+        
+        comprador.saldo -= produto.preco; admin.saldo += produto.preco;
+        await Promise.all([comprador.save(), admin.save(), new Transaction({ userId: comprador._id, tipo: 'Compra no Marketplace', descricao: `${produto.nome}`, valor: -produto.preco }).save(), new Transaction({ userId: admin._id, tipo: 'Venda no Marketplace', descricao: `${comprador.nome}`, valor: produto.preco }).save()]);
+        res.json({ sucesso: true, mensagem: `Comprado!`, novoSaldo: comprador.saldo });
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro." }); }
+});
+
+app.get('/api/extrato', checkAuthenticated, async (req, res) => {
+    try {
+        const transacoes = await Transaction.find({ userId: req.session.user.id }).sort({ data: -1 }).limit(50);
+        res.json({ sucesso: true, transacoes });
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: 'Erro extrato.' }); }
 });
 
 app.get('/api/admin/listar-imagens', isAdmin, async (req, res) => {
@@ -941,7 +1146,7 @@ app.post('/api/admin/alterar-senha-usuario', isAdmin, async (req, res) => {
 
 app.post('/api/admin/atualizar-cotacao', isAdmin, async (req, res) => {
     try {
-        let settings = await SystemSettings.findOne() || new SystemSettings();
+        let settings = await SysSettings.findOne() || new SysSettings();
         settings.scPorReal = parseFloat(req.body.cotacao); await settings.save();
         res.json({ sucesso: true, mensagem: `Cotação atualizada.` });
     } catch(e) { res.status(500).json({ sucesso: false }); }
@@ -1081,7 +1286,7 @@ app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
         
         if (acao === 'aprovar') {
             if (saque.solanaWallet && saque.solanaWallet.includes('MiniPay:')) {
-                if (!usdcContract) return res.status(500).json({ sucesso: false, mensagem: "Erro: A carteira MiniPay do Servidor não está configurada (Falta a Seed Phrase no Render)." });
+                if (!usdcContract) return res.status(500).json({ sucesso: false, mensagem: "Erro: A carteira MiniPay do Servidor não está configurada." });
                 
                 try {
                     const enderecoDestino = saque.solanaWallet.replace('MiniPay:', '').trim();
@@ -1198,9 +1403,6 @@ app.post('/api/admin/processar-nfc', isAdmin, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
-app.use('/api/investimentos', checkAuthenticated, investimentosRoutes);
-app.use('/api', checkAuthenticated, investimentosRoutes); 
-
 async function setupInicial() {
     try {
         let ceo = await User.findOne({ email: ADMIN_EMAIL });
@@ -1209,15 +1411,6 @@ async function setupInicial() {
             ceo = new User({ nome: "CEO SolidCoin", email: ADMIN_EMAIL, senha: senhaHash, saldo: 1000000000, codigoIndicacao: 'CEO123' });
             await ceo.save();
         } else if (!ceo.codigoIndicacao) { ceo.codigoIndicacao = 'CEO123'; await ceo.save(); }
-        
-        if (await Product.countDocuments() === 0) {
-            await Product.insertMany([
-                { nome: 'Cedula SC 1000', preco: 1000, imagemUrl: 'https://i.postimg.cc/vBmmytJq/projeto-page-0001.png', categoria: 'Cédulas'},
-                { nome: 'Cedula SC 5000', preco: 5000, imagemUrl: 'https://i.postimg.cc/1XZDMTnn/projeto2-page-0001.png', categoria: 'Cédulas'},
-                { nome: 'Cedula SC 10000', preco: 10000, imagemUrl: 'https://i.postimg.cc/XNwfXVmw/projeto3-page-0001.png', categoria: 'Cédulas'},
-                { nome: 'Cedula SC 100000', preco: 100000, imagemUrl: 'https://i.postimg.cc/MHxj1QN1/projeto4-page-0001.png', categoria: 'Cédulas'}
-            ]);
-        }
         
         const nomesDosPlanos = Object.keys(PLANOS_SOCIO);
         for (const planoNome of nomesDosPlanos) {
@@ -1236,7 +1429,7 @@ async function setupInicial() {
             }).save();
         }
 
-        if (!(await SystemSettings.findOne())) { await new SystemSettings({ scPorReal: 500 }).save(); }
+        if (!(await SysSettings.findOne())) { await new SysSettings({ scPorReal: 500 }).save(); }
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }
 
@@ -1292,10 +1485,7 @@ async function verificarGiftCardsExpirados() {
             if (!admin) return;
 
             for (let card of vencidos) {
-                card.status = 'Expirado';
-                card.isUsed = true;
-                admin.saldo += card.valor; 
-
+                card.status = 'Expirado'; card.isUsed = true; admin.saldo += card.valor; 
                 await Promise.all([
                     card.save(),
                     new Transaction({ userId: admin._id, tipo: 'Estorno Gift Card SC Expirado', descricao: `Código vencido: ${card.codigo}`, valor: card.valor }).save()

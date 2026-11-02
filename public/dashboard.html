@@ -6,88 +6,38 @@
     <title>Dashboard - SolidCoin</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        /* ESTILOS DO MENU DE BOTÕES */
-        .feature-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); 
-            gap: 15px; 
-            margin: 30px 0; 
-        }
-        .feature-btn { 
-            background: linear-gradient(145deg, #1a1a1a, #222); 
-            border: 1px solid #333; 
-            border-radius: 12px; 
-            padding: 25px 15px; 
-            color: #fff; 
-            cursor: pointer; 
-            transition: all 0.3s ease; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: flex-start; 
-            text-align: center; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5); 
-        }
-        .feature-btn:hover { 
-            transform: translateY(-5px); 
-            background: linear-gradient(145deg, #222, #2a2a2a);
-            box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3); 
-            border-color: #d4af37;
-        }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; margin: 30px 0; }
+        .feature-btn { background: linear-gradient(145deg, #1a1a1a, #222); border: 1px solid #333; border-radius: 12px; padding: 25px 15px; color: #fff; cursor: pointer; transition: all 0.3s ease; display: flex; flex-direction: column; align-items: center; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .feature-btn:hover { transform: translateY(-5px); background: linear-gradient(145deg, #222, #2a2a2a); box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3); border-color: #d4af37;}
         .feature-btn .icon { font-size: 2.5em; margin-bottom: 15px; }
         .feature-btn .text { font-size: 0.95em; font-weight: bold; line-height: 1.3; }
         
-        /* Cores de destaque para cada botão */
-        .btn-tron { border-bottom: 4px solid #ff4757; }
-        .btn-ind { border-bottom: 4px solid #f1c40f; }
-        .btn-stake { border-bottom: 4px solid #e67e22; }
-        .btn-socio { border-bottom: 4px solid #9b59b6; }
-        .btn-pix { border-bottom: 4px solid #00b894; }
-        .btn-cripto { border-bottom: 4px solid #3498db; }
-        .btn-dep { border-bottom: 4px solid #2ecc71; }
-        .btn-trans { border-bottom: 4px solid #e74c3c; }
-        .btn-buygift { border-bottom: 4px solid #ff9f43; }
-        .btn-recarga { border-bottom: 4px solid #1abc9c; }
-        .btn-resgift { border-bottom: 4px solid #95a5a6; }
-        .btn-nfc { border-bottom: 4px solid #00cec9; }
-        .btn-tarefas { border-bottom: 4px solid #8e44ad; }
-        .btn-invest { border-bottom: 4px solid #f39c12; }
-        .btn-links { border-bottom: 4px solid #00ff88; }
+        .btn-nft { border-bottom: 4px solid #ff9f43; }
 
         .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        .voltar-btn { 
-            background-color: #222; color: #d4af37; border: 1px solid #d4af37; 
-            padding: 10px 20px; border-radius: 6px; cursor: pointer; 
-            margin-bottom: 10px; display: inline-flex; align-items: center; 
-            gap: 8px; font-weight: bold; transition: 0.3s;
-        }
-        .voltar-btn:hover { background-color: #d4af37; color: #000; }
+        .voltar-btn { background-color: #222; color: #d4af37; border: 1px solid #d4af37; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-bottom: 10px; display: inline-flex; align-items: center; gap: 8px; font-weight: bold; transition: 0.3s; }
+        
+        /* NFT Cards */
+        .nft-card { background: #111; border: 1px solid #444; border-radius: 8px; overflow: hidden; text-align: center; display: flex; flex-direction: column; justify-content: space-between; }
+        .nft-card img { width: 100%; height: 180px; object-fit: cover; border-bottom: 1px solid #333; }
+        .nft-card-body { padding: 15px; }
+        .nft-card h3 { color: #d4af37; margin: 0 0 5px 0; font-size: 1.1em; }
+        .nft-card p { margin: 5px 0; font-size: 0.85em; color: #aaa; }
+        .nft-rarity { font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 10px; font-size: 0.8em; }
+        .nft-rarity.Comum { background: #7f8c8d; color: #fff; }
+        .nft-rarity.Incomum { background: #2ecc71; color: #000; }
+        .nft-rarity.Raro { background: #3498db; color: #fff; }
+        .nft-rarity.Lendario { background: #f1c40f; color: #000; }
+        .nft-btn { width: 100%; padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+        .nft-btn-primary { background: #d4af37; color: #000; }
+        .nft-btn-primary:hover { background: #f1c40f; }
+        .nft-btn-danger { background: #e74c3c; color: #fff; }
+        
+        .header-avatar { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid #d4af37; vertical-align: middle; margin-right: 10px; display: inline-block; background-color: #333; }
 
-        .input-web3 {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 12px;
-            border-radius: 6px;
-            border: 1px solid #444;
-            background: #111;
-            color: #fff;
-            box-sizing: border-box;
-            font-family: monospace;
-            font-size: 1.05em;
-        }
-        .input-web3:focus { border-color: #3498db; outline: none; }
-
-        /* ALERTA DE VENCIMENTO DO SÓCIO */
-        .alerta-vencimento { display: none; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center; font-weight: bold; animation: pulse 2s infinite; }
-        .alerta-amarelo { background-color: rgba(241, 196, 15, 0.1); border: 2px dashed #f1c40f; color: #f1c40f; }
-        .alerta-vermelho { background-color: rgba(231, 76, 60, 0.1); border: 2px dashed #e74c3c; color: #e74c3c; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
-
-        /* ========================================================= */
-        /* ESTILOS CORRIGIDOS DO SOLIDBOT (ROBÔ DE SUPORTE) */
-        /* ========================================================= */
+        /* SolidBot */
         #bot-trigger {
             position: fixed !important;
             bottom: 25px !important;
@@ -103,7 +53,7 @@
             font-size: 35px !important;
             cursor: pointer !important;
             box-shadow: 0 4px 15px rgba(0,0,0,0.8) !important;
-            z-index: 2147483647 !important;
+            z-index: 2147483647 !important; 
             transition: 0.3s !important;
             border: 2px solid #fff !important;
         }
@@ -132,7 +82,6 @@
         .msg-bot { background: #222; color: #fff; align-self: flex-start; border-bottom-left-radius: 2px; border: 1px solid #333;}
         .msg-user { background: #d4af37; color: #000; align-self: flex-end; border-bottom-right-radius: 2px; font-weight: bold;}
         
-        /* CORREÇÃO DO CAMPO DE DIGITAÇÃO DO BOT */
         .chatbot-footer { 
             padding: 10px !important; 
             background: #1a1a1a !important; 
@@ -165,13 +114,15 @@
             cursor: pointer !important; 
             transition: 0.3s !important; 
         }
-        .chatbot-footer button:hover { background: #f1c40f !important; }
     </style>
 </head>
 <body>
     <div class="container dashboard">
-        <header>
-            <h1>Olá, <span id="nome-usuario">...</span>!</h1>
+        <header style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center;">
+                <img id="user-avatar-header" src="https://via.placeholder.com/150/333333/FFFFFF?text=User" class="header-avatar" alt="Avatar">
+                <h1>Olá, <span id="nome-usuario">...</span>!</h1>
+            </div>
             <div>
                 <button id="admin-btn" style="display: none;">Painel ADM</button>
                 <button id="logout-btn">Sair</button>
@@ -185,18 +136,17 @@
                 Seu Saldo <span id="toggle-saldo" style="cursor: pointer; font-size: 0.9em; filter: grayscale(100%);">👁️</span>
             </h2>
             <p><span id="saldo-usuario">...</span> SolidCoins</p>
-            
             <p style="font-size: 1.05em; color: #00b894; margin-top: 5px; font-weight: bold; background: rgba(0, 184, 148, 0.1); display: inline-block; padding: 6px 15px; border-radius: 20px; border: 1px solid rgba(0, 184, 148, 0.2);">
                 🔓 Disponível para Saque: <span id="limite-saque-usuario">...</span> SC
-            </p>
-
-            <p style="font-size: 0.95em; color: #aaa; margin-top: 10px;">
-                ≈ R$ <span id="saldo-reais">0.00</span> <br>
-                <small style="color: #666; font-size: 0.8em;">(Cotação atual: <span id="cotacao-atual">500</span> SC = R$ 1,00)</small>
             </p>
         </div>
 
         <div id="menu-botoes" class="feature-grid">
+            <!-- BOTÃO NOVO NFT MARKETPLACE -->
+            <button class="feature-btn btn-nft" onclick="abrirSecao('sec-nft-marketplace')">
+                <span class="icon">🖼️</span><span class="text">NFTs, Avatar & Farm</span>
+            </button>
+            
             <button class="feature-btn btn-links" onclick="abrirSecao('sec-links-ref')">
                 <span class="icon">🔗</span><span class="text">Links & Parcerias (10 SC)</span>
             </button>
@@ -244,6 +194,42 @@
             </button>
         </div>
 
+        <!-- ========================================================= -->
+        <!-- SEÇÃO NFT MARKETPLACE (MINT, INVENTÁRIO, MERCADO P2P) -->
+        <!-- ========================================================= -->
+        <div id="sec-nft-marketplace" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
+            <div class="card" style="border-left: 5px solid #ff9f43; background: linear-gradient(145deg, #1f1406, #2d1e0d);">
+                <h2 style="color: #ff9f43; margin-top: 0;">🖼️ Universo NFT SolidCoin</h2>
+                <p style="color: #ddd; font-size: 0.95em;">Minte, equipe no seu perfil para ganhar farm diário ou negocie com outros usuários no mercado secundário!</p>
+                
+                <div style="display: flex; gap: 10px; margin: 20px 0;">
+                    <button onclick="mudarAbaNft('mint')" style="flex:1; padding: 10px; background: #333; color: #fff; border: 1px solid #555; border-radius:6px; font-weight:bold; cursor: pointer;">Lançamentos (Mint)</button>
+                    <button onclick="mudarAbaNft('meus')" style="flex:1; padding: 10px; background: #333; color: #fff; border: 1px solid #555; border-radius:6px; font-weight:bold; cursor: pointer;">Meu Inventário</button>
+                    <button onclick="mudarAbaNft('mercado')" style="flex:1; padding: 10px; background: #333; color: #fff; border: 1px solid #555; border-radius:6px; font-weight:bold; cursor: pointer;">Mercado P2P</button>
+                </div>
+
+                <div id="nft-tab-mint" style="display: block;">
+                    <h3 style="color: #ff9f43; text-align: center;">Disponíveis para Mintar (Gerar Novo)</h3>
+                    <div id="lista-nft-mint" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;"></div>
+                </div>
+
+                <div id="nft-tab-meus" style="display: none;">
+                    <h3 style="color: #00ff88; text-align: center;">Meu Inventário & Avatar</h3>
+                    <div id="lista-meus-nfts" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;"></div>
+                </div>
+
+                <div id="nft-tab-mercado" style="display: none;">
+                    <h3 style="color: #d4af37; text-align: center;">Mercado Secundário de Jogadores</h3>
+                    <div id="lista-mercado-nfts" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- AS OUTRAS SEÇÕES ORIGINAIS CONTINUAM AQUI ABAIXO -->
+        <!-- ========================================================= -->
+        
         <div id="sec-links-ref" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #00ff88; background: linear-gradient(145deg, #071a12, #0d2a1e);">
@@ -280,6 +266,7 @@
             </div>
         </div>
 
+        <!-- Seções: tarefas, indicação, nfc, tron, staking, socio, saque-pix, saque-cripto, depositar, transferir, comprar-gift, recarga, resgatar-gift -->
         <div id="sec-tarefas" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #8e44ad; background: linear-gradient(145deg, #11081a, #1a0f2e);">
@@ -650,7 +637,7 @@
                     📸 Instagram
                 </a>
                 <a href="https://x.com/SOLIDCOINSDC" target="_blank" style="color: #d4af37; text-decoration: none; font-weight: bold; font-size: 1.2em; transition: color 0.3s;">
-                    𝕏(Antigo twitter)
+                    𝕏 X
                 </a>
             </div>
         </footer>
@@ -757,12 +744,193 @@
                 document.getElementById('conteudo-links-box').style.display = 'none';
                 document.getElementById('lista-links-referencia').innerHTML = '';
             }
+            if(idSecao === 'sec-nft-marketplace') {
+                mudarAbaNft('mint');
+            }
         };
 
         window.voltarMenu = function() {
             const secoes = document.querySelectorAll('.feature-section');
             secoes.forEach(sec => sec.style.display = 'none');
             document.getElementById('menu-botoes').style.display = 'grid';
+        };
+
+        // ==========================================
+        // LÓGICA DO MARKETPLACE NFT
+        // ==========================================
+        window.mudarAbaNft = function(aba) {
+            document.getElementById('nft-tab-mint').style.display = aba === 'mint' ? 'block' : 'none';
+            document.getElementById('nft-tab-meus').style.display = aba === 'meus' ? 'block' : 'none';
+            document.getElementById('nft-tab-mercado').style.display = aba === 'mercado' ? 'block' : 'none';
+
+            if(aba === 'mint') carregarNftMint();
+            if(aba === 'meus') carregarMeusNfts();
+            if(aba === 'mercado') carregarMercadoNfts();
+        };
+
+        async function carregarNftMint() {
+            const container = document.getElementById('lista-nft-mint');
+            container.innerHTML = '<p style="text-align:center; color:#aaa;">Carregando...</p>';
+            try {
+                const res = await fetch('/api/nfts/disponiveis');
+                const data = await res.json();
+                if(data.sucesso) {
+                    container.innerHTML = '';
+                    if(data.templates.length === 0) return container.innerHTML = '<p style="text-align:center; color:#aaa;">Nenhuma coleção disponível.</p>';
+                    
+                    data.templates.forEach(t => {
+                        const price = data.prices[t.rarity] || 0;
+                        const farmAttr = t.metadata.attributes.find(a => a.trait_type === "Farm (SolidCoin/Dia)");
+                        const farmValue = farmAttr ? farmAttr.value : 0;
+                        
+                        container.innerHTML += `
+                            <div class="nft-card">
+                                <img src="${t.imageUrl}">
+                                <div class="nft-card-body">
+                                    <span class="nft-rarity ${t.rarity}">${t.rarity}</span>
+                                    <h3>${t.metadata.name}</h3>
+                                    <p style="color: #00ff88; font-weight:bold;">Farm: ${farmValue} SC/dia</p>
+                                    <p style="color: #f39c12; font-weight:bold; font-size:1.1em; margin-top:10px;">Custo: ${price} SC</p>
+                                    <button class="nft-btn nft-btn-primary" onclick="mintarNft('${t._id}', '${t.metadata.name}')">MINTAR AGORA</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            } catch(e) {}
+        }
+
+        window.mintarNft = async function(templateId, nome) {
+            if(!confirm(`Deseja pagar e gerar o NFT ${nome} na sua conta?`)) return;
+            try {
+                const res = await fetch('/api/nfts/mintar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ templateId }) });
+                const data = await res.json();
+                alert(data.mensagem);
+                if(data.sucesso) mudarAbaNft('meus');
+            } catch(e) {}
+        };
+
+        async function carregarMeusNfts() {
+            const container = document.getElementById('lista-meus-nfts');
+            container.innerHTML = '<p style="text-align:center; color:#aaa;">Carregando...</p>';
+            try {
+                const res = await fetch('/api/nfts/meus');
+                const data = await res.json();
+                if(data.sucesso) {
+                    container.innerHTML = '';
+                    if(data.nfts.length === 0) return container.innerHTML = '<p style="text-align:center; color:#aaa;">Você não tem nenhum NFT.</p>';
+                    
+                    data.nfts.forEach(nft => {
+                        const farmAttr = nft.metadata.attributes.find(a => a.trait_type === "Farm (SolidCoin/Dia)");
+                        const farmValue = farmAttr ? farmAttr.value : 0;
+                        
+                        let buttonsHtml = '';
+                        if(nft.isForSale) {
+                            buttonsHtml = `<p style="color:#f39c12; font-weight:bold;">À VENDA POR ${nft.salePrice} SC</p>
+                                           <button class="nft-btn nft-btn-danger" onclick="cancelarVendaNft('${nft._id}')">Cancelar Venda</button>`;
+                        } else if(nft.isEquipped) {
+                            buttonsHtml = `<p style="color:#00ff88; font-weight:bold;">⭐ EQUIPADO (Farm Ativo)</p>
+                                           <p style="font-size:0.8em; color:#aaa;">Bateria: ${nft.battery}%</p>`;
+                        } else {
+                            buttonsHtml = `<button class="nft-btn nft-btn-primary" onclick="equiparNft('${nft._id}')">Equipar Avatar</button>
+                                           <button class="nft-btn" style="background:#555; color:#fff;" onclick="venderNft('${nft._id}', ${nft.mintPrice})">Vender</button>`;
+                        }
+
+                        container.innerHTML += `
+                            <div class="nft-card" style="${nft.isEquipped ? 'border: 2px solid #00ff88;' : ''}">
+                                <img src="${nft.imageUrl}">
+                                <div class="nft-card-body">
+                                    <h3>${nft.metadata.name}</h3>
+                                    <p>Farm: ${farmValue} SC/dia</p>
+                                    ${buttonsHtml}
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            } catch(e) {}
+        }
+
+        window.equiparNft = async function(nftId) {
+            try {
+                const res = await fetch('/api/nfts/equipar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nftId }) });
+                const data = await res.json();
+                alert(data.mensagem);
+                if(data.sucesso) {
+                    carregarMeusNfts();
+                    fetchDashboardData();
+                }
+            } catch(e) {}
+        };
+
+        window.venderNft = async function(nftId, mintPrice) {
+            const price = prompt(`MERCADO LIVRE\nO preço mínimo de venda é o custo original: ${mintPrice} SC.\n\nPor quanto deseja listar o seu NFT?`);
+            if(!price) return;
+            const precoNum = parseFloat(price);
+            if(precoNum < mintPrice) return alert(`Você não pode vender abaixo do preço base de ${mintPrice} SC para proteger a economia!`);
+
+            try {
+                const res = await fetch('/api/nfts/vender', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nftId, price: precoNum }) });
+                const data = await res.json();
+                alert(data.mensagem);
+                if(data.sucesso) carregarMeusNfts();
+            } catch(e) {}
+        };
+
+        window.cancelarVendaNft = async function(nftId) {
+            try {
+                const res = await fetch('/api/nfts/cancelar-venda', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nftId }) });
+                const data = await res.json();
+                if(data.sucesso) carregarMeusNfts();
+            } catch(e) {}
+        };
+
+        async function carregarMercadoNfts() {
+            const container = document.getElementById('lista-mercado-nfts');
+            container.innerHTML = '<p style="text-align:center; color:#aaa;">Buscando...</p>';
+            try {
+                const res = await fetch('/api/nfts/marketplace');
+                const data = await res.json();
+                if(data.sucesso) {
+                    container.innerHTML = '';
+                    if(data.nfts.length === 0) return container.innerHTML = '<p style="text-align:center; color:#aaa;">Nenhum usuário colocou NFTs à venda.</p>';
+                    
+                    data.nfts.forEach(nft => {
+                        const farmAttr = nft.metadata.attributes.find(a => a.trait_type === "Farm (SolidCoin/Dia)");
+                        const farmValue = farmAttr ? farmAttr.value : 0;
+                        const valorizacao = (((nft.salePrice - nft.mintPrice) / nft.mintPrice) * 100).toFixed(1);
+                        const corVal = valorizacao >= 0 ? '#00ff88' : '#e74c3c';
+
+                        container.innerHTML += `
+                            <div class="nft-card">
+                                <img src="${nft.imageUrl}">
+                                <div class="nft-card-body">
+                                    <h3>${nft.metadata.name}</h3>
+                                    <p style="color: #fff;">Farm: ${farmValue} SC/dia</p>
+                                    <p style="font-size:0.8em; color:#888;">Vendedor: ${nft.ownerId.nome}</p>
+                                    
+                                    <div style="background:#000; padding:10px; margin: 10px 0; border-radius:4px;">
+                                        <p style="margin:0; font-size:1.2em; color:#f39c12; font-weight:bold;">${nft.salePrice} SC</p>
+                                        <p style="margin:5px 0 0 0; font-size:0.85em; color:${corVal};">Valorização: ${valorizacao}%</p>
+                                    </div>
+                                    
+                                    <button class="nft-btn nft-btn-primary" onclick="comprarNftMercado('${nft._id}', '${nft.metadata.name}', ${nft.salePrice})">COMPRAR</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            } catch(e) {}
+        }
+
+        window.comprarNftMercado = async function(nftId, nome, preco) {
+            if(!confirm(`Confirma a compra do ${nome} por ${preco} SC no mercado secundário?`)) return;
+            try {
+                const res = await fetch('/api/nfts/comprar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nftId }) });
+                const data = await res.json();
+                alert(data.mensagem);
+                if(data.sucesso) mudarAbaNft('meus');
+            } catch(e) {}
         };
 
         window.desbloquearPaginaLinks = async function() {
@@ -939,24 +1107,16 @@
 
         window.planosConfigDB = {}; 
 
-        window.addEventListener('DOMContentLoaded', () => {
-            setInterval(() => {
-                fetch('/api/dados-dashboard').then(res => res.json()).then(data => {
+        // --- SISTEMA GLOBAL QUE MANTÉM OS DADOS ATUALIZADOS ---
+        function fetchDashboardData() {
+            fetch('/api/dados-dashboard')
+                .then(res => res.json())
+                .then(data => {
                     if (data.sucesso && data.usuario) {
                         const limiteEl = document.getElementById('limite-saque-usuario');
                         if (limiteEl) {
                             limiteEl.innerText = data.usuario.limiteDeSaque.toFixed(2);
                         }
-                    }
-                }).catch(e => {});
-            }, 3000);
-
-            fetch('/api/dados-dashboard')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.sucesso) {
-                        const limiteEl = document.getElementById('limite-saque-usuario');
-                        if (limiteEl && data.usuario) limiteEl.innerText = data.usuario.limiteDeSaque.toFixed(2);
 
                         if (data.usuario.statusSocio === 'Ativo' && data.usuario.vencimentoSocio) {
                             const dataVencimento = new Date(data.usuario.vencimentoSocio);
@@ -994,9 +1154,24 @@
                             if(solanaInput) solanaInput.value = data.usuario.solanaWallet || '';
                             const tronInput = document.getElementById('tron-wallet');
                             if(tronInput) tronInput.value = data.usuario.tronWallet || '';
+
+                            // Atualiza Foto de Perfil na Barra Superior pelo NFT
+                            const avatarEl = document.getElementById('user-avatar-header');
+                            if (avatarEl) {
+                                if (data.usuario.equippedNft && data.usuario.equippedNft.imageUrl) {
+                                    avatarEl.src = data.usuario.equippedNft.imageUrl;
+                                } else {
+                                    avatarEl.src = "https://via.placeholder.com/150/333333/FFFFFF?text=User";
+                                }
+                            }
                         }
                     }
                 });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchDashboardData();
+            setInterval(fetchDashboardData, 3000); // Atualiza os dados (saldo e limites) a cada 3s
         });
 
         setTimeout(() => {
