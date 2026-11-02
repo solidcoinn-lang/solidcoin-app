@@ -161,12 +161,13 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+
 app.use(session({ 
     secret: 'solidcoin-efi-secret-2026', 
-    resave: false, 
-    saveUninitialized: false,
+    resave: true, 
+    saveUninitialized: true,
     cookie: { 
-        secure: process.env.NODE_ENV === 'production', 
+        secure: false, // Força permissão sem problemas com o Render
         maxAge: 24 * 60 * 60 * 1000 
     }
 }));
@@ -280,7 +281,6 @@ app.post('/logout', checkAuthenticated, (req, res) => {
     req.session.destroy(err => { res.clearCookie('connect.sid'); res.json({ sucesso: true }); });
 });
 
-// CORREÇÃO: Forçar a gravação da sessão Google antes de responder ao cliente.
 app.post('/api/auth/google', async (req, res) => {
     if (!googleClient) return res.status(500).json({ sucesso: false, mensagem: "Google Login não configurado." });
     
@@ -1623,7 +1623,8 @@ async function verificarPixPendentesAutomatizado() {
                     
                     if (admin && admin.saldo >= ordem.moedasReceber) {
                         admin.saldo -= ordem.moedasReceber; user.saldo += ordem.moedasReceber;
-                        user.statusSocio = 'Ativo'; user.planoSocio = ordem.plano; user.vencimentoSocio = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); ordem.status = 'Aprovado';
+                        user.statusSocio = 'Ativo'; user.planoSocio = ordem.plano; user.vencimentoSocio = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); 
+                        ordem.status = 'Aprovado';
                         
                         const transacoesToSave = [
                             new Transaction({ userId: user._id, tipo: 'Assinatura Sócio SolidCoin', descricao: `Pix Automático (Robô)`, valor: ordem.moedasReceber }),
