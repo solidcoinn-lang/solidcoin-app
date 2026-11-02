@@ -312,7 +312,6 @@ app.post('/api/auth/google', async (req, res) => {
     } catch (error) { res.status(401).json({ sucesso: false, mensagem: "Erro Auth." }); }
 });
 
-// Rotas de investimentos montadas apenas em /api/investimentos para não bloquear /api/auth/google
 app.use('/api/investimentos', checkAuthenticated, investimentosRoutes);
 
 app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
@@ -430,10 +429,10 @@ app.post('/api/admin/nft-templates', isAdmin, async (req, res) => {
     try {
         const { imageUrl, metadataJson } = req.body;
         const metadata = JSON.parse(metadataJson);
-        const rarityAttr = metadata.attributes.find(a => a.trait_type === "Classificação");
+        const rarityAttr = metadata.attributes.find(a => a.trait_type === "Classificação" || a.trait_type === "Rarity");
         const rarity = rarityAttr ? rarityAttr.value : "Comum";
 
-        await new NftTemplate({ imageUrl, metadata, rarity }).save();
+        await new NftTemplate({ imageUrl, metadata, rarity, ativo: true }).save();
         res.json({ sucesso: true, mensagem: "NFT adicionado ao catálogo para Mintagem!" });
     } catch(e) { res.status(400).json({ sucesso: false, mensagem: "Erro. Verifique se o JSON é válido." }); }
 });
@@ -475,7 +474,7 @@ app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
                 const rarityAttr = metadata.attributes.find(a => a.trait_type === "Classificação" || a.trait_type === "Rarity");
                 const rarity = rarityAttr ? rarityAttr.value : "Comum";
 
-                await new NftTemplate({ imageUrl: imgUrl, metadata, rarity }).save();
+                await new NftTemplate({ imageUrl: imgUrl, metadata, rarity, ativo: true }).save();
                 importados++;
             } catch (errLoop) {
                 erros++;
@@ -488,10 +487,36 @@ app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
     }
 });
 
+// ATUALIZADO: Lista todos os NFTs no Painel ADM indicando a quem pertence cada um
 app.get('/api/admin/nft-templates', isAdmin, async (req, res) => {
     try {
-        const templates = await NftTemplate.find();
-        res.json({ sucesso: true, templates });
+        const templates = await NftTemplate.find().lean();
+        const itemsMintados = await NftItem.find().populate('ownerId', 'nome email').lean();
+
+        const templatesComProprietario = templates.map(t => {
+            const item = itemsMintados.find(i => i.templateId && i.templateId.toString() === t._id.toString());
+            let donoNome = "Disponível (Não Mintado)";
+            let donoEmail = "";
+            let jaMintado = false;
+
+            if (item && item.ownerId) {
+                jaMintado = true;
+                donoNome = item.ownerId.nome;
+                donoEmail = item.ownerId.email;
+            } else if (t.ativo === false) {
+                jaMintado = true;
+                donoNome = "Mintado (Usuário removido)";
+            }
+
+            return {
+                ...t,
+                jaMintado,
+                donoNome,
+                donoEmail
+            };
+        });
+
+        res.json({ sucesso: true, templates: templatesComProprietario });
     } catch(e) { res.status(500).json({ sucesso: false }); }
 });
 
@@ -511,11 +536,15 @@ app.get('/api/nfts/disponiveis', checkAuthenticated, async (req, res) => {
     } catch(e) { res.status(500).json({ sucesso: false }); }
 });
 
+// ATUALIZADO: Ao mintar, o NFT fica inativo na tela de Lançamentos (peça única 1/1)
 app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
     try {
         const { templateId } = req.body;
         const template = await NftTemplate.findById(templateId);
-        if (!template) return res.status(404).json({ sucesso: false, mensagem: "NFT não encontrado." });
+        
+        if (!template || !template.ativo) {
+            return res.status(404).json({ sucesso: false, mensagem: "Este NFT é único e já foi adquirido por outro usuário!" });
+        }
 
         const settings = await SysSettings.findOne();
         const price = settings.nftPrices[template.rarity];
@@ -526,7 +555,9 @@ app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
         const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
         if (price > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saldo bloqueado pelo vesting! Saldo livre disponível: ${limiteDisponivel.toFixed(2)} SC.` });
 
-        user.saldo -= price; admin.saldo += price;
+        user.saldo -= price;
+        admin.saldo += price;
+        template.ativo = false; // Retira da aba de Lançamentos para garantir exclusividade
 
         const maxBatteryAttr = template.metadata.attributes.find(a => a.trait_type === "Carga Máxima de Bateria");
         const maxBattery = maxBatteryAttr ? maxBatteryAttr.value : 100;
@@ -537,12 +568,12 @@ app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
         });
 
         await Promise.all([
-            user.save(), admin.save(), newItem.save(),
+            user.save(), admin.save(), template.save(), newItem.save(),
             new Transaction({ userId: user._id, tipo: 'Mint NFT', descricao: template.metadata.name, valor: -price }).save(),
             new Transaction({ userId: admin._id, tipo: 'Venda NFT (Mint)', descricao: `Para ${user.nome}`, valor: price }).save()
         ]);
 
-        res.json({ sucesso: true, mensagem: `Você mintou o ${template.metadata.name} com sucesso!` });
+        res.json({ sucesso: true, mensagem: `Você mintou o NFT exclusivo ${template.metadata.name} com sucesso!` });
     } catch(e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao mintar NFT." }); }
 });
 
@@ -1249,10 +1280,10 @@ app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
             resposta = "📊 **Mercado de Ativos:** Use suas SolidCoins para comprar cotas de Fundos Imobiliários (FIIs) e Ações de empresas reais no nosso simulador atrelado à vida real. Você receberá dividendos sempre que o ADM distribuir os lucros no sistema!";
         } else if (msg.includes('nft') || msg.includes('avatar') || msg.includes('farm') || msg.includes('raridade')) {
             resposta = "🖼️ **Universo NFT SolidCoin:** Aqui está tudo o que você precisa saber sobre os nossos NFTs:\n\n" +
-                       "✨ **Mint & Raridade:** Você pode Mintar (gerar) novos NFTs na aba de Lançamentos. Eles possuem raridades (Comum, Incomum, Raro e Lendário) que definem o poder de Farm e os efeitos visuais de brilho no seu card!\n\n" +
+                       "✨ **Mint & Raridade (1/1):** Você pode Mintar (gerar) novos NFTs na aba de Lançamentos. Cada NFT é único e sai da loja assim que alguém o compra! Eles possuem raridades (Comum, Incomum, Raro e Lendário) que definem o poder de Farm e os efeitos visuais de brilho no seu card!\n\n" +
                        "⛏️ **Farm Diário & Avatar:** Vá no seu Inventário e clique em 'Equipar Avatar'. Sua foto de perfil mudará e o NFT começará a minerar SolidCoins automaticamente a cada 24 horas!\n\n" +
                        "🔋 **Bateria:** O Farm consome a bateria do seu NFT. Fique de olho na carga máxima!\n\n" +
-                       "🤝 **Mercado P2P:** Quer lucrar? Você pode listar seu NFT no mercado para outros jogadores comprarem. Para proteger a economia, o sistema não permite vender abaixo do preço de custo (Mintagem). Lembre-se: para vender, você precisa desequipar o NFT primeiro!";
+                       "🤝 **Mercado P2P:** Quer lucrar? Você pode listar seu NFT único no mercado para outros jogadores comprarem. Para proteger a economia, o sistema não permite vender abaixo do preço de custo (Mintagem). Lembre-se: para vender, você precisa desequipar o NFT primeiro!";
         } else if (msg.includes('bloquea') || msg.includes('vesting') || msg.includes('limite')) {
             resposta = "⚠️ **Saldo Bloqueado / Limite (Vesting):** Para garantir a vida longa do sistema, as moedas que você *compra* nos Planos de Sócio não podem ser sacadas de uma vez só. Elas liberam 25% a cada 30 dias de conta ativa. Porém, ganhos extras de tarefas, indicações, vendas e depósitos são 100% livres desde o primeiro dia!";
         }
