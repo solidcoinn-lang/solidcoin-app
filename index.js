@@ -432,7 +432,7 @@ app.post('/api/admin/nft-templates', isAdmin, async (req, res) => {
     } catch(e) { res.status(400).json({ sucesso: false, mensagem: "Erro. Verifique se o JSON é válido." }); }
 });
 
-// --- NOVA ROTA: IMPORTAÇÃO EM MASSA VIA PINATA / IPFS ---
+// --- NOVA ROTA: IMPORTAÇÃO EM MASSA VIA PINATA / IPFS (ATUALIZADO PARA GATEWAY PÚBLICO IPFS.IO) ---
 app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
     try {
         const { ipfsUrl, qtd } = req.body;
@@ -442,11 +442,12 @@ app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
             return res.status(400).json({ sucesso: false, mensagem: "Forneça o Link da Pasta do Pinata e a quantidade de NFTs." });
         }
 
-        // Limpa a URL caso o ADM mande com / no final ou no formato ipfs://
         let baseUrl = ipfsUrl.trim();
         if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+        
+        // MUDANÇA: Usa o gateway universal em vez do gateway do Pinata
         if (baseUrl.startsWith('ipfs://')) {
-            baseUrl = baseUrl.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+            baseUrl = baseUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
         }
 
         let importados = 0;
@@ -454,7 +455,6 @@ app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
 
         for (let i = 1; i <= quantidade; i++) {
             try {
-                // Tenta puxar o JSON (1.json, 2.json...)
                 const response = await fetch(`${baseUrl}/${i}.json`);
                 if (!response.ok) {
                     erros++;
@@ -463,16 +463,15 @@ app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
 
                 const metadata = await response.json();
                 
-                // Converte a URL da imagem (image) se vier como ipfs://
                 let imgUrl = metadata.image || '';
+                // MUDANÇA: Usa o gateway universal para a imagem
                 if (imgUrl.startsWith('ipfs://')) {
-                    imgUrl = imgUrl.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+                    imgUrl = imgUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
                 }
 
                 const rarityAttr = metadata.attributes.find(a => a.trait_type === "Classificação" || a.trait_type === "Rarity");
                 const rarity = rarityAttr ? rarityAttr.value : "Comum";
 
-                // Adiciona no Banco
                 await new NftTemplate({ imageUrl: imgUrl, metadata, rarity }).save();
                 importados++;
             } catch (errLoop) {
