@@ -198,7 +198,7 @@
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #ff9f43; background: linear-gradient(145deg, #1f1406, #2d1e0d);">
                 <h2 style="color: #ff9f43; margin-top: 0;">🖼️ Universo NFT SolidCoin</h2>
-                <p style="color: #ddd; font-size: 0.95em;">Minte, equipe no seu perfil para ganhar farm diário ou negocie com outros usuários no mercado secundário!</p>
+                <p style="color: #ddd; font-size: 0.95em;">Minte, equipe no seu perfil para ganhar farm diário ou negocie com outros investidores no mercado secundário!</p>
                 
                 <div style="display: flex; gap: 10px; margin: 20px 0;">
                     <button onclick="mudarAbaNft('mint')" style="flex:1; padding: 10px; background: #333; color: #fff; border: 1px solid #555; border-radius:6px; font-weight:bold; cursor: pointer;">Lançamentos (Mint)</button>
@@ -217,7 +217,7 @@
                 </div>
 
                 <div id="nft-tab-mercado" style="display: none;">
-                    <h3 style="color: #d4af37; text-align: center;">Mercado Secundário de Jogadores</h3>
+                    <h3 style="color: #d4af37; text-align: center;">Mercado Secundário de Investidores</h3>
                     <div id="lista-mercado-nfts" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;"></div>
                 </div>
             </div>
@@ -839,7 +839,6 @@
                             if(nft.battery < maxBattery) {
                                 buttonsHtml += `<button class="nft-btn" style="background:#3498db; color:#fff;" onclick="recarregarBateriaNft('${nft._id}', '${nft.metadata.name}')">⚡ Recarregar Bateria (10 SC)</button>`;
                             }
-                            // NOVO BOTÃO: Desequipar Avatar do Perfil
                             buttonsHtml += `<button class="nft-btn nft-btn-danger" onclick="desequiparNft('${nft._id}')">❌ Desequipar Avatar</button>`;
                         } else {
                             buttonsHtml = `<button class="nft-btn nft-btn-primary" onclick="equiparNft('${nft._id}')">Equipar Avatar</button>
@@ -881,7 +880,6 @@
             } catch(e) {}
         };
 
-        // NOVA FUNÇÃO: Desequipar NFT do Perfil
         window.desequiparNft = async function(nftId) {
             if(!confirm('Deseja retirar este NFT do seu perfil? Ele pausará o farm diário e ficará livre para venda.')) return;
             try {
@@ -938,7 +936,7 @@
                 const data = await res.json();
                 if(data.sucesso) {
                     container.innerHTML = '';
-                    if(data.nfts.length === 0) return container.innerHTML = '<p style="text-align:center; color:#aaa;">Nenhum usuário colocou NFTs à venda.</p>';
+                    if(data.nfts.length === 0) return container.innerHTML = '<p style="text-align:center; color:#aaa;">Nenhum investidor colocou NFTs à venda.</p>';
                     
                     data.nfts.forEach(nft => {
                         const rarityAttr = nft.metadata.attributes.find(a => a.trait_type === "Classificação" || a.trait_type === "Rarity");

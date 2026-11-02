@@ -637,7 +637,6 @@ app.post('/api/nfts/equipar', checkAuthenticated, async (req, res) => {
     } catch(e) { res.status(500).json({ sucesso: false }); }
 });
 
-// NOVA ROTA: Permite retirar o NFT do perfil (desequipar)
 app.post('/api/nfts/desequipar', checkAuthenticated, async (req, res) => {
     try {
         const { nftId } = req.body;
@@ -1333,7 +1332,7 @@ app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
                        "✨ **Mint & Raridade (1/1):** Você pode Mintar (gerar) novos NFTs na aba de Lançamentos. Cada NFT é único e sai da loja assim que alguém o compra! Eles possuem raridades (Comum, Incomum, Raro e Lendário) que definem o poder de Farm e os efeitos visuais de brilho no seu card!\n\n" +
                        "⛏️ **Farm Diário & Avatar:** Vá no seu Inventário e clique em 'Equipar Avatar'. Sua foto de perfil mudará e o NFT começará a minerar SolidCoins automaticamente a cada 24 horas!\n\n" +
                        "🔋 **Bateria:** O Farm consome a bateria do seu NFT. Fique de olho na carga máxima!\n\n" +
-                       "🤝 **Mercado P2P:** Quer lucrar? Você pode listar seu NFT único no mercado para outros jogadores comprarem. Para proteger a economia, o sistema não permite vender abaixo do preço de custo (Mintagem). Lembre-se: para vender, você precisa clicar em 'Desequipar Avatar' primeiro!";
+                       "🤝 **Mercado P2P:** Quer lucrar? Você pode listar seu NFT único no mercado para outros investidores comprarem. Para proteger a economia, o sistema não permite vender abaixo do preço de custo (Mintagem). Lembre-se: para vender, você precisa clicar em 'Desequipar Avatar' primeiro!";
         } else if (msg.includes('bloquea') || msg.includes('vesting') || msg.includes('limite')) {
             resposta = "⚠️ **Saldo Bloqueado / Limite (Vesting):** Para garantir a vida longa do sistema, as moedas que você *compra* nos Planos de Sócio não podem ser sacadas de uma vez só. Elas liberam 25% a cada 30 dias de conta ativa. Porém, ganhos extras de tarefas, indicações, vendas e depósitos são 100% livres desde o primeiro dia!";
         }
