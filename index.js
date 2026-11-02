@@ -88,7 +88,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_EMAIL = "solidcoinn@gmail.com";
 
-// CORREÇÃO: Configuração para proxies reversos (Render) para os Cookies funcionarem
 app.set('trust proxy', 1);
 
 const STAKING_REWARD_RATE_MONTHLY = 0.05; 
@@ -161,16 +160,7 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-
-app.use(session({ 
-    secret: 'solidcoin-efi-secret-2026', 
-    resave: true, 
-    saveUninitialized: true,
-    cookie: { 
-        secure: false, // Força permissão sem problemas com o Render
-        maxAge: 24 * 60 * 60 * 1000 
-    }
-}));
+app.use(session({ secret: 'solidcoin-efi-secret-2026', resave: false, saveUninitialized: false }));
 
 function checkAuthenticated(req, res, next) {
     if (req.session && req.session.user) return next();
@@ -181,9 +171,6 @@ function isAdmin(req, res, next) {
     if (req.session && req.session.user && req.session.user.email === ADMIN_EMAIL) return next();
     res.status(403).send('Acesso negado.');
 }
-
-app.use('/api/investimentos', checkAuthenticated, investimentosRoutes);
-app.use('/api', checkAuthenticated, investimentosRoutes);
 
 async function getSCRate() {
     let settings = await SysSettings.findOne();
@@ -321,17 +308,12 @@ app.post('/api/auth/google', async (req, res) => {
         }
         
         req.session.user = { id: user._id, nome: user.nome, email: user.email };
-        
-        req.session.save((err) => {
-            if (err) {
-                console.error("Erro ao salvar sessão:", err);
-                return res.status(500).json({ sucesso: false, mensagem: "Erro ao iniciar sessão." });
-            }
-            res.json({ sucesso: true, redirecionar: '/dashboard.html' });
-        });
-        
+        res.json({ sucesso: true, redirecionar: '/dashboard.html' });
     } catch (error) { res.status(401).json({ sucesso: false, mensagem: "Erro Auth." }); }
 });
+
+// Rotas de investimentos montadas apenas em /api/investimentos para não bloquear /api/auth/google
+app.use('/api/investimentos', checkAuthenticated, investimentosRoutes);
 
 app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
     try {
