@@ -88,10 +88,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_EMAIL = "solidcoinn@gmail.com";
 
+// CORREÇÃO: Configuração para proxies reversos (Render) para os Cookies funcionarem
+app.set('trust proxy', 1);
+
 const STAKING_REWARD_RATE_MONTHLY = 0.05; 
 const WHALE_THRESHOLD = 1000000; 
 const WHALE_YIELD_PER_DAY = 200;
-const CUSTO_RECARGA_NFT = 10; // Custo Fixo de 10 SolidCoins para Recarregar Bateria
+const CUSTO_RECARGA_NFT = 10; 
 
 const PLANOS_SOCIO = {
     "Socio SolidCoin para Todos": { valorReais: 1, sc: 500, imagemUrl: "https://i.postimg.cc/QxzG1q50/Design-sem-nome.png" },
@@ -158,7 +161,15 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(session({ secret: 'solidcoin-efi-secret-2026', resave: false, saveUninitialized: false }));
+app.use(session({ 
+    secret: 'solidcoin-efi-secret-2026', 
+    resave: false, 
+    saveUninitialized: false,
+    cookie: { 
+        secure: process.env.NODE_ENV === 'production', 
+        maxAge: 24 * 60 * 60 * 1000 
+    }
+}));
 
 function checkAuthenticated(req, res, next) {
     if (req.session && req.session.user) return next();
@@ -170,7 +181,6 @@ function isAdmin(req, res, next) {
     res.status(403).send('Acesso negado.');
 }
 
-// CORREÇÃO: Restaurando a inclusão das rotas de Investimentos FII/Ações
 app.use('/api/investimentos', checkAuthenticated, investimentosRoutes);
 app.use('/api', checkAuthenticated, investimentosRoutes);
 
@@ -270,6 +280,7 @@ app.post('/logout', checkAuthenticated, (req, res) => {
     req.session.destroy(err => { res.clearCookie('connect.sid'); res.json({ sucesso: true }); });
 });
 
+// CORREÇÃO: Forçar a gravação da sessão Google antes de responder ao cliente.
 app.post('/api/auth/google', async (req, res) => {
     if (!googleClient) return res.status(500).json({ sucesso: false, mensagem: "Google Login não configurado." });
     
@@ -310,7 +321,15 @@ app.post('/api/auth/google', async (req, res) => {
         }
         
         req.session.user = { id: user._id, nome: user.nome, email: user.email };
-        res.json({ sucesso: true, redirecionar: '/dashboard.html' });
+        
+        req.session.save((err) => {
+            if (err) {
+                console.error("Erro ao salvar sessão:", err);
+                return res.status(500).json({ sucesso: false, mensagem: "Erro ao iniciar sessão." });
+            }
+            res.json({ sucesso: true, redirecionar: '/dashboard.html' });
+        });
+        
     } catch (error) { res.status(401).json({ sucesso: false, mensagem: "Erro Auth." }); }
 });
 
