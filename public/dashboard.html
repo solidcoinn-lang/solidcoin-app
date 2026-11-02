@@ -19,61 +19,83 @@
         
         .voltar-btn { background-color: #222; color: #d4af37; border: 1px solid #d4af37; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-bottom: 10px; display: inline-flex; align-items: center; gap: 8px; font-weight: bold; transition: 0.3s; }
         
-        /* NFT Cards */
-        .nft-card { background: #111; border: 1px solid #444; border-radius: 8px; overflow: hidden; text-align: center; display: flex; flex-direction: column; justify-content: space-between; }
-        .nft-card img { width: 100%; height: 180px; object-fit: cover; border-bottom: 1px solid #333; }
+        /* NFT Cards Base */
+        .nft-card { background: #111; border-radius: 8px; overflow: hidden; text-align: center; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s; }
         .nft-card-body { padding: 15px; }
         .nft-card h3 { color: #d4af37; margin: 0 0 5px 0; font-size: 1.1em; }
         .nft-card p { margin: 5px 0; font-size: 0.85em; color: #aaa; }
+        
+        /* Tags de Raridade */
         .nft-rarity { font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 10px; font-size: 0.8em; }
         .nft-rarity.Comum { background: #7f8c8d; color: #fff; }
         .nft-rarity.Incomum { background: #2ecc71; color: #000; }
         .nft-rarity.Raro { background: #3498db; color: #fff; }
         .nft-rarity.Lendario { background: #f1c40f; color: #000; }
+        
+        /* Botões do NFT */
         .nft-btn { width: 100%; padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; }
         .nft-btn-primary { background: #d4af37; color: #000; }
         .nft-btn-primary:hover { background: #f1c40f; }
         .nft-btn-danger { background: #e74c3c; color: #fff; }
+
+        /* ========================================================= */
+        /* EFEITOS DE BRILHO (AURA) E ESTRELAS MÁGICAS DOS NFTs */
+        /* ========================================================= */
+        .nft-image-container { position: relative; width: 100%; height: 180px; overflow: hidden; border-bottom: 1px solid #333;}
+        .nft-image-container img { width: 100%; height: 100%; object-fit: cover; }
+        .nft-sparkles { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 2; }
+        
+        /* Auras por raridade */
+        .rarity-glow-Comum { box-shadow: 0 2px 10px rgba(127,140,141,0.2); border: 1px solid #7f8c8d; }
+        .rarity-glow-Incomum { box-shadow: 0 0 15px rgba(46,204,113,0.4); border: 1px solid #2ecc71; animation: pulse-Incomum 2s infinite alternate; }
+        .rarity-glow-Raro { box-shadow: 0 0 20px rgba(52,152,219,0.6); border: 1px solid #3498db; animation: pulse-Raro 1.5s infinite alternate; }
+        .rarity-glow-Lendario { box-shadow: 0 0 30px rgba(241,196,15,0.8); border: 1px solid #f1c40f; animation: pulse-Lendario 1s infinite alternate; }
+        
+        /* Aura Especial Quando o NFT está Equipado */
+        .nft-equipped-glow { box-shadow: 0 0 25px #00ff88 !important; border: 2px solid #00ff88 !important; }
+
+        @keyframes pulse-Incomum { from { box-shadow: 0 0 5px rgba(46,204,113,0.3); } to { box-shadow: 0 0 20px rgba(46,204,113,0.8); } }
+        @keyframes pulse-Raro { from { box-shadow: 0 0 10px rgba(52,152,219,0.4); } to { box-shadow: 0 0 30px rgba(52,152,219,1); } }
+        @keyframes pulse-Lendario { from { box-shadow: 0 0 15px rgba(241,196,15,0.5); } to { box-shadow: 0 0 45px rgba(241,196,15,1); } }
+
+        /* Efeito de Poeira/Estrelas por Raridade */
+        .sparkle-Comum { background-image: radial-gradient(circle, #fff 1px, transparent 2px); background-size: 40px 40px; animation: twinkling 5s infinite linear; opacity: 0.15; }
+        .sparkle-Incomum { background-image: radial-gradient(circle, #2ecc71 1.5px, transparent 2px); background-size: 30px 30px; animation: twinkling 4s infinite linear; opacity: 0.3; }
+        .sparkle-Raro { background-image: radial-gradient(circle, #3498db 2px, transparent 2.5px), radial-gradient(circle, #fff 1px, transparent 2px); background-size: 25px 25px, 40px 40px; animation: twinkling 3s infinite linear; opacity: 0.6; }
+        .sparkle-Lendario { background-image: radial-gradient(circle, #f1c40f 2.5px, transparent 3px), radial-gradient(circle, #fff 1.5px, transparent 2px); background-size: 20px 20px, 30px 30px; animation: twinkling 1.5s infinite linear; opacity: 0.9; }
+
+        @keyframes twinkling {
+            0% { background-position: 0 0, 0 0; opacity: 0.2; }
+            50% { opacity: 1; }
+            100% { background-position: 60px 60px, -40px -40px; opacity: 0.2; }
+        }
         
         .header-avatar { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid #d4af37; vertical-align: middle; margin-right: 10px; display: inline-block; background-color: #333; }
 
-        /* SolidBot */
+        /* Outros Alertas e Inputs */
+        .input-web3 { width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; box-sizing: border-box; font-family: monospace; font-size: 1.05em; }
+        .input-web3:focus { border-color: #3498db; outline: none; }
+        .alerta-vencimento { display: none; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center; font-weight: bold; animation: pulse 2s infinite; }
+        .alerta-amarelo { background-color: rgba(241, 196, 15, 0.1); border: 2px dashed #f1c40f; color: #f1c40f; }
+        .alerta-vermelho { background-color: rgba(231, 76, 60, 0.1); border: 2px dashed #e74c3c; color: #e74c3c; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+
+        /* ========================================================= */
+        /* ESTILOS DO SOLIDBOT (ROBÔ DE SUPORTE) */
+        /* ========================================================= */
         #bot-trigger {
-            position: fixed !important;
-            bottom: 25px !important;
-            right: 25px !important;
-            background-color: #d4af37 !important;
-            color: #000 !important;
-            width: 65px !important;
-            height: 65px !important;
-            border-radius: 50% !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            font-size: 35px !important;
-            cursor: pointer !important;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.8) !important;
-            z-index: 2147483647 !important; 
-            transition: 0.3s !important;
-            border: 2px solid #fff !important;
+            position: fixed !important; bottom: 25px !important; right: 25px !important; background-color: #d4af37 !important;
+            color: #000 !important; width: 65px !important; height: 65px !important; border-radius: 50% !important;
+            display: flex !important; justify-content: center !important; align-items: center !important; font-size: 35px !important;
+            cursor: pointer !important; box-shadow: 0 4px 15px rgba(0,0,0,0.8) !important; z-index: 2147483647 !important; 
+            transition: 0.3s !important; border: 2px solid #fff !important;
         }
         #bot-trigger:hover { transform: scale(1.1) !important; background-color: #f1c40f !important; }
         
         #chatbotWindow {
-            position: fixed !important;
-            bottom: 100px !important;
-            right: 20px !important;
-            width: 320px !important;
-            max-width: 90vw !important;
-            height: 450px !important;
-            background-color: #111 !important;
-            border: 2px solid #d4af37 !important;
-            border-radius: 12px !important;
-            display: none;
-            flex-direction: column !important;
-            z-index: 2147483647 !important;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.9) !important;
-            overflow: hidden !important;
+            position: fixed !important; bottom: 100px !important; right: 20px !important; width: 320px !important; max-width: 90vw !important;
+            height: 450px !important; background-color: #111 !important; border: 2px solid #d4af37 !important; border-radius: 12px !important;
+            display: none; flex-direction: column !important; z-index: 2147483647 !important; box-shadow: 0 10px 30px rgba(0,0,0,0.9) !important; overflow: hidden !important;
         }
         .chatbot-header { background: #d4af37; color: #000; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
         .chatbot-header button { background: none; border: none; font-size: 1.5em; cursor: pointer; color: #000; font-weight: bold;}
@@ -82,38 +104,10 @@
         .msg-bot { background: #222; color: #fff; align-self: flex-start; border-bottom-left-radius: 2px; border: 1px solid #333;}
         .msg-user { background: #d4af37; color: #000; align-self: flex-end; border-bottom-right-radius: 2px; font-weight: bold;}
         
-        .chatbot-footer { 
-            padding: 10px !important; 
-            background: #1a1a1a !important; 
-            display: flex !important; 
-            gap: 10px !important;
-            border-top: 1px solid #333 !important; 
-            align-items: stretch !important;
-        }
-        .chatbot-footer input { 
-            flex: 1 1 auto !important; 
-            width: 100% !important;
-            padding: 10px 15px !important; 
-            border: 1px solid #444 !important; 
-            border-radius: 20px !important; 
-            background: #000 !important; 
-            color: #fff !important; 
-            outline: none !important; 
-            margin: 0 !important;
-        }
-        .chatbot-footer button { 
-            flex: 0 0 auto !important;
-            width: auto !important;
-            background: #d4af37 !important; 
-            border: none !important; 
-            color: #000 !important; 
-            font-weight: bold !important; 
-            padding: 0 20px !important; 
-            margin: 0 !important; 
-            border-radius: 20px !important; 
-            cursor: pointer !important; 
-            transition: 0.3s !important; 
-        }
+        .chatbot-footer { padding: 10px !important; background: #1a1a1a !important; display: flex !important; gap: 10px !important; border-top: 1px solid #333 !important; align-items: stretch !important; }
+        .chatbot-footer input { flex: 1 1 auto !important; width: 100% !important; padding: 10px 15px !important; border: 1px solid #444 !important; border-radius: 20px !important; background: #000 !important; color: #fff !important; outline: none !important; margin: 0 !important; }
+        .chatbot-footer button { flex: 0 0 auto !important; width: auto !important; background: #d4af37 !important; border: none !important; color: #000 !important; font-weight: bold !important; padding: 0 20px !important; margin: 0 !important; border-radius: 20px !important; cursor: pointer !important; transition: 0.3s !important; }
+        .chatbot-footer button:hover { background: #f1c40f !important; }
     </style>
 </head>
 <body>
@@ -142,11 +136,9 @@
         </div>
 
         <div id="menu-botoes" class="feature-grid">
-            <!-- BOTÃO NOVO NFT MARKETPLACE -->
             <button class="feature-btn btn-nft" onclick="abrirSecao('sec-nft-marketplace')">
                 <span class="icon">🖼️</span><span class="text">NFTs, Avatar & Farm</span>
             </button>
-            
             <button class="feature-btn btn-links" onclick="abrirSecao('sec-links-ref')">
                 <span class="icon">🔗</span><span class="text">Links & Parcerias (10 SC)</span>
             </button>
@@ -226,10 +218,6 @@
             </div>
         </div>
 
-        <!-- ========================================================= -->
-        <!-- AS OUTRAS SEÇÕES ORIGINAIS CONTINUAM AQUI ABAIXO -->
-        <!-- ========================================================= -->
-        
         <div id="sec-links-ref" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #00ff88; background: linear-gradient(145deg, #071a12, #0d2a1e);">
@@ -266,7 +254,6 @@
             </div>
         </div>
 
-        <!-- Seções: tarefas, indicação, nfc, tron, staking, socio, saque-pix, saque-cripto, depositar, transferir, comprar-gift, recarga, resgatar-gift -->
         <div id="sec-tarefas" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #8e44ad; background: linear-gradient(145deg, #11081a, #1a0f2e);">
@@ -756,7 +743,7 @@
         };
 
         // ==========================================
-        // LÓGICA DO MARKETPLACE NFT
+        // LÓGICA DO MARKETPLACE NFT (COM AURA/ESTRELAS)
         // ==========================================
         window.mudarAbaNft = function(aba) {
             document.getElementById('nft-tab-mint').style.display = aba === 'mint' ? 'block' : 'none';
@@ -784,8 +771,11 @@
                         const farmValue = farmAttr ? farmAttr.value : 0;
                         
                         container.innerHTML += `
-                            <div class="nft-card">
-                                <img src="${t.imageUrl}">
+                            <div class="nft-card rarity-glow-${t.rarity}">
+                                <div class="nft-image-container">
+                                    <img src="${t.imageUrl}">
+                                    <div class="nft-sparkles sparkle-${t.rarity}"></div>
+                                </div>
                                 <div class="nft-card-body">
                                     <span class="nft-rarity ${t.rarity}">${t.rarity}</span>
                                     <h3>${t.metadata.name}</h3>
@@ -821,8 +811,11 @@
                     if(data.nfts.length === 0) return container.innerHTML = '<p style="text-align:center; color:#aaa;">Você não tem nenhum NFT.</p>';
                     
                     data.nfts.forEach(nft => {
-                        const farmAttr = nft.metadata.attributes.find(a => a.trait_type === "Farm (SolidCoin/Dia)");
-                        const farmValue = farmAttr ? farmAttr.value : 0;
+                        const farmAttr = nft.metadata.attributes.find(a => a.trait_type === "Classificação" || a.trait_type === "Rarity");
+                        const rarity = farmAttr ? farmAttr.value : "Comum";
+                        
+                        const farmAttrValue = nft.metadata.attributes.find(a => a.trait_type === "Farm (SolidCoin/Dia)");
+                        const farmValue = farmAttrValue ? farmAttrValue.value : 0;
                         
                         let buttonsHtml = '';
                         if(nft.isForSale) {
@@ -836,9 +829,14 @@
                                            <button class="nft-btn" style="background:#555; color:#fff;" onclick="venderNft('${nft._id}', ${nft.mintPrice})">Vender</button>`;
                         }
 
+                        const equipClass = nft.isEquipped ? 'nft-equipped-glow' : `rarity-glow-${rarity}`;
+
                         container.innerHTML += `
-                            <div class="nft-card" style="${nft.isEquipped ? 'border: 2px solid #00ff88;' : ''}">
-                                <img src="${nft.imageUrl}">
+                            <div class="nft-card ${equipClass}">
+                                <div class="nft-image-container">
+                                    <img src="${nft.imageUrl}">
+                                    <div class="nft-sparkles sparkle-${rarity}"></div>
+                                </div>
                                 <div class="nft-card-body">
                                     <h3>${nft.metadata.name}</h3>
                                     <p>Farm: ${farmValue} SC/dia</p>
@@ -896,14 +894,20 @@
                     if(data.nfts.length === 0) return container.innerHTML = '<p style="text-align:center; color:#aaa;">Nenhum usuário colocou NFTs à venda.</p>';
                     
                     data.nfts.forEach(nft => {
+                        const rarityAttr = nft.metadata.attributes.find(a => a.trait_type === "Classificação" || a.trait_type === "Rarity");
+                        const rarity = rarityAttr ? rarityAttr.value : "Comum";
+
                         const farmAttr = nft.metadata.attributes.find(a => a.trait_type === "Farm (SolidCoin/Dia)");
                         const farmValue = farmAttr ? farmAttr.value : 0;
                         const valorizacao = (((nft.salePrice - nft.mintPrice) / nft.mintPrice) * 100).toFixed(1);
                         const corVal = valorizacao >= 0 ? '#00ff88' : '#e74c3c';
 
                         container.innerHTML += `
-                            <div class="nft-card">
-                                <img src="${nft.imageUrl}">
+                            <div class="nft-card rarity-glow-${rarity}">
+                                <div class="nft-image-container">
+                                    <img src="${nft.imageUrl}">
+                                    <div class="nft-sparkles sparkle-${rarity}"></div>
+                                </div>
                                 <div class="nft-card-body">
                                     <h3>${nft.metadata.name}</h3>
                                     <p style="color: #fff;">Farm: ${farmValue} SC/dia</p>
@@ -1160,8 +1164,10 @@
                             if (avatarEl) {
                                 if (data.usuario.equippedNft && data.usuario.equippedNft.imageUrl) {
                                     avatarEl.src = data.usuario.equippedNft.imageUrl;
+                                    avatarEl.style.borderColor = '#00ff88'; // Borda verde se estiver farmando
                                 } else {
                                     avatarEl.src = "https://via.placeholder.com/150/333333/FFFFFF?text=User";
+                                    avatarEl.style.borderColor = '#d4af37';
                                 }
                             }
                         }
