@@ -487,14 +487,17 @@ app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
     }
 });
 
-// ATUALIZADO: Lista todos os NFTs no Painel ADM indicando a quem pertence cada um
+// Lista todos os NFTs no Painel ADM indicando a quem pertence cada um
 app.get('/api/admin/nft-templates', isAdmin, async (req, res) => {
     try {
         const templates = await NftTemplate.find().lean();
         const itemsMintados = await NftItem.find().populate('ownerId', 'nome email').lean();
 
         const templatesComProprietario = templates.map(t => {
-            const item = itemsMintados.find(i => i.templateId && i.templateId.toString() === t._id.toString());
+            const item = itemsMintados.find(i => 
+                (i.templateId && i.templateId.toString() === t._id.toString()) || 
+                (i.metadata && t.metadata && i.metadata.name === t.metadata.name)
+            );
             let donoNome = "Disponível (Não Mintado)";
             let donoEmail = "";
             let jaMintado = false;
@@ -527,23 +530,58 @@ app.delete('/api/admin/nft-templates/:id', isAdmin, async (req, res) => {
     } catch(e) { res.status(500).json({ sucesso: false }); }
 });
 
+// CORRIGIDO: Filtra e desativa automaticamente qualquer NFT que já tenha sido mintado (mesmo antes da atualização)
 app.get('/api/nfts/disponiveis', checkAuthenticated, async (req, res) => {
     try {
-        const templates = await NftTemplate.find({ ativo: true });
+        const itensMintados = await NftItem.find({}).select('templateId metadata.name').lean();
+        const idsMintados = itensMintados.map(i => i.templateId ? i.templateId.toString() : null).filter(Boolean);
+        const nomesMintados = itensMintados.map(i => i.metadata && i.metadata.name ? i.metadata.name : null).filter(Boolean);
+
+        // Sincroniza no banco de dados os NFTs que foram comprados antes da atualização
+        if (idsMintados.length > 0 || nomesMintados.length > 0) {
+            await NftTemplate.updateMany(
+                { 
+                    $or: [
+                        { _id: { $in: idsMintados } }, 
+                        { 'metadata.name': { $in: nomesMintados } }
+                    ], 
+                    ativo: true 
+                },
+                { $set: { ativo: false } }
+            );
+        }
+
+        const templates = await NftTemplate.find({ 
+            ativo: true,
+            _id: { $nin: idsMintados },
+            'metadata.name': { $nin: nomesMintados }
+        });
         const settings = await SysSettings.findOne();
         const prices = settings.nftPrices;
         res.json({ sucesso: true, templates, prices });
     } catch(e) { res.status(500).json({ sucesso: false }); }
 });
 
-// ATUALIZADO: Ao mintar, o NFT fica inativo na tela de Lançamentos (peça única 1/1)
+// CORRIGIDO: Verifica por ID e Nome se já foi mintado e desativa imediatamente na loja
 app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
     try {
         const { templateId } = req.body;
         const template = await NftTemplate.findById(templateId);
         
-        if (!template || !template.ativo) {
-            return res.status(404).json({ sucesso: false, mensagem: "Este NFT é único e já foi adquirido por outro usuário!" });
+        if (!template) {
+            return res.status(404).json({ sucesso: false, mensagem: "NFT não encontrado." });
+        }
+
+        const jaExiste = await NftItem.findOne({
+            $or: [
+                { templateId: template._id },
+                { 'metadata.name': template.metadata.name }
+            ]
+        });
+
+        if (!template.ativo || jaExiste) {
+            await NftTemplate.updateMany({ 'metadata.name': template.metadata.name }, { $set: { ativo: false } });
+            return res.status(400).json({ sucesso: false, mensagem: "Este NFT é único e já foi adquirido por outro usuário!" });
         }
 
         const settings = await SysSettings.findOne();
@@ -557,7 +595,6 @@ app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
 
         user.saldo -= price;
         admin.saldo += price;
-        template.ativo = false; // Retira da aba de Lançamentos para garantir exclusividade
 
         const maxBatteryAttr = template.metadata.attributes.find(a => a.trait_type === "Carga Máxima de Bateria");
         const maxBattery = maxBatteryAttr ? maxBatteryAttr.value : 100;
@@ -568,7 +605,10 @@ app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
         });
 
         await Promise.all([
-            user.save(), admin.save(), template.save(), newItem.save(),
+            user.save(), 
+            admin.save(), 
+            NftTemplate.updateMany({ $or: [{ _id: template._id }, { 'metadata.name': template.metadata.name }] }, { $set: { ativo: false } }),
+            newItem.save(),
             new Transaction({ userId: user._id, tipo: 'Mint NFT', descricao: template.metadata.name, valor: -price }).save(),
             new Transaction({ userId: admin._id, tipo: 'Venda NFT (Mint)', descricao: `Para ${user.nome}`, valor: price }).save()
         ]);
