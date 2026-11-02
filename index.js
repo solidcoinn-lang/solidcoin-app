@@ -170,6 +170,10 @@ function isAdmin(req, res, next) {
     res.status(403).send('Acesso negado.');
 }
 
+// CORREÇÃO: Restaurando a inclusão das rotas de Investimentos FII/Ações
+app.use('/api/investimentos', checkAuthenticated, investimentosRoutes);
+app.use('/api', checkAuthenticated, investimentosRoutes);
+
 async function getSCRate() {
     let settings = await SysSettings.findOne();
     if (!settings) settings = await new SysSettings({ scPorReal: 500 }).save(); 
@@ -631,7 +635,6 @@ app.post('/api/nfts/comprar', checkAuthenticated, async (req, res) => {
     } catch(e) { res.status(500).json({ sucesso: false, mensagem: "Erro na compra." }); }
 });
 
-// --- NOVA ROTA: RECARREGAR BATERIA DO NFT ---
 app.post('/api/nfts/recarregar', checkAuthenticated, async (req, res) => {
     try {
         const { nftId } = req.body;
@@ -674,7 +677,6 @@ app.post('/api/nfts/recarregar', checkAuthenticated, async (req, res) => {
         res.json({ sucesso: true, mensagem: `⚡ Bateria do NFT recarregada para 100% com sucesso!` });
     } catch(e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao recarregar a bateria." }); }
 });
-// ----------------------------------------------
 
 // =========================================================================
 
@@ -1217,6 +1219,47 @@ app.get('/api/extrato', checkAuthenticated, async (req, res) => {
         const transacoes = await Transaction.find({ userId: req.session.user.id }).sort({ data: -1 }).limit(50);
         res.json({ sucesso: true, transacoes });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: 'Erro extrato.' }); }
+});
+
+app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
+    try {
+        const { mensagem } = req.body;
+        const msg = (mensagem || '').toLowerCase();
+        
+        let resposta = "Olá! Eu sou o Assistente SolidCoin 🤖. Como posso te ajudar hoje?\n\nTente perguntar sobre: 'saque', 'pix', 'minipay', 'sócio', 'staking', 'nfc', 'indicação', 'investimentos', 'nft' ou 'farm'.";
+
+        if (msg.includes('saque') || msg.includes('sacar') || msg.includes('retirar')) {
+            if (msg.includes('pix')) {
+                resposta = "💸 **Saque Pix VIP:** É exclusivo para Sócios da plataforma. Tem uma taxa de 5% e o valor cai direto na sua conta bancária conectada. Importante: moedas ganhas pelos planos de sócio são liberadas aos poucos (25% a cada 30 dias para segurança do sistema).";
+            } else if (msg.includes('minipay') || msg.includes('celo')) {
+                resposta = "💳 **Saque MiniPay (Web3):** O saque via MiniPay na Rede Celo é automatizado! Você recebe em dólares digitais (USDC) direto na sua carteira do Opera, podendo converter via Pix por lá. Não esqueça de salvar sua carteira na seção 'Carteiras'.";
+            } else {
+                resposta = "🏦 **Tipos de Saques:** Temos saque via Pix (Exclusivo para Sócios) e Saque Cripto (MiniPay Celo automatizado, Solana e Tron). Vá no menu e escolha o tipo de saque que deseja. Dica: A MiniPay é a forma mais rápida!";
+            }
+        } else if (msg.includes('sócio') || msg.includes('socio') || msg.includes('plano')) {
+            resposta = "💎 **Clube de Sócios:** Sendo sócio você recebe moedas garantidas todos os meses, libera o cobiçado Saque Pix VIP e ganha 5% de comissão sobre os planos de quem você indicar! Lembre-se: O saldo comprado no plano entra em 'Vesting', ou seja, fica bloqueado e libera 25% a cada 30 dias na sua conta.";
+        } else if (msg.includes('staking') || msg.includes('stake') || msg.includes('render')) {
+            resposta = "📈 **Staking:** Coloque suas moedas para trabalhar para você! O Staking da SolidCoin paga 5% ao mês sobre o valor guardado. Seus fundos ficam trancados por um mínimo de 48 horas antes de você poder clicar em resgatar o capital.";
+        } else if (msg.includes('nfc') || msg.includes('cartão') || msg.includes('cartao') || msg.includes('maquininha')) {
+            resposta = "💳 **Tecnologia NFC:** Transforme seu celular numa maquininha! Você pode cobrar de outros usuários apenas encostando o cartão deles no seu celular. Vá na seção 'Tecnologia NFC' para gerar seu código ou pedir o Cartão Black físico de PVC na sua casa.";
+        } else if (msg.includes('indica') || msg.includes('convid') || msg.includes('amigo')) {
+            resposta = "🤝 **Programa de Indicação:** Convide amigos e ganhe! Você e seu amigo ganham 250 SC quando ele usar seu código. Melhor ainda: Se o seu amigo virar Sócio, você ganha 5% de comissão do plano dele NA HORA e com saldo 100% livre para saque!";
+        } else if (msg.includes('invest') || msg.includes('fii') || msg.includes('ação') || msg.includes('acao') || msg.includes('mercado')) {
+            resposta = "📊 **Mercado de Ativos:** Use suas SolidCoins para comprar cotas de Fundos Imobiliários (FIIs) e Ações de empresas reais no nosso simulador atrelado à vida real. Você receberá dividendos sempre que o ADM distribuir os lucros no sistema!";
+        } else if (msg.includes('nft') || msg.includes('avatar') || msg.includes('farm') || msg.includes('raridade')) {
+            resposta = "🖼️ **Universo NFT SolidCoin:** Aqui está tudo o que você precisa saber sobre os nossos NFTs:\n\n" +
+                       "✨ **Mint & Raridade:** Você pode Mintar (gerar) novos NFTs na aba de Lançamentos. Eles possuem raridades (Comum, Incomum, Raro e Lendário) que definem o poder de Farm e os efeitos visuais de brilho no seu card!\n\n" +
+                       "⛏️ **Farm Diário & Avatar:** Vá no seu Inventário e clique em 'Equipar Avatar'. Sua foto de perfil mudará e o NFT começará a minerar SolidCoins automaticamente a cada 24 horas!\n\n" +
+                       "🔋 **Bateria:** O Farm consome a bateria do seu NFT. Fique de olho na carga máxima!\n\n" +
+                       "🤝 **Mercado P2P:** Quer lucrar? Você pode listar seu NFT no mercado para outros jogadores comprarem. Para proteger a economia, o sistema não permite vender abaixo do preço de custo (Mintagem). Lembre-se: para vender, você precisa desequipar o NFT primeiro!";
+        } else if (msg.includes('bloquea') || msg.includes('vesting') || msg.includes('limite')) {
+            resposta = "⚠️ **Saldo Bloqueado / Limite (Vesting):** Para garantir a vida longa do sistema, as moedas que você *compra* nos Planos de Sócio não podem ser sacadas de uma vez só. Elas liberam 25% a cada 30 dias de conta ativa. Porém, ganhos extras de tarefas, indicações, vendas e depósitos são 100% livres desde o primeiro dia!";
+        }
+
+        res.json({ sucesso: true, resposta });
+    } catch (error) {
+        res.status(500).json({ sucesso: false, resposta: "Desculpe, meu cérebro digital está reiniciando. Tente novamente em alguns segundos." });
+    }
 });
 
 app.get('/api/admin/listar-imagens', isAdmin, async (req, res) => {
