@@ -432,7 +432,6 @@ app.post('/api/admin/nft-templates', isAdmin, async (req, res) => {
     } catch(e) { res.status(400).json({ sucesso: false, mensagem: "Erro. Verifique se o JSON é válido." }); }
 });
 
-// --- NOVA ROTA: IMPORTAÇÃO EM MASSA VIA PINATA / IPFS (ATUALIZADO PARA GATEWAY PÚBLICO IPFS.IO) ---
 app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
     try {
         const { ipfsUrl, qtd } = req.body;
@@ -445,7 +444,6 @@ app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
         let baseUrl = ipfsUrl.trim();
         if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
         
-        // MUDANÇA: Usa o gateway universal em vez do gateway do Pinata
         if (baseUrl.startsWith('ipfs://')) {
             baseUrl = baseUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
         }
@@ -464,7 +462,6 @@ app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
                 const metadata = await response.json();
                 
                 let imgUrl = metadata.image || '';
-                // MUDANÇA: Usa o gateway universal para a imagem
                 if (imgUrl.startsWith('ipfs://')) {
                     imgUrl = imgUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
                 }
@@ -484,7 +481,6 @@ app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
         res.status(500).json({ sucesso: false, mensagem: "Erro no servidor ao tentar importar do IPFS." }); 
     }
 });
-// --------------------------------------------------------
 
 app.get('/api/admin/nft-templates', isAdmin, async (req, res) => {
     try {
@@ -1177,6 +1173,9 @@ app.get('/api/extrato', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: 'Erro extrato.' }); }
 });
 
+// =========================================================================
+// --- RESPOSTAS DO BOT ATUALIZADAS (INCLUINDO ENSINAMENTOS NFT) ---
+// =========================================================================
 app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
     try {
         const { mensagem } = req.body;
@@ -1202,8 +1201,12 @@ app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
             resposta = "🤝 **Programa de Indicação:** Convide amigos e ganhe! Você e seu amigo ganham 250 SC quando ele usar seu código. Melhor ainda: Se o seu amigo virar Sócio, você ganha 5% de comissão do plano dele NA HORA e com saldo 100% livre para saque!";
         } else if (msg.includes('invest') || msg.includes('fii') || msg.includes('ação') || msg.includes('acao') || msg.includes('mercado')) {
             resposta = "📊 **Mercado de Ativos:** Use suas SolidCoins para comprar cotas de Fundos Imobiliários (FIIs) e Ações de empresas reais no nosso simulador atrelado à vida real. Você receberá dividendos sempre que o ADM distribuir os lucros no sistema!";
-        } else if (msg.includes('nft') || msg.includes('avatar') || msg.includes('farm')) {
-            resposta = "🖼️ **NFT e Farm Diário:** Você pode comprar NFTs no Marketplace. Ao clicar em 'Equipar Avatar', ele muda a sua foto de perfil e começa a minerar SolidCoins todos os dias para si! Lembre-se de não deixar a bateria acabar e, se quiser vendê-lo, terá de desequipá-lo primeiro.";
+        } else if (msg.includes('nft') || msg.includes('avatar') || msg.includes('farm') || msg.includes('raridade')) {
+            resposta = "🖼️ **Universo NFT SolidCoin:** Aqui está tudo o que você precisa saber sobre os nossos NFTs:\n\n" +
+                       "✨ **Mint & Raridade:** Você pode Mintar (gerar) novos NFTs na aba de Lançamentos. Eles possuem raridades (Comum, Incomum, Raro e Lendário) que definem o poder de Farm e os efeitos visuais de brilho no seu card!\n\n" +
+                       "⛏️ **Farm Diário & Avatar:** Vá no seu Inventário e clique em 'Equipar Avatar'. Sua foto de perfil mudará e o NFT começará a minerar SolidCoins automaticamente a cada 24 horas!\n\n" +
+                       "🔋 **Bateria:** O Farm consome a bateria do seu NFT. Fique de olho na carga máxima!\n\n" +
+                       "🤝 **Mercado P2P:** Quer lucrar? Você pode listar seu NFT no mercado para outros jogadores comprarem. Para proteger a economia, o sistema não permite vender abaixo do preço de custo (Mintagem). Lembre-se: para vender, você precisa desequipar o NFT primeiro!";
         } else if (msg.includes('bloquea') || msg.includes('vesting') || msg.includes('limite')) {
             resposta = "⚠️ **Saldo Bloqueado / Limite (Vesting):** Para garantir a vida longa do sistema, as moedas que você *compra* nos Planos de Sócio não podem ser sacadas de uma vez só. Elas liberam 25% a cada 30 dias de conta ativa. Porém, ganhos extras de tarefas, indicações, vendas e depósitos são 100% livres desde o primeiro dia!";
         }
