@@ -133,9 +133,16 @@
             <p style="font-size: 1.05em; color: #00b894; margin-top: 5px; font-weight: bold; background: rgba(0, 184, 148, 0.1); display: inline-block; padding: 6px 15px; border-radius: 20px; border: 1px solid rgba(0, 184, 148, 0.2);">
                 🔓 Disponível para Saque: <span id="limite-saque-usuario">...</span> SC
             </p>
+            
+            <!-- BLOCO DE COTAÇÃO RESTAURADO -->
+            <p style="font-size: 0.95em; color: #aaa; margin-top: 10px;">
+                ≈ R$ <span id="saldo-reais">0.00</span> <br>
+                <small style="color: #666; font-size: 0.8em;">(Cotação atual: <span id="cotacao-atual">500</span> SC = R$ 1,00)</small>
+            </p>
         </div>
 
         <div id="menu-botoes" class="feature-grid">
+            <!-- BOTÃO NOVO NFT MARKETPLACE -->
             <button class="feature-btn btn-nft" onclick="abrirSecao('sec-nft-marketplace')">
                 <span class="icon">🖼️</span><span class="text">NFTs, Avatar & Farm</span>
             </button>
@@ -770,10 +777,13 @@
                         const farmAttr = t.metadata.attributes.find(a => a.trait_type === "Farm (SolidCoin/Dia)");
                         const farmValue = farmAttr ? farmAttr.value : 0;
                         
+                        let imgExibicao = t.imageUrl;
+                        if(imgExibicao.startsWith('ipfs://')) imgExibicao = imgExibicao.replace('ipfs://', 'https://ipfs.io/ipfs/');
+
                         container.innerHTML += `
                             <div class="nft-card rarity-glow-${t.rarity}">
                                 <div class="nft-image-container">
-                                    <img src="${t.imageUrl}">
+                                    <img src="${imgExibicao}">
                                     <div class="nft-sparkles sparkle-${t.rarity}"></div>
                                 </div>
                                 <div class="nft-card-body">
@@ -830,11 +840,14 @@
                         }
 
                         const equipClass = nft.isEquipped ? 'nft-equipped-glow' : `rarity-glow-${rarity}`;
+                        
+                        let imgExibicao = nft.imageUrl;
+                        if(imgExibicao.startsWith('ipfs://')) imgExibicao = imgExibicao.replace('ipfs://', 'https://ipfs.io/ipfs/');
 
                         container.innerHTML += `
                             <div class="nft-card ${equipClass}">
                                 <div class="nft-image-container">
-                                    <img src="${nft.imageUrl}">
+                                    <img src="${imgExibicao}">
                                     <div class="nft-sparkles sparkle-${rarity}"></div>
                                 </div>
                                 <div class="nft-card-body">
@@ -901,11 +914,14 @@
                         const farmValue = farmAttr ? farmAttr.value : 0;
                         const valorizacao = (((nft.salePrice - nft.mintPrice) / nft.mintPrice) * 100).toFixed(1);
                         const corVal = valorizacao >= 0 ? '#00ff88' : '#e74c3c';
+                        
+                        let imgExibicao = nft.imageUrl;
+                        if(imgExibicao.startsWith('ipfs://')) imgExibicao = imgExibicao.replace('ipfs://', 'https://ipfs.io/ipfs/');
 
                         container.innerHTML += `
                             <div class="nft-card rarity-glow-${rarity}">
                                 <div class="nft-image-container">
-                                    <img src="${nft.imageUrl}">
+                                    <img src="${imgExibicao}">
                                     <div class="nft-sparkles sparkle-${rarity}"></div>
                                 </div>
                                 <div class="nft-card-body">
@@ -1163,8 +1179,18 @@
                             const avatarEl = document.getElementById('user-avatar-header');
                             if (avatarEl) {
                                 if (data.usuario.equippedNft && data.usuario.equippedNft.imageUrl) {
-                                    avatarEl.src = data.usuario.equippedNft.imageUrl;
-                                    avatarEl.style.borderColor = '#00ff88'; // Borda verde se estiver farmando
+                                    let avatarImg = data.usuario.equippedNft.imageUrl;
+                                    if(avatarImg.startsWith('ipfs://')) avatarImg = avatarImg.replace('ipfs://', 'https://ipfs.io/ipfs/');
+                                    
+                                    avatarEl.src = avatarImg;
+                                    
+                                    // Pinta a borda de acordo com a raridade do NFT equipado
+                                    const r = data.usuario.equippedNft.rarity;
+                                    if(r === 'Lendario') avatarEl.style.borderColor = '#f1c40f';
+                                    else if(r === 'Raro') avatarEl.style.borderColor = '#3498db';
+                                    else if(r === 'Incomum') avatarEl.style.borderColor = '#2ecc71';
+                                    else avatarEl.style.borderColor = '#7f8c8d';
+                                    
                                 } else {
                                     avatarEl.src = "https://via.placeholder.com/150/333333/FFFFFF?text=User";
                                     avatarEl.style.borderColor = '#d4af37';
@@ -1177,7 +1203,7 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             fetchDashboardData();
-            setInterval(fetchDashboardData, 3000); // Atualiza os dados (saldo e limites) a cada 3s
+            setInterval(fetchDashboardData, 3000); 
         });
 
         setTimeout(() => {
