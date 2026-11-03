@@ -240,10 +240,30 @@ app.post('/cadastrar', async (req, res) => {
         }
 
         let saldoInicial = 0; let indicadoPorId = null;
-        if (referrer && admin && admin.saldo >= 500) {
-            saldoInicial = 250; indicadoPorId = referrer._id;
-            referrer.saldo += 250; admin.saldo -= 500; 
-            await Promise.all([ referrer.save(), admin.save(), new Transaction({ userId: referrer._id, tipo: 'Bônus de Indicação', descricao: `Convite ${nome}`, valor: 250 }).save(), new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Bônus ${referrer.nome} e ${nome}`, valor: -500 }).save() ]);
+        if (referrer && admin) {
+            const isCeoReferrer = referrer.email === ADMIN_EMAIL;
+            const custoAdmin = isCeoReferrer ? 250 : 500;
+
+            if (admin.saldo >= custoAdmin) {
+                saldoInicial = 250;
+                indicadoPorId = referrer._id;
+                admin.saldo -= custoAdmin;
+
+                if (isCeoReferrer) {
+                    await Promise.all([
+                        admin.save(),
+                        new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Bônus Boas-Vindas para ${nome}`, valor: -250 }).save()
+                    ]);
+                } else {
+                    referrer.saldo += 250;
+                    await Promise.all([
+                        referrer.save(),
+                        admin.save(),
+                        new Transaction({ userId: referrer._id, tipo: 'Bônus de Indicação', descricao: `Convite ${nome}`, valor: 250 }).save(),
+                        new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Bônus ${referrer.nome} e ${nome}`, valor: -500 }).save()
+                    ]);
+                }
+            }
         }
 
         const novoUsuario = new User({ nome, email, senha: senhaHash, saldo: saldoInicial, codigoIndicacao: novoCodigoUnico, indicadoPor: indicadoPorId });
@@ -293,14 +313,30 @@ app.post('/api/auth/google', async (req, res) => {
             }
 
             let saldoInicial = 0; let indicadoPorId = null;
-            if (referrer && admin && admin.saldo >= 500) {
-                saldoInicial = 250; indicadoPorId = referrer._id;
-                referrer.saldo += 250; admin.saldo -= 500; 
-                await Promise.all([
-                    referrer.save(), admin.save(),
-                    new Transaction({ userId: referrer._id, tipo: 'Bônus de Indicação', descricao: `Google`, valor: 250 }).save(),
-                    new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Bônus`, valor: -500 }).save()
-                ]);
+            if (referrer && admin) {
+                const isCeoReferrer = referrer.email === ADMIN_EMAIL;
+                const custoAdmin = isCeoReferrer ? 250 : 500;
+
+                if (admin.saldo >= custoAdmin) {
+                    saldoInicial = 250;
+                    indicadoPorId = referrer._id;
+                    admin.saldo -= custoAdmin;
+
+                    if (isCeoReferrer) {
+                        await Promise.all([
+                            admin.save(),
+                            new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Bônus Boas-Vindas (Google) para ${payload.name}`, valor: -250 }).save()
+                        ]);
+                    } else {
+                        referrer.saldo += 250;
+                        await Promise.all([
+                            referrer.save(),
+                            admin.save(),
+                            new Transaction({ userId: referrer._id, tipo: 'Bônus de Indicação', descricao: `Google (${payload.name})`, valor: 250 }).save(),
+                            new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Bônus ${referrer.nome} e ${payload.name}`, valor: -500 }).save()
+                        ]);
+                    }
+                }
             }
             user = new User({ nome: payload.name, email: payload.email, senha: senhaHash, saldo: saldoInicial, codigoIndicacao: novoCodigoUnico, indicadoPor: indicadoPorId });
             await user.save();
@@ -331,7 +367,12 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
             const admin = await User.findOne({ email: ADMIN_EMAIL });
             if (admin && admin.saldo >= rendimentoGanho) {
                 admin.saldo -= rendimentoGanho; user.saldo += rendimentoGanho; user.lastYieldApplied = Date.now();
-                await Promise.all([user.save(), admin.save(), new Transaction({ userId: user._id, tipo: 'Rendimento Automático', descricao: `Rendimento de ${diasInteiros} dia(s)`, valor: rendimentoGanho }).save()]);
+                await Promise.all([
+                    user.save(), 
+                    admin.save(), 
+                    new Transaction({ userId: user._id, tipo: 'Rendimento Automático', descricao: `Rendimento de ${diasInteiros} dia(s)`, valor: rendimentoGanho }).save(),
+                    new Transaction({ userId: admin._id, tipo: 'Pagamento Rendimento Automático', descricao: `Para ${user.nome} (${diasInteiros} dia(s))`, valor: -rendimentoGanho }).save()
+                ]);
             }
         }
 
@@ -356,17 +397,27 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
 
                     if (diasReais > 0) {
                         const ganhoNft = diasReais * scPorDia;
-                        if (admin.saldo >= ganhoNft) {
-                            admin.saldo -= ganhoNft;
-                            user.saldo += ganhoNft;
+                        if (user.email !== ADMIN_EMAIL) {
+                            if (admin.saldo >= ganhoNft) {
+                                admin.saldo -= ganhoNft;
+                                user.saldo += ganhoNft;
+                                equippedNft.battery -= (diasReais * descBateriaPorDia);
+                                if (equippedNft.battery < 0) equippedNft.battery = 0;
+                                equippedNft.lastFarmDate = Date.now();
+
+                                await Promise.all([
+                                    user.save(), 
+                                    admin.save(), 
+                                    equippedNft.save(),
+                                    new Transaction({ userId: user._id, tipo: 'Farm NFT (Diário)', descricao: `${equippedNft.metadata.name}`, valor: ganhoNft }).save(),
+                                    new Transaction({ userId: admin._id, tipo: 'Pagamento Farm NFT', descricao: `${equippedNft.metadata.name} (Para ${user.nome})`, valor: -ganhoNft }).save()
+                                ]);
+                            }
+                        } else {
                             equippedNft.battery -= (diasReais * descBateriaPorDia);
                             if (equippedNft.battery < 0) equippedNft.battery = 0;
                             equippedNft.lastFarmDate = Date.now();
-
-                            await Promise.all([
-                                user.save(), admin.save(), equippedNft.save(),
-                                new Transaction({ userId: user._id, tipo: 'Farm NFT (Diário)', descricao: `${equippedNft.metadata.name}`, valor: ganhoNft }).save()
-                            ]);
+                            await equippedNft.save();
                         }
                     }
                 }
@@ -815,14 +866,40 @@ app.post('/api/indicacao/resgatar', checkAuthenticated, async (req, res) => {
     try {
         const { codigo } = req.body;
         const user = await User.findById(req.session.user.id);
-        if (user.indicadoPor || user.codigoIndicacao === codigo.toUpperCase()) return res.status(400).json({ sucesso: false });
+        if (user.indicadoPor || user.codigoIndicacao === codigo.toUpperCase()) return res.status(400).json({ sucesso: false, mensagem: "Código inválido ou já utilizado." });
+        
         const referrer = await User.findOne({ codigoIndicacao: codigo.toUpperCase() });
         const admin = await User.findOne({ email: ADMIN_EMAIL });
-        if (!referrer || !admin || admin.saldo < 500) return res.status(400).json({ sucesso: false });
+        if (!referrer || !admin) return res.status(400).json({ sucesso: false, mensagem: "Código não encontrado." });
 
-        user.indicadoPor = referrer._id; user.saldo += 250; referrer.saldo += 250; admin.saldo -= 500;
-        await Promise.all([ user.save(), referrer.save(), admin.save(), new Transaction({ userId: user._id, tipo: 'Bônus de Boas-Vindas', descricao: `Código de ${referrer.nome}`, valor: 250 }).save(), new Transaction({ userId: referrer._id, tipo: 'Bônus de Indicação', descricao: `Você convidou ${user.nome}`, valor: 250 }).save(), new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Para ${referrer.nome} e ${user.nome}`, valor: -500 }).save() ]);
-        res.json({ sucesso: true, novoSaldo: user.saldo });
+        const isCeoReferrer = referrer.email === ADMIN_EMAIL;
+        const custoAdmin = isCeoReferrer ? 250 : 500;
+
+        if (admin.saldo < custoAdmin) return res.status(400).json({ sucesso: false, mensagem: "Saldo do sistema indisponível." });
+
+        user.indicadoPor = referrer._id;
+        user.saldo += 250;
+        admin.saldo -= custoAdmin;
+
+        if (isCeoReferrer) {
+            await Promise.all([
+                user.save(),
+                admin.save(),
+                new Transaction({ userId: user._id, tipo: 'Bônus de Boas-Vindas', descricao: `Código de ${referrer.nome}`, valor: 250 }).save(),
+                new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Bônus Boas-Vindas para ${user.nome}`, valor: -250 }).save()
+            ]);
+        } else {
+            referrer.saldo += 250;
+            await Promise.all([
+                user.save(),
+                referrer.save(),
+                admin.save(),
+                new Transaction({ userId: user._id, tipo: 'Bônus de Boas-Vindas', descricao: `Código de ${referrer.nome}`, valor: 250 }).save(),
+                new Transaction({ userId: referrer._id, tipo: 'Bônus de Indicação', descricao: `Você convidou ${user.nome}`, valor: 250 }).save(),
+                new Transaction({ userId: admin._id, tipo: 'Pagamento Indicação', descricao: `Para ${referrer.nome} e ${user.nome}`, valor: -500 }).save()
+            ]);
+        }
+        res.json({ sucesso: true, mensagem: "Bônus de 250 SC resgatado com sucesso!", novoSaldo: user.saldo });
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
@@ -1051,7 +1128,7 @@ app.post('/api/webhook/pix', async (req, res) => {
 
                         if (user.indicadoPor) {
                             const referrer = await User.findById(user.indicadoPor);
-                            if (referrer && admin.saldo >= (ordem.moedasReceber * 0.05)) {
+                            if (referrer && referrer.email !== ADMIN_EMAIL && admin.saldo >= (ordem.moedasReceber * 0.05)) {
                                 admin.saldo -= (ordem.moedasReceber * 0.05); referrer.saldo += (ordem.moedasReceber * 0.05);
                                 transacoesToSave.push(new Transaction({ userId: referrer._id, tipo: 'Comissão de Indicação (Sócio)', descricao: `5% de ${user.nome}`, valor: (ordem.moedasReceber * 0.05) }));
                                 transacoesToSave.push(new Transaction({ userId: admin._id, tipo: 'Pagamento de Comissão', descricao: `Para ${referrer.nome}`, valor: -(ordem.moedasReceber * 0.05) }));
@@ -1085,7 +1162,8 @@ app.post('/api/admin/verificar-pix-efi', isAdmin, async (req, res) => {
                         ordem.status = 'Aprovado';
                         await Promise.all([
                             user.save(), admin.save(), ordem.save(),
-                            new Transaction({ userId: user._id, tipo: 'Assinatura Sócio SolidCoin', descricao: `Verificado pelo ADM`, valor: ordem.moedasReceber }).save()
+                            new Transaction({ userId: user._id, tipo: 'Assinatura Sócio SolidCoin', descricao: `Verificado pelo ADM`, valor: ordem.moedasReceber }).save(),
+                            new Transaction({ userId: admin._id, tipo: 'Pagamento Sócio', descricao: `Para ${user.nome} (Verificado ADM)`, valor: -ordem.moedasReceber }).save()
                         ]);
                         aprovadas++;
                     }
@@ -1203,10 +1281,14 @@ app.post('/api/staking/unstake', checkAuthenticated, async (req, res) => {
         user.saldo += (valorResgatado + recompensaCalculada);
         user.stakedAmount = 0; user.canUnstakeAt = null;
 
-        if (recompensaCalculada > 0) admin.saldo -= recompensaCalculada;
-
         const txs = [new Transaction({ userId: user._id, tipo: 'Retorno de Staking', descricao: `Capital`, valor: valorResgatado })];
-        if (recompensaCalculada > 0) txs.push(new Transaction({ userId: user._id, tipo: 'Recompensa de Staking', descricao: `Rendimento`, valor: recompensaCalculada }));
+        if (recompensaCalculada > 0) {
+            if (user.email !== ADMIN_EMAIL) {
+                admin.saldo -= recompensaCalculada;
+                txs.push(new Transaction({ userId: admin._id, tipo: 'Pagamento Staking', descricao: `Rendimento para ${user.nome}`, valor: -recompensaCalculada }));
+            }
+            txs.push(new Transaction({ userId: user._id, tipo: 'Recompensa de Staking', descricao: `Rendimento`, valor: recompensaCalculada }));
+        }
 
         await Promise.all([user.save(), admin.save(), ...txs.map(t => t.save())]);
         res.json({ sucesso: true, mensagem: `Resgate Concluído!`, usuario: { saldo: user.saldo, stakedAmount: user.stakedAmount } });
@@ -1225,8 +1307,21 @@ app.post('/api/staking/claim-rewards', checkAuthenticated, async (req, res) => {
         if (recompensaCalculada < 0.01) return res.status(400).json({ sucesso: false, mensagem: "Muito baixa." });
         if (admin.saldo < recompensaCalculada) return res.status(500).json({ sucesso: false, mensagem: "Indisponível." });
 
-        admin.saldo -= recompensaCalculada; user.saldo += recompensaCalculada; user.lastRewardClaim = Date.now();
-        await Promise.all([user.save(), admin.save(), new Transaction({ userId: user._id, tipo: 'Recompensa de Staking', descricao: `Reivindicação`, valor: recompensaCalculada }).save()]);
+        user.saldo += recompensaCalculada; 
+        user.lastRewardClaim = Date.now();
+        
+        const promises = [
+            user.save(),
+            new Transaction({ userId: user._id, tipo: 'Recompensa de Staking', descricao: `Reivindicação`, valor: recompensaCalculada }).save()
+        ];
+
+        if (user.email !== ADMIN_EMAIL) {
+            admin.saldo -= recompensaCalculada;
+            promises.push(admin.save());
+            promises.push(new Transaction({ userId: admin._id, tipo: 'Pagamento Staking', descricao: `Reivindicação de ${user.nome}`, valor: -recompensaCalculada }).save());
+        }
+
+        await Promise.all(promises);
         res.json({ sucesso: true, mensagem: `Você reivindicou ${recompensaCalculada.toFixed(2)} SC!`, usuario:{ saldo: user.saldo }});
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao reivindicar." }); }
 });
@@ -1486,7 +1581,7 @@ app.post('/api/admin/processar-socio', isAdmin, async (req, res) => {
 
             if (user.indicadoPor) {
                 const referrer = await User.findById(user.indicadoPor);
-                if (referrer && admin.saldo >= (ordem.moedasReceber * 0.05)) {
+                if (referrer && referrer.email !== ADMIN_EMAIL && admin.saldo >= (ordem.moedasReceber * 0.05)) {
                     admin.saldo -= (ordem.moedasReceber * 0.05); referrer.saldo += (ordem.moedasReceber * 0.05);
                     txs.push(new Transaction({ userId: referrer._id, tipo: 'Comissão', descricao: `5%`, valor: (ordem.moedasReceber * 0.05) }), new Transaction({ userId: admin._id, tipo: 'Pgt Comissao', descricao: referrer.nome, valor: -(ordem.moedasReceber * 0.05) }));
                     updates.push(referrer.save());
@@ -1696,7 +1791,7 @@ async function verificarPixPendentesAutomatizado() {
 
                         if (user.indicadoPor) {
                             const referrer = await User.findById(user.indicadoPor);
-                            if (referrer) {
+                            if (referrer && referrer.email !== ADMIN_EMAIL) {
                                 const comissao = ordem.moedasReceber * 0.05;
                                 if (admin.saldo >= comissao) {
                                     admin.saldo -= comissao; referrer.saldo += comissao;
