@@ -1765,6 +1765,63 @@ async function setupInicial() {
         }
 
         if (!(await SysSettings.findOne())) { await new SysSettings({ scPorReal: 500 }).save(); }
+
+        // =========================================================================
+        // --- AJUSTE AUTOMÁTICO RETROATIVO DO EXTRATO DO CEO ---
+        // =========================================================================
+        if (ceo) {
+            // 1. Remove os bônus de +250 SC de auto-indicação na conta do CEO
+            await Transaction.deleteMany({
+                userId: ceo._id,
+                tipo: 'Bônus de Indicação',
+                valor: 250
+            });
+
+            // 2. Corrige os lançamentos de -500 SC (quando o CEO indicou) para -250 SC
+            const txsInd = await Transaction.find({
+                userId: ceo._id,
+                tipo: 'Pagamento Indicação',
+                valor: -500,
+                descricao: { $regex: /CEO SolidCoin/i }
+            });
+
+            for (let tx of txsInd) {
+                tx.valor = -250;
+                tx.descricao = tx.descricao
+                    .replace(/Bônus CEO SolidCoin e /i, 'Bônus Boas-Vindas para ')
+                    .replace(/Para CEO SolidCoin e /i, 'Bônus Boas-Vindas para ');
+                await tx.save();
+            }
+
+            // 3. Insere no extrato do CEO os pagamentos de Farm NFT antigos que não tinham registro
+            const txsFarmUsuarios = await Transaction.find({
+                tipo: 'Farm NFT (Diário)',
+                userId: { $ne: ceo._id }
+            });
+
+            for (let fTx of txsFarmUsuarios) {
+                const dataRef = fTx.data || new Date();
+                const jaRegistrado = await Transaction.findOne({
+                    userId: ceo._id,
+                    tipo: 'Pagamento Farm NFT',
+                    valor: -Math.abs(fTx.valor),
+                    data: dataRef
+                });
+
+                if (!jaRegistrado) {
+                    const donoNft = await User.findById(fTx.userId).select('nome');
+                    const nomeDono = donoNft ? donoNft.nome : 'Usuário';
+                    await new Transaction({
+                        userId: ceo._id,
+                        tipo: 'Pagamento Farm NFT',
+                        descricao: `${fTx.descricao} (Para ${nomeDono})`,
+                        valor: -Math.abs(fTx.valor),
+                        data: dataRef
+                    }).save();
+                }
+            }
+            console.log("✅ Ajuste retroativo do extrato do CEO verificado e concluído!");
+        }
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }
 
