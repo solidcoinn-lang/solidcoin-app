@@ -11,7 +11,7 @@ const EfiPay = require('sdk-node-apis-efi');
 const { OAuth2Client } = require('google-auth-library'); 
 
 // =========================================================================
-// --- INTEGRAÇÃO WEB3 MINIPAY (REDE CELO - USDC) ---
+// --- INTEGRAÇÃO WEB3 MINIPAY (REDE CELO - USDC / cUSD / USDT) ---
 // =========================================================================
 let celoProvider = null;
 let celoWallet = null;
@@ -19,22 +19,25 @@ let usdcContract = null;
 
 try {
     const { ethers } = require('ethers');
-    celoProvider = new ethers.JsonRpcProvider('https://forno.celo.org');
+    celoProvider = ethers.JsonRpcProvider 
+        ? new ethers.JsonRpcProvider('https://forno.celo.org') 
+        : new ethers.providers.JsonRpcProvider('https://forno.celo.org');
     
     if (process.env.MINIPAY_SEED_PHRASE) {
-        celoWallet = ethers.Wallet.fromPhrase(process.env.MINIPAY_SEED_PHRASE).connect(celoProvider);
+        const phrase = process.env.MINIPAY_SEED_PHRASE.trim();
+        celoWallet = (ethers.Wallet.fromPhrase ? ethers.Wallet.fromPhrase(phrase) : ethers.Wallet.fromMnemonic(phrase)).connect(celoProvider);
     } else if (process.env.MINIPAY_PRIVATE_KEY) {
-        celoWallet = new ethers.Wallet(process.env.MINIPAY_PRIVATE_KEY, celoProvider);
+        celoWallet = new ethers.Wallet(process.env.MINIPAY_PRIVATE_KEY.trim(), celoProvider);
     }
 
     if (celoWallet) {
         const USDC_ADDRESS = "0xcebA9300f2b948710d2653dD7B07f33A8B32118C";
         const erc20Abi = ["function transfer(address to, uint256 value) public returns (bool)"];
         usdcContract = new ethers.Contract(USDC_ADDRESS, erc20Abi, celoWallet);
-        console.log("✅ Carteira MiniPay (Celo USDC) conectada para pagamentos automáticos!");
+        console.log(`✅ Carteira MiniPay (${celoWallet.address}) conectada na Rede Celo!`);
     }
 } catch (error) {
-    console.error("⚠️ Aviso: Biblioteca 'ethers' não instalada ou erro ao configurar carteira MiniPay.");
+    console.error("⚠️ Aviso: Biblioteca 'ethers' não instalada ou erro ao configurar carteira MiniPay:", error.message);
 }
 
 // =========================================================================
@@ -1613,47 +1616,129 @@ app.post('/api/admin/processar-deposito', isAdmin, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
+// =========================================================================
+// --- ROTA DE SAQUE CRIPTO / MINIPAY ATUALIZADA E BLINDADA ---
+// =========================================================================
 app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
     try {
         const { withdrawalId, acao } = req.body;
         const saque = await Withdrawal.findById(withdrawalId);
-        if (!saque || saque.status !== 'Pendente') return res.status(404).json({ sucesso: false });
+        if (!saque || saque.status !== 'Pendente') return res.status(404).json({ sucesso: false, mensagem: "Saque não encontrado ou já processado." });
         
         if (acao === 'aprovar') {
             if (saque.solanaWallet && saque.solanaWallet.includes('MiniPay:')) {
-                if (!usdcContract) return res.status(500).json({ sucesso: false, mensagem: "Erro: A carteira MiniPay do Servidor não está configurada." });
+                if (!celoWallet || !celoProvider) {
+                    return res.status(500).json({ sucesso: false, mensagem: "Erro: A carteira MiniPay do Servidor não está configurada nas variáveis de ambiente (MINIPAY_PRIVATE_KEY ou MINIPAY_SEED_PHRASE)." });
+                }
                 
                 try {
+                    const { ethers } = require('ethers');
                     const enderecoDestino = saque.solanaWallet.replace('MiniPay:', '').trim();
+
+                    // 1. Valida se o endereço do usuário é válido (padrão 0x... com 42 caracteres)
+                    const isAddressValid = ethers.isAddress ? ethers.isAddress(enderecoDestino) : ethers.utils.isAddress(enderecoDestino);
+                    if (!isAddressValid) {
+                        return res.status(400).json({ sucesso: false, mensagem: `Endereço MiniPay do usuário é inválido: "${enderecoDestino}". Peça para ele corrigir ou rejeite o saque.` });
+                    }
+
+                    // 2. Busca cotação do Dólar com Fallback (evita bloqueio do Render na AwesomeAPI)
                     const scRate = await getSCRate();
-                    
-                    const resMoeda = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
-                    const dadosMoeda = await resMoeda.json();
-                    const cotacaoDolar = parseFloat(dadosMoeda.USDBRL.ask);
+                    let cotacaoDolar = 5.80; // Valor de segurança caso as APIs caiam
+                    try {
+                        const resMoeda = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
+                        if (resMoeda.ok) {
+                            const dadosMoeda = await resMoeda.json();
+                            if (dadosMoeda && dadosMoeda.USDBRL && dadosMoeda.USDBRL.ask) {
+                                cotacaoDolar = parseFloat(dadosMoeda.USDBRL.ask);
+                            }
+                        } else {
+                            const resBackup = await fetch('https://open.er-api.com/v6/latest/USD');
+                            if (resBackup.ok) {
+                                const dadosBackup = await resBackup.json();
+                                if (dadosBackup && dadosBackup.rates && dadosBackup.rates.BRL) {
+                                    cotacaoDolar = parseFloat(dadosBackup.rates.BRL);
+                                }
+                            }
+                        }
+                    } catch (errCotacao) {
+                        console.warn("⚠️ Usando cotação USD padrão de segurança:", cotacaoDolar);
+                    }
                     
                     const valorBRL = saque.valor / scRate;
-                    const valorUSDC = valorBRL / cotacaoDolar;
-                    
-                    const { ethers } = require('ethers');
-                    const amountWei = ethers.parseUnits(valorUSDC.toFixed(6), 6);
-                    
-                    const tx = await usdcContract.transfer(enderecoDestino, amountWei);
+                    const valorUSD = valorBRL / cotacaoDolar;
+
+                    // Funções compatíveis tanto com Ethers v5 quanto Ethers v6
+                    const parseUnitsFn = ethers.parseUnits ? ethers.parseUnits : ethers.utils.parseUnits;
+                    const formatUnitsFn = ethers.formatUnits ? ethers.formatUnits : ethers.utils.formatUnits;
+
+                    // 3. Verifica saldo de CELO (Gás) na carteira do servidor
+                    const saldoCeloWei = await celoProvider.getBalance(celoWallet.address);
+                    const saldoCelo = parseFloat(formatUnitsFn(saldoCeloWei, 18));
+                    if (saldoCelo < 0.002) {
+                        return res.status(400).json({ 
+                            sucesso: false, 
+                            mensagem: `Gás CELO insuficiente na carteira do servidor (${celoWallet.address}). Saldo atual: ${saldoCelo.toFixed(5)} CELO.` 
+                        });
+                    }
+
+                    // 4. Verifica qual dólar da MiniPay (USDC, cUSD ou USDT) tem saldo na carteira do servidor
+                    const erc20Abi = [
+                        "function transfer(address to, uint256 value) public returns (bool)",
+                        "function balanceOf(address owner) view returns (uint256)"
+                    ];
+
+                    const tokensSuportados = [
+                        { nome: 'USDC', address: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C', decimals: 6 },
+                        { nome: 'cUSD', address: '0x765DE816845861e75A25fCA122bb6898B8B1282a', decimals: 18 },
+                        { nome: 'USDT', address: '0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e', decimals: 6 }
+                    ];
+
+                    let contratoEscolhido = null;
+                    let quantiaWeiEscolhida = null;
+                    let saldosEncontrados = [];
+
+                    for (const tk of tokensSuportados) {
+                        const contract = new ethers.Contract(tk.address, erc20Abi, celoWallet);
+                        const rawBal = await contract.balanceOf(celoWallet.address);
+                        const numBal = parseFloat(formatUnitsFn(rawBal, tk.decimals));
+                        saldosEncontrados.push(`${tk.nome}: $${numBal.toFixed(2)}`);
+
+                        if (numBal >= valorUSD && !contratoEscolhido) {
+                            contratoEscolhido = contract;
+                            quantiaWeiEscolhida = parseUnitsFn(valorUSD.toFixed(tk.decimals), tk.decimals);
+                        }
+                    }
+
+                    if (!contratoEscolhido) {
+                        return res.status(400).json({
+                            sucesso: false,
+                            mensagem: `Saldo em Dólar insuficiente na carteira do servidor (${celoWallet.address}). Necessário: $${valorUSD.toFixed(2)} USD. Saldos encontrados -> [ ${saldosEncontrados.join(' | ')} ].`
+                        });
+                    }
+
+                    // 5. Envia a transação na Blockchain Celo
+                    const tx = await contratoEscolhido.transfer(enderecoDestino, quantiaWeiEscolhida);
                     saque.txId = tx.hash; 
                 } catch (txError) {
-                    console.error("Falha na Blockchain Celo:", txError);
-                    return res.status(500).json({ sucesso: false, mensagem: "A transação MiniPay falhou. Verifique se o servidor tem CELO (Gás) e USDC suficientes." });
+                    console.error("Falha detalhada na Blockchain Celo:", txError);
+                    const motivoErro = txError.shortMessage || txError.reason || txError.message || "Erro desconhecido";
+                    return res.status(500).json({ 
+                        sucesso: false, 
+                        mensagem: `Falha MiniPay (${celoWallet ? celoWallet.address : 'Sem carteira'}): ${motivoErro}` 
+                    });
                 }
             }
 
-            saque.status = 'Aprovado'; await saque.save(); 
-            res.json({ sucesso: true, mensagem: `APROVADO.`});
+            saque.status = 'Aprovado'; 
+            await saque.save(); 
+            res.json({ sucesso: true, mensagem: `✅ Saque APROVADO e pago com sucesso!`});
         } else if (acao === 'rejeitar') {
             const user = await User.findById(saque.userId);
             user.saldo += saque.valor; saque.status = 'Rejeitado';
             await Promise.all([user.save(), saque.save(), new Transaction({ userId: user._id, tipo: 'Estorno', descricao: saque.solanaWallet.split(':')[0], valor: saque.valor }).save()]);
             res.json({ sucesso: true, mensagem: "REJEITADO." });
         }
-    } catch (error) { res.status(500).json({ sucesso: false }); }
+    } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro interno ao processar saque." }); }
 });
 
 app.post('/api/admin/processar-saque-pix', isAdmin, async (req, res) => {
