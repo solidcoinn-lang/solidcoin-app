@@ -1617,7 +1617,7 @@ app.post('/api/admin/processar-deposito', isAdmin, async (req, res) => {
 });
 
 // =========================================================================
-// --- ROTA DE SAQUE CRIPTO / MINIPAY ATUALIZADA E BLINDADA ---
+// --- ROTA DE SAQUE CRIPTO / MINIPAY (DEVOLVE SALDO E EXTRATO AO CEO) ---
 // =========================================================================
 app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
     try {
@@ -1635,15 +1635,13 @@ app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
                     const { ethers } = require('ethers');
                     const enderecoDestino = saque.solanaWallet.replace('MiniPay:', '').trim();
 
-                    // 1. Valida se o endereço do usuário é válido (padrão 0x... com 42 caracteres)
                     const isAddressValid = ethers.isAddress ? ethers.isAddress(enderecoDestino) : ethers.utils.isAddress(enderecoDestino);
                     if (!isAddressValid) {
                         return res.status(400).json({ sucesso: false, mensagem: `Endereço MiniPay do usuário é inválido: "${enderecoDestino}". Peça para ele corrigir ou rejeite o saque.` });
                     }
 
-                    // 2. Busca cotação do Dólar com Fallback (evita bloqueio do Render na AwesomeAPI)
                     const scRate = await getSCRate();
-                    let cotacaoDolar = 5.80; // Valor de segurança caso as APIs caiam
+                    let cotacaoDolar = 5.80;
                     try {
                         const resMoeda = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
                         if (resMoeda.ok) {
@@ -1667,11 +1665,9 @@ app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
                     const valorBRL = saque.valor / scRate;
                     const valorUSD = valorBRL / cotacaoDolar;
 
-                    // Funções compatíveis tanto com Ethers v5 quanto Ethers v6
                     const parseUnitsFn = ethers.parseUnits ? ethers.parseUnits : ethers.utils.parseUnits;
                     const formatUnitsFn = ethers.formatUnits ? ethers.formatUnits : ethers.utils.formatUnits;
 
-                    // 3. Verifica saldo de CELO (Gás) na carteira do servidor
                     const saldoCeloWei = await celoProvider.getBalance(celoWallet.address);
                     const saldoCelo = parseFloat(formatUnitsFn(saldoCeloWei, 18));
                     if (saldoCelo < 0.002) {
@@ -1681,7 +1677,6 @@ app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
                         });
                     }
 
-                    // 4. Verifica qual dólar da MiniPay (USDC, cUSD ou USDT) tem saldo na carteira do servidor
                     const erc20Abi = [
                         "function transfer(address to, uint256 value) public returns (bool)",
                         "function balanceOf(address owner) view returns (uint256)"
@@ -1716,7 +1711,6 @@ app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
                         });
                     }
 
-                    // 5. Envia a transação na Blockchain Celo
                     const tx = await contratoEscolhido.transfer(enderecoDestino, quantiaWeiEscolhida);
                     saque.txId = tx.hash; 
                 } catch (txError) {
@@ -1729,9 +1723,25 @@ app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
                 }
             }
 
-            saque.status = 'Aprovado'; 
-            await saque.save(); 
-            res.json({ sucesso: true, mensagem: `✅ Saque APROVADO e pago com sucesso!`});
+            saque.status = 'Aprovado';
+            const admin = await User.findOne({ email: ADMIN_EMAIL });
+            const redeNome = saque.solanaWallet ? saque.solanaWallet.split(':')[0] : 'Cripto';
+            const promessas = [saque.save()];
+
+            // Devolve as SolidCoins sacadas para o cofre do CEO e registra no extrato
+            if (admin) {
+                admin.saldo += saque.valor;
+                promessas.push(admin.save());
+                promessas.push(new Transaction({
+                    userId: admin._id,
+                    tipo: 'Recebimento Saque Cripto',
+                    descricao: `${redeNome} de ${saque.nomeUsuario}`,
+                    valor: saque.valor
+                }).save());
+            }
+
+            await Promise.all(promessas);
+            res.json({ sucesso: true, mensagem: `✅ Saque APROVADO! As ${saque.valor} SC retornaram ao saldo do CEO.`});
         } else if (acao === 'rejeitar') {
             const user = await User.findById(saque.userId);
             user.saldo += saque.valor; saque.status = 'Rejeitado';
@@ -1852,7 +1862,7 @@ async function setupInicial() {
         if (!(await SysSettings.findOne())) { await new SysSettings({ scPorReal: 500 }).save(); }
 
         // =========================================================================
-        // --- AJUSTE AUTOMÁTICO RETROATIVO DO EXTRATO DO CEO ---
+        // --- AJUSTE AUTOMÁTICO RETROATIVO DO EXTRATO E SALDO DO CEO ---
         // =========================================================================
         if (ceo) {
             // 1. Remove os bônus de +250 SC de auto-indicação na conta do CEO
@@ -1905,7 +1915,40 @@ async function setupInicial() {
                     }).save();
                 }
             }
-            console.log("✅ Ajuste retroativo do extrato do CEO verificado e concluído!");
+
+            // 4. Devolve ao saldo e extrato do CEO os saques Cripto/MiniPay já aprovados anteriormente
+            const saquesCriptoAprovados = await Withdrawal.find({ status: 'Aprovado' });
+            let saldoDevolvidoCEO = 0;
+
+            for (let sq of saquesCriptoAprovados) {
+                const redeNome = sq.solanaWallet ? sq.solanaWallet.split(':')[0] : 'Cripto';
+                const descEsperada = `${redeNome} de ${sq.nomeUsuario}`;
+                
+                const jaCreditado = await Transaction.findOne({
+                    userId: ceo._id,
+                    tipo: 'Recebimento Saque Cripto',
+                    valor: sq.valor,
+                    descricao: descEsperada
+                });
+
+                if (!jaCreditado) {
+                    saldoDevolvidoCEO += sq.valor;
+                    await new Transaction({
+                        userId: ceo._id,
+                        tipo: 'Recebimento Saque Cripto',
+                        descricao: descEsperada,
+                        valor: sq.valor,
+                        data: sq.data || new Date()
+                    }).save();
+                }
+            }
+
+            if (saldoDevolvidoCEO > 0) {
+                ceo.saldo += saldoDevolvidoCEO;
+                await ceo.save();
+            }
+
+            console.log("✅ Ajuste retroativo do extrato e saques MiniPay do CEO concluído!");
         }
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }
