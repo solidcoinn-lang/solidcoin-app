@@ -98,6 +98,14 @@ const WHALE_THRESHOLD = 1000000;
 const WHALE_YIELD_PER_DAY = 200;
 const CUSTO_RECARGA_NFT = 10; 
 
+// --- CONFIGURAÇÕES ECONÔMICAS DO JOGO SOLIDCRUSH SAGA ---
+const GAME_MAX_LEVEL = 1000;
+const GAME_POINTS_TARGET = 1000000; // 1.000 mil pontos (1 milhão de pontos)
+const GAME_SC_REWARD = 1000;        // 1.000 SolidCoins por meta batida
+const GAME_MAX_LIVES = 5;           // 5 vidas diárias gratuitas
+const GAME_REFILL_COST_SC = 50;     // 50 SC para recarregar 5 vidas imediatamente
+const GAME_BOOSTER_MOVES_COST = 20; // 20 SC para comprar +5 movimentos extras
+
 const PLANOS_SOCIO = {
     "Socio SolidCoin para Todos": { valorReais: 1, sc: 500, imagemUrl: "https://i.postimg.cc/QxzG1q50/Design-sem-nome.png" },
     "Iron": { valorReais: 5, sc: 3025, imagemUrl: "https://i.postimg.cc/9MwF9J8R/iron-plan.png" },
@@ -144,6 +152,18 @@ const NftItemSchema = new mongoose.Schema({
     mintDate: { type: Date, default: Date.now }
 });
 const NftItem = mongoose.models.NftItem || mongoose.model('NftItem', NftItemSchema);
+
+const GameProfileSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true },
+    level: { type: Number, default: 1 },
+    accumulatedPoints: { type: Number, default: 0 },
+    totalPointsEarned: { type: Number, default: 0 },
+    totalScWon: { type: Number, default: 0 },
+    lives: { type: Number, default: 5 },
+    lastLifeReset: { type: Date, default: Date.now },
+    lastLevelCompletedAt: { type: Date, default: new Date(0) }
+});
+const GameProfile = mongoose.models.GameProfile || mongoose.model('GameProfile', GameProfileSchema);
 
 const SystemSettingsSchema = new mongoose.Schema({
     scPorReal: { type: Number, default: 500 },
@@ -194,6 +214,7 @@ function normalizarChavePix(chave, tipo = '') {
     return nums;
 }
 
+// Protege a economia aplicando Vesting nos planos de Sócio e nos prêmios altos do SolidCrush
 async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
     if (userEmail === ADMIN_EMAIL) return currentSaldo; 
     
@@ -202,7 +223,7 @@ async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
     const agora = Date.now();
 
     txs.forEach(tx => {
-        if (tx.tipo === 'Assinatura Sócio SolidCoin' || tx.tipo === 'Assinatura') {
+        if (tx.tipo === 'Assinatura Sócio SolidCoin' || tx.tipo === 'Assinatura' || tx.tipo === 'Prêmio SolidCrush Saga') {
             const valorAnalisado = parseFloat(tx.valor);
             if (!isNaN(valorAnalisado) && valorAnalisado > 0) { 
                 let dataTx = tx.data || tx.createdAt || tx.date || tx.criadoEm;
@@ -457,6 +478,204 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
             marketplace: produtos.map(p => ({ id: p._id, nome: p.nome, preco: p.preco, imagemUrl: p.imagemUrl, categoria: p.categoria || 'Cédulas' }))
         });
     } catch (error) { res.status(500).json({ sucesso: false }); }
+});
+
+// =========================================================================
+// --- ROTAS DO JOGO SOLIDCRUSH SAGA (ATÉ LEVEL 1000 & ECONOMIA BLINDADA) ---
+// =========================================================================
+
+async function obterPerfilJogo(userId) {
+    let profile = await GameProfile.findOne({ userId });
+    if (!profile) {
+        profile = await new GameProfile({ userId, level: 1, accumulatedPoints: 0, lives: GAME_MAX_LIVES }).save();
+    } else {
+        const horasPassadas = (Date.now() - new Date(profile.lastLifeReset).getTime()) / (1000 * 60 * 60);
+        if (horasPassadas >= 24 && profile.lives < GAME_MAX_LIVES) {
+            profile.lives = GAME_MAX_LIVES;
+            profile.lastLifeReset = Date.now();
+            await profile.save();
+        }
+    }
+    return profile;
+}
+
+app.get('/api/game/status', checkAuthenticated, async (req, res) => {
+    try {
+        const profile = await obterPerfilJogo(req.session.user.id);
+        res.json({
+            sucesso: true,
+            level: profile.level,
+            accumulatedPoints: profile.accumulatedPoints,
+            totalPointsEarned: profile.totalPointsEarned,
+            totalScWon: profile.totalScWon,
+            lives: profile.lives,
+            maxLives: GAME_MAX_LIVES,
+            pointsTarget: GAME_POINTS_TARGET,
+            scReward: GAME_SC_REWARD,
+            refillCost: GAME_REFILL_COST_SC,
+            boosterCost: GAME_BOOSTER_MOVES_COST
+        });
+    } catch (e) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao carregar dados do SolidCrush." });
+    }
+});
+
+app.post('/api/game/iniciar-nivel', checkAuthenticated, async (req, res) => {
+    try {
+        const profile = await obterPerfilJogo(req.session.user.id);
+        if (profile.lives <= 0) {
+            return res.status(400).json({
+                sucesso: false,
+                mensagem: `Suas vidas diárias acabaram! Aguarde a renovação gratuita de 24h ou recarregue 5 vidas por ${GAME_REFILL_COST_SC} SC.`
+            });
+        }
+        profile.lives -= 1;
+        await profile.save();
+        res.json({ sucesso: true, lives: profile.lives, level: profile.level });
+    } catch (e) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao iniciar nível." });
+    }
+});
+
+app.post('/api/game/finalizar-nivel', checkAuthenticated, async (req, res) => {
+    try {
+        const { pontosObtidos, venceu } = req.body;
+        const profile = await obterPerfilJogo(req.session.user.id);
+
+        if (!venceu) {
+            return res.json({ sucesso: true, mensagem: "Fim dos movimentos! Tente novamente.", level: profile.level, accumulatedPoints: profile.accumulatedPoints, lives: profile.lives });
+        }
+
+        // Trava Anti-Cheat de tempo mínimo por fase (12 segundos)
+        const segundosDesdeUltima = (Date.now() - new Date(profile.lastLevelCompletedAt).getTime()) / 1000;
+        if (segundosDesdeUltima < 12) {
+            return res.status(400).json({ sucesso: false, mensagem: "Aguarde alguns segundos! Partida finalizada rápido demais." });
+        }
+
+        // Trava Anti-Cheat de limite máximo de pontos por fase (escalonado com o nível para equilíbrio da economia)
+        const tetoMaximoFase = 12000 + (profile.level * 35);
+        let pontosValidos = Math.max(100, Math.min(parseInt(pontosObtidos) || 0, tetoMaximoFase));
+
+        profile.accumulatedPoints += pontosValidos;
+        profile.totalPointsEarned += pontosValidos;
+        profile.lastLevelCompletedAt = Date.now();
+
+        if (profile.level < GAME_MAX_LEVEL) {
+            profile.level += 1;
+        }
+
+        const user = await User.findById(req.session.user.id);
+        const admin = await User.findOne({ email: ADMIN_EMAIL });
+        let scGanhosAgora = 0;
+
+        // Verifica se bateu a meta de 1.000.000 de pontos (1000 mil pontos = 1000 SC)
+        while (profile.accumulatedPoints >= GAME_POINTS_TARGET) {
+            if (admin && admin.saldo >= GAME_SC_REWARD && user.email !== ADMIN_EMAIL) {
+                profile.accumulatedPoints -= GAME_POINTS_TARGET;
+                profile.totalScWon += GAME_SC_REWARD;
+                user.saldo += GAME_SC_REWARD;
+                admin.saldo -= GAME_SC_REWARD;
+                scGanhosAgora += GAME_SC_REWARD;
+
+                await Promise.all([
+                    new Transaction({ userId: user._id, tipo: 'Prêmio SolidCrush Saga', descricao: `Meta de 1.000.000 pts atingida!`, valor: GAME_SC_REWARD }).save(),
+                    new Transaction({ userId: admin._id, tipo: 'Pagamento Prêmio SolidCrush', descricao: `Para ${user.nome} (1.000.000 pts)`, valor: -GAME_SC_REWARD }).save()
+                ]);
+            } else if (user.email === ADMIN_EMAIL) {
+                profile.accumulatedPoints -= GAME_POINTS_TARGET;
+                profile.totalScWon += GAME_SC_REWARD;
+                scGanhosAgora += GAME_SC_REWARD;
+            } else {
+                break;
+            }
+        }
+
+        await Promise.all([profile.save(), user.save(), admin ? admin.save() : Promise.resolve()]);
+
+        let msgRetorno = `🎉 Nível concluído! +${pontosValidos.toLocaleString('pt-BR')} pontos adicionados.`;
+        if (scGanhosAgora > 0) {
+            msgRetorno = `🏆 INCRÍVEL! Você atingiu 1.000.000 de pontos e ganhou +${scGanhosAgora} SolidCoins na sua conta!`;
+        }
+
+        res.json({
+            sucesso: true,
+            mensagem: msgRetorno,
+            level: profile.level,
+            accumulatedPoints: profile.accumulatedPoints,
+            totalPointsEarned: profile.totalPointsEarned,
+            totalScWon: profile.totalScWon,
+            lives: profile.lives,
+            novoSaldo: user.saldo,
+            scGanhosAgora
+        });
+    } catch (e) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao registrar pontuação." });
+    }
+});
+
+app.post('/api/game/recarregar-vidas', checkAuthenticated, async (req, res) => {
+    try {
+        const profile = await obterPerfilJogo(req.session.user.id);
+        if (profile.lives >= GAME_MAX_LIVES) {
+            return res.status(400).json({ sucesso: false, mensagem: "Suas vidas já estão cheias!" });
+        }
+
+        const user = await User.findById(req.session.user.id);
+        const admin = await User.findOne({ email: ADMIN_EMAIL });
+
+        if (user.saldo < GAME_REFILL_COST_SC) {
+            return res.status(400).json({ sucesso: false, mensagem: `Saldo insuficiente! Custa ${GAME_REFILL_COST_SC} SC para recarregar 5 vidas.` });
+        }
+
+        user.saldo -= GAME_REFILL_COST_SC;
+        profile.lives = GAME_MAX_LIVES;
+        profile.lastLifeReset = Date.now();
+
+        const promessas = [
+            user.save(),
+            profile.save(),
+            new Transaction({ userId: user._id, tipo: 'Recarga Vidas SolidCrush', descricao: '5 Vidas no Jogo SolidCrush', valor: -GAME_REFILL_COST_SC }).save()
+        ];
+
+        if (admin && user.email !== ADMIN_EMAIL) {
+            admin.saldo += GAME_REFILL_COST_SC;
+            promessas.push(admin.save());
+            promessas.push(new Transaction({ userId: admin._id, tipo: 'Recebimento SolidCrush', descricao: `Recarga de Vidas (${user.nome})`, valor: GAME_REFILL_COST_SC }).save());
+        }
+
+        await Promise.all(promessas);
+        res.json({ sucesso: true, mensagem: "❤️ Suas 5 vidas foram recarregadas com sucesso!", lives: profile.lives, novoSaldo: user.saldo });
+    } catch (e) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao recarregar vidas." });
+    }
+});
+
+app.post('/api/game/comprar-movimentos', checkAuthenticated, async (req, res) => {
+    try {
+        const user = await User.findById(req.session.user.id);
+        const admin = await User.findOne({ email: ADMIN_EMAIL });
+
+        if (user.saldo < GAME_BOOSTER_MOVES_COST) {
+            return res.status(400).json({ sucesso: false, mensagem: `Saldo insuficiente! Custa ${GAME_BOOSTER_MOVES_COST} SC para adicionar +5 movimentos.` });
+        }
+
+        user.saldo -= GAME_BOOSTER_MOVES_COST;
+        const promessas = [
+            user.save(),
+            new Transaction({ userId: user._id, tipo: 'Booster SolidCrush', descricao: '+5 Movimentos Extras no Jogo', valor: -GAME_BOOSTER_MOVES_COST }).save()
+        ];
+
+        if (admin && user.email !== ADMIN_EMAIL) {
+            admin.saldo += GAME_BOOSTER_MOVES_COST;
+            promessas.push(admin.save());
+            promessas.push(new Transaction({ userId: admin._id, tipo: 'Recebimento SolidCrush', descricao: `Booster Movimentos (${user.nome})`, valor: GAME_BOOSTER_MOVES_COST }).save());
+        }
+
+        await Promise.all(promessas);
+        res.json({ sucesso: true, mensagem: "⚡ +5 Movimentos adicionados!", novoSaldo: user.saldo });
+    } catch (e) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao comprar movimentos." });
+    }
 });
 
 // =========================================================================
@@ -1050,7 +1269,7 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
         if (user.statusSocio !== 'Ativo') return res.status(403).json({ sucesso: false, mensagem: "Exclusivo para Sócios ativos." });
         
         const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
-        if (valorNum > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saque Bloqueado pelo Plano de Sócio! Valor 100% livre na conta: ${limiteDisponivel.toFixed(2)} SC.` });
+        if (valorNum > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saque Bloqueado pelo Vesting! Valor 100% livre na conta: ${limiteDisponivel.toFixed(2)} SC.` });
 
         const chaveFavorecidoLimpa = normalizarChavePix(chavePix, tipoChave);
         const chavePagadorLimpa = normalizarChavePix(process.env.EFI_PIX_KEY_PJ); 
@@ -1229,7 +1448,7 @@ app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
         }
         
         const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
-        if (valor > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saque Bloqueado pelo Plano de Sócio! Valor livre na conta: ${limiteDisponivel.toFixed(2)} SC.` });
+        if (valor > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Saque Bloqueado pelo Vesting! Valor livre na conta: ${limiteDisponivel.toFixed(2)} SC.` });
 
         user.saldo -= valor; await user.save();
 
@@ -1374,7 +1593,7 @@ app.post('/api/transferir', checkAuthenticated, async (req, res) => {
         if (!destinatario || remetente.email === destinatario.email) return res.status(400).json({ sucesso: false, mensagem: "Destinatário inválido." });
         
         const limiteDisponivel = await calcularLimiteSaque(remetente._id, remetente.saldo, remetente.email);
-        if (valorNum > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Transferência bloqueada pelo vesting do Sócio! Saldo livre para envio: ${limiteDisponivel.toFixed(2)} SC.` });
+        if (valorNum > limiteDisponivel) return res.status(400).json({ sucesso: false, mensagem: `Transferência bloqueada pelo vesting! Saldo livre para envio: ${limiteDisponivel.toFixed(2)} SC.` });
         
         remetente.saldo -= valorNum; destinatario.saldo += valorNum;
         await Promise.all([remetente.save(), destinatario.save(), new Transaction({ userId: remetente._id, tipo: 'Transferência Enviada', descricao: `Para ${destinatario.nome}`, valor: -valorNum }).save(), new Transaction({ userId: destinatario._id, tipo: 'Transferência Recebida', descricao: `De ${remetente.nome}`, valor: valorNum }).save()]);
@@ -1405,11 +1624,13 @@ app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
         const { mensagem } = req.body;
         const msg = (mensagem || '').toLowerCase();
         
-        let resposta = "Olá! Eu sou o Assistente SolidCoin 🤖. Como posso te ajudar hoje?\n\nTente perguntar sobre: 'saque', 'pix', 'minipay', 'sócio', 'staking', 'nfc', 'indicação', 'investimentos', 'nft' ou 'farm'.";
+        let resposta = "Olá! Eu sou o Assistente SolidCoin 🤖. Como posso te ajudar hoje?\n\nTente perguntar sobre: 'jogo', 'solidcrush', 'saque', 'pix', 'minipay', 'sócio', 'staking', 'nfc', 'indicação', 'investimentos' ou 'nft'.";
 
-        if (msg.includes('saque') || msg.includes('sacar') || msg.includes('retirar')) {
+        if (msg.includes('jogo') || msg.includes('crush') || msg.includes('ponto') || msg.includes('level') || msg.includes('nível')) {
+            resposta = "🍬 **SolidCrush Saga (Nível 1 ao 1000):** Combine as joias da SolidCoin para passar de fase! A cada **1.000.000 de pontos** acumulados, você ganha automaticamente **1.000 SolidCoins**! Você recebe 5 vidas grátis todos os dias e pode recarregar vidas ou comprar movimentos extras usando seu saldo.";
+        } else if (msg.includes('saque') || msg.includes('sacar') || msg.includes('retirar')) {
             if (msg.includes('pix')) {
-                resposta = "💸 **Saque Pix VIP:** É exclusivo para Sócios da plataforma. Tem uma taxa de 5% e o valor cai direto na sua conta bancária conectada. Importante: moedas ganhas pelos planos de sócio são liberadas aos poucos (25% a cada 30 dias para segurança do sistema).";
+                resposta = "💸 **Saque Pix VIP:** É exclusivo para Sócios da plataforma. Tem uma taxa de 5% e o valor cai direto na sua conta bancária conectada. Importante: moedas ganhas pelos planos de sócio e prêmios do jogo liberam 25% a cada 30 dias para segurança do sistema.";
             } else if (msg.includes('minipay') || msg.includes('celo')) {
                 resposta = "💳 **Saque MiniPay (Web3):** O saque via MiniPay na Rede Celo é automatizado! Você recebe em dólares digitais (USDC) direto na sua carteira do Opera, podendo converter via Pix por lá. Não esqueça de salvar sua carteira na seção 'Carteiras'.";
             } else {
@@ -1432,7 +1653,7 @@ app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
                        "🔋 **Bateria:** O Farm consome a bateria do seu NFT. Fique de olho na carga máxima!\n\n" +
                        "🤝 **Mercado P2P:** Quer lucrar? Você pode listar seu NFT único no mercado para outros investidores comprarem. Para proteger a economia, o sistema não permite vender abaixo do preço de custo (Mintagem). Lembre-se: para vender, você precisa clicar em 'Desequipar Avatar' primeiro!";
         } else if (msg.includes('bloquea') || msg.includes('vesting') || msg.includes('limite')) {
-            resposta = "⚠️ **Saldo Bloqueado / Limite (Vesting):** Para garantir a vida longa do sistema, as moedas que você *compra* nos Planos de Sócio não podem ser sacadas de uma vez só. Elas liberam 25% a cada 30 dias de conta ativa. Porém, ganhos extras de tarefas, indicações, vendas e depósitos são 100% livres desde o primeiro dia!";
+            resposta = "⚠️ **Saldo Bloqueado / Limite (Vesting):** Para garantir a vida longa do sistema, as moedas dos Planos de Sócio e os pacotes de 1.000 SC do SolidCrush liberam 25% a cada 30 dias de conta ativa. Porém, ganhos de indicações, vendas, farm de NFT e depósitos são 100% livres desde o primeiro dia!";
         }
 
         res.json({ sucesso: true, resposta });
@@ -1616,9 +1837,6 @@ app.post('/api/admin/processar-deposito', isAdmin, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
-// =========================================================================
-// --- ROTA DE SAQUE CRIPTO / MINIPAY (DEVOLVE SALDO E EXTRATO AO CEO) ---
-// =========================================================================
 app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
     try {
         const { withdrawalId, acao } = req.body;
@@ -1728,7 +1946,6 @@ app.post('/api/admin/processar-saque', isAdmin, async (req, res) => {
             const redeNome = saque.solanaWallet ? saque.solanaWallet.split(':')[0] : 'Cripto';
             const promessas = [saque.save()];
 
-            // Devolve as SolidCoins sacadas para o cofre do CEO e registra no extrato
             if (admin) {
                 admin.saldo += saque.valor;
                 promessas.push(admin.save());
@@ -1861,18 +2078,13 @@ async function setupInicial() {
 
         if (!(await SysSettings.findOne())) { await new SysSettings({ scPorReal: 500 }).save(); }
 
-        // =========================================================================
-        // --- AJUSTE AUTOMÁTICO RETROATIVO DO EXTRATO E SALDO DO CEO ---
-        // =========================================================================
         if (ceo) {
-            // 1. Remove os bônus de +250 SC de auto-indicação na conta do CEO
             await Transaction.deleteMany({
                 userId: ceo._id,
                 tipo: 'Bônus de Indicação',
                 valor: 250
             });
 
-            // 2. Corrige os lançamentos de -500 SC (quando o CEO indicou) para -250 SC
             const txsInd = await Transaction.find({
                 userId: ceo._id,
                 tipo: 'Pagamento Indicação',
@@ -1888,7 +2100,6 @@ async function setupInicial() {
                 await tx.save();
             }
 
-            // 3. Insere no extrato do CEO os pagamentos de Farm NFT antigos que não tinham registro
             const txsFarmUsuarios = await Transaction.find({
                 tipo: 'Farm NFT (Diário)',
                 userId: { $ne: ceo._id }
@@ -1916,7 +2127,6 @@ async function setupInicial() {
                 }
             }
 
-            // 4. Devolve ao saldo e extrato do CEO os saques Cripto/MiniPay já aprovados anteriormente
             const saquesCriptoAprovados = await Withdrawal.find({ status: 'Aprovado' });
             let saldoDevolvidoCEO = 0;
 
@@ -1948,7 +2158,7 @@ async function setupInicial() {
                 await ceo.save();
             }
 
-            console.log("✅ Ajuste retroativo do extrato e saques MiniPay do CEO concluído!");
+            console.log("✅ Ajuste retroativo e rotas do SolidCrush Saga prontos!");
         }
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }

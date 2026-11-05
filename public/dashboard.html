@@ -3,6 +3,7 @@
 <head>
     <link rel="icon" type="image/png" href="https://i.postimg.cc/3wqXzkBf/Design-sem-nome-(1).png">
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - SolidCoin</title>
     <link rel="stylesheet" href="styles.css">
     <style>
@@ -14,12 +15,38 @@
         
         .btn-nft { border-bottom: 4px solid #ff9f43; }
         .btn-cedulas { border-bottom: 4px solid #d4af37; }
+        .btn-game { border-bottom: 4px solid #ff4757; background: linear-gradient(145deg, #2a0c1e, #1a0812); }
 
         .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
         .voltar-btn { background-color: #222; color: #d4af37; border: 1px solid #d4af37; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-bottom: 10px; display: inline-flex; align-items: center; gap: 8px; font-weight: bold; transition: 0.3s; }
         
+        /* ========================================================= */
+        /* ESTILOS DO JOGO SOLIDCRUSH SAGA */
+        /* ========================================================= */
+        .crush-stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 15px 0; }
+        .crush-stat-box { background: #110818; border: 1px solid #ff6b81; border-radius: 8px; padding: 10px; text-align: center; }
+        .crush-stat-box span { display: block; font-size: 0.8em; color: #ccc; }
+        .crush-stat-box strong { font-size: 1.25em; color: #ffd32a; }
+        
+        .crush-progress-wrap { background: #0a040e; border: 1px solid #444; border-radius: 20px; height: 24px; position: relative; overflow: hidden; margin: 12px 0; }
+        .crush-progress-fill { background: linear-gradient(90deg, #ff4757, #ffd32a, #00ff88); height: 100%; width: 0%; transition: width 0.4s ease; }
+        .crush-progress-label { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: bold; color: #fff; text-shadow: 0 1px 3px #000; }
+
+        .crush-board-wrapper { max-width: 420px; margin: 15px auto; position: relative; }
+        .crush-board { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; background: #0d0614; padding: 8px; border-radius: 12px; border: 2px solid #ff6b81; box-shadow: 0 8px 25px rgba(255, 71, 87, 0.25); user-select: none; touch-action: manipulation; }
+        .crush-cell { aspect-ratio: 1 / 1; background: linear-gradient(145deg, #1e112a, #150b1e); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: clamp(1.2rem, 5vw, 1.85rem); cursor: pointer; transition: transform 0.18s ease, background 0.2s, box-shadow 0.2s; border: 1px solid rgba(255,255,255,0.06); }
+        .crush-cell:hover { background: #2c183e; }
+        .crush-cell.selected { border: 2px solid #ffd32a; box-shadow: 0 0 14px #ffd32a; transform: scale(1.1); z-index: 2; background: #3b1e54; }
+        .crush-cell.matched { animation: crushPop 0.26s ease-out forwards; }
+        @keyframes crushPop { 0% { transform: scale(1); } 50% { transform: scale(1.3); filter: brightness(1.8); } 100% { transform: scale(0); opacity: 0; } }
+
+        .crush-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 4, 15, 0.92); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; z-index: 5; }
+        .crush-actions-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 15px; }
+        .crush-btn-action { padding: 10px 16px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 0.9em; transition: 0.2s; width: auto !important; margin: 0 !important; }
+        .crush-btn-action:hover { transform: scale(1.03); }
+
         /* NFT Cards Base */
         .nft-card { background: #111; border-radius: 8px; overflow: hidden; text-align: center; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s; }
         .nft-card-body { padding: 15px; }
@@ -210,8 +237,8 @@
             <button class="feature-btn btn-stake" onclick="abrirSecao('sec-staking')">
                 <span class="icon">📈</span><span class="text">Staking SolidCoin</span>
             </button>
-            <button class="feature-btn btn-tarefas" onclick="abrirSecao('sec-tarefas')">
-                <span class="icon">🕹️</span><span class="text">Ganhar SC (Vídeos)</span>
+            <button class="feature-btn btn-game" onclick="abrirSecao('sec-solidcrush')">
+                <span class="icon">🍬</span><span class="text">SolidCrush Saga (1.000 SC)</span>
             </button>
             <button class="feature-btn btn-socio" onclick="abrirSecao('sec-socio')">
                 <span class="icon">💎</span><span class="text">Clube de Sócios</span>
@@ -240,6 +267,72 @@
             <button class="feature-btn btn-resgift" onclick="abrirSecao('sec-resgatar-gift')">
                 <span class="icon">🎟️</span><span class="text">Resgatar Gift SC</span>
             </button>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- SEÇÃO SOLIDCRUSH SAGA (NÍVEL 1 AO 1000) -->
+        <!-- ========================================================= -->
+        <div id="sec-solidcrush" class="feature-section">
+            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
+            <div class="card" style="border-left: 5px solid #ff4757; background: linear-gradient(145deg, #1a0814, #2a0e22);">
+                <h2 style="color: #ff6b81; margin-top: 0; text-align: center;">🍬 SolidCrush Saga • Nível <span id="crush-level-num">1</span> / 1000</h2>
+                <p style="color: #ddd; font-size: 0.9em; text-align: center; margin-bottom: 10px;">
+                    Combine 3 ou mais joias iguais! A cada <strong style="color: #ffd32a;">1.000.000 de pontos</strong> acumulados, você recebe automaticamente <strong style="color: #00ff88;">1.000 SolidCoins</strong>!
+                </p>
+
+                <!-- Barra de Progresso de 1.000.000 Pontos para 1.000 SC -->
+                <div class="crush-progress-wrap">
+                    <div id="crush-bank-bar" class="crush-progress-fill"></div>
+                    <div id="crush-bank-text" class="crush-progress-label">Cofre de Prêmios: 0 / 1.000.000 pts (Ganha 1.000 SC)</div>
+                </div>
+
+                <!-- Placar da Partida -->
+                <div class="crush-stats-bar">
+                    <div class="crush-stat-box">
+                        <span>❤️ Vidas Diárias</span>
+                        <strong id="crush-lives-val">5 / 5</strong>
+                    </div>
+                    <div class="crush-stat-box">
+                        <span>🎯 Meta da Fase</span>
+                        <strong id="crush-score-val">0 / 1500</strong>
+                    </div>
+                    <div class="crush-stat-box">
+                        <span>⚡ Movimentos</span>
+                        <strong id="crush-moves-val">20</strong>
+                    </div>
+                    <div class="crush-stat-box">
+                        <span>🏆 Total Ganho</span>
+                        <strong id="crush-won-val" style="color: #00ff88;">0 SC</strong>
+                    </div>
+                </div>
+
+                <!-- Tabuleiro 8x8 -->
+                <div class="crush-board-wrapper">
+                    <div id="crush-board" class="crush-board"></div>
+
+                    <!-- Camada de Início / Fim de Fase -->
+                    <div id="crush-overlay" class="crush-overlay">
+                        <div style="font-size: 3em; margin-bottom: 8px;" id="crush-overlay-icon">🍬</div>
+                        <h3 id="crush-overlay-title" style="color: #ffd32a; margin: 0 0 8px 0;">Pronto para o Nível 1?</h3>
+                        <p id="crush-overlay-desc" style="color: #ccc; font-size: 0.9em; margin: 0 0 18px 0;">
+                            Bata a meta de pontos antes que os movimentos acabem para avançar rumo ao Nível 1000!
+                        </p>
+                        <button id="btn-start-crush" class="crush-btn-action" style="background: #00ff88; color: #000; font-size: 1.05em; padding: 14px 28px;" onclick="iniciarNivelSolidCrush()">
+                            ▶️ JOGAR NÍVEL (Usa 1 Vida)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Boosters e Recarga (Sustentabilidade Econômica) -->
+                <div class="crush-actions-row">
+                    <button class="crush-btn-action" style="background: #e74c3c; color: #fff;" onclick="recarregarVidasSolidCrush()">
+                        ❤️ Recarregar 5 Vidas (50 SC)
+                    </button>
+                    <button class="crush-btn-action" style="background: #3498db; color: #fff;" onclick="comprarMovimentosSolidCrush()">
+                        ⚡ +5 Movimentos Extras (20 SC)
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- ========================================================= -->
@@ -318,19 +411,6 @@
                 </div>
                 <div id="lista-ativos-investimento" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
                     <div style="text-align: center; color: #aaa; padding: 20px;">Carregando ativos disponíveis no mercado...</div>
-                </div>
-            </div>
-        </div>
-
-        <div id="sec-tarefas" class="feature-section">
-            <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
-            <div class="card" style="border-left: 5px solid #8e44ad; background: linear-gradient(145deg, #11081a, #1a0f2e);">
-                <h2 style="color: #c56cf0; margin-top: 0;">🕹️ Mural de Ofertas SolidCoin</h2>
-                <p style="color: #ddd; font-size: 0.95em;">Ganhe SolidCoins reais assistindo a vídeos, respondendo pesquisas e testando novos aplicativos.</p>
-                <div id="monlix-container" style="margin-top: 20px; background: #0a0510; border: 2px dashed #8e44ad; border-radius: 12px; padding: 40px 20px; text-align: center;">
-                    <div style="font-size: 3em; margin-bottom: 15px;">🚧</div>
-                    <h3 style="color: #d4af37; margin: 0 0 10px 0;">Estamos preparando as melhores ofertas!</h3>
-                    <p style="color: #aaa; font-size: 0.9em; max-width: 80%; margin: 0 auto; line-height: 1.5;">Nossa parceria com a rede global de anúncios está em fase de aprovação final. Muito em breve você poderá ganhar SC de forma passiva aqui todos os dias.</p>
                 </div>
             </div>
         </div>
@@ -502,7 +582,7 @@
                         <p style="margin: 0; font-size: 0.85em; color: #aaa;">Taxa (5%): <span id="pix-taxa-sc">0.00</span> SC</p>
                         <p style="margin: 5px 0 0 0; font-weight: bold; color: #00b894;">Você receberá na conta: R$ <span id="pix-receber-brl">0.00</span></p>
                     </div>
-                    <p style="font-size: 0.78em; color: #888; margin-bottom: 10px; line-height: 1.3;">⚠️ *Nota de Sustentabilidade: Moedas recebidas por Planos de Sócio liberam 25% do saque a cada 30 dias de conta ativa. Ganhos de depósitos, staking e indicações são 100% livres.*</p>
+                    <p style="font-size: 0.78em; color: #888; margin-bottom: 10px; line-height: 1.3;">⚠️ *Nota de Sustentabilidade: Moedas recebidas por Planos de Sócio e pacotes de 1.000 SC do jogo liberam 25% do saque a cada 30 dias de conta ativa. Ganhos de depósitos, staking e indicações são 100% livres.*</p>
                     <button type="submit" style="background-color: #00b894; color: #fff;">Solicitar Saque Pix</button>
                 </form>
             </div>
@@ -796,12 +876,369 @@
             if(idSecao === 'sec-nft-marketplace') {
                 mudarAbaNft('mint');
             }
+            if(idSecao === 'sec-solidcrush') {
+                carregarStatusSolidCrush();
+            }
         };
 
         window.voltarMenu = function() {
             const secoes = document.querySelectorAll('.feature-section');
             secoes.forEach(sec => sec.style.display = 'none');
             document.getElementById('menu-botoes').style.display = 'grid';
+        };
+
+        // =========================================================================
+        // --- MOTOR COMPLETO DO JOGO SOLIDCRUSH SAGA (NÍVEL 1 AO 1000) ---
+        // =========================================================================
+        const CRUSH_SIZE = 8;
+        const CRUSH_ICONS = ['🪙', '💎', '👑', '⚡', '🚀', '🍀'];
+        let crushGrid = [];
+        let crushSelected = null;
+        let crushIsAnimating = false;
+        let crushGameActive = false;
+        let crushLevel = 1;
+        let crushLives = 5;
+        let crushMaxLives = 5;
+        let crushAccumulated = 0;
+        let crushTargetBank = 1000000;
+        let crushScore = 0;
+        let crushGoal = 1500;
+        let crushMoves = 20;
+
+        function somCrush(freq, dur = 0.1) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                g.gain.setValueAtTime(0.08, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+                osc.connect(g);
+                g.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + dur);
+            } catch (e) {}
+        }
+
+        function calcularMetaNivel(lvl) {
+            return 1400 + (lvl * 150);
+        }
+
+        function calcularMovimentosNivel(lvl) {
+            return Math.max(15, 22 - Math.floor(lvl / 200));
+        }
+
+        function atualizarInterfaceCrush() {
+            document.getElementById('crush-level-num').innerText = crushLevel;
+            document.getElementById('crush-lives-val').innerText = `${crushLives} / ${crushMaxLives}`;
+            document.getElementById('crush-score-val').innerText = `${crushScore.toLocaleString('pt-BR')} / ${crushGoal.toLocaleString('pt-BR')}`;
+            document.getElementById('crush-moves-val').innerText = crushMoves;
+
+            const pct = Math.min(100, (crushAccumulated / crushTargetBank) * 100);
+            document.getElementById('crush-bank-bar').style.width = `${pct}%`;
+            document.getElementById('crush-bank-text').innerText = `Cofre: ${crushAccumulated.toLocaleString('pt-BR')} / 1.000.000 pts (Prêmio: 1.000 SC)`;
+        }
+
+        async function carregarStatusSolidCrush() {
+            try {
+                const res = await fetch('/api/game/status');
+                const d = await res.json();
+                if (d.sucesso) {
+                    crushLevel = d.level;
+                    crushLives = d.lives;
+                    crushMaxLives = d.maxLives;
+                    crushAccumulated = d.accumulatedPoints;
+                    crushTargetBank = d.pointsTarget;
+                    crushGoal = calcularMetaNivel(crushLevel);
+                    crushMoves = calcularMovimentosNivel(crushLevel);
+                    crushScore = 0;
+
+                    document.getElementById('crush-won-val').innerText = `${d.totalScWon} SC`;
+                    atualizarInterfaceCrush();
+
+                    if (!crushGameActive) {
+                        document.getElementById('crush-overlay-icon').innerText = '🍬';
+                        document.getElementById('crush-overlay-title').innerText = `Nível ${crushLevel} de 1000`;
+                        document.getElementById('crush-overlay-desc').innerText = `Meta da Fase: ${crushGoal.toLocaleString('pt-BR')} pontos em ${crushMoves} movimentos.`;
+                        document.getElementById('btn-start-crush').innerText = `▶️ JOGAR NÍVEL ${crushLevel} (Usa 1 Vida)`;
+                        document.getElementById('crush-overlay').style.display = 'flex';
+                        gerarTabuleiroInicialCrush();
+                    }
+                }
+            } catch (e) {}
+        }
+
+        function gerarTabuleiroInicialCrush() {
+            crushGrid = [];
+            for (let r = 0; r < CRUSH_SIZE; r++) {
+                crushGrid[r] = [];
+                for (let c = 0; c < CRUSH_SIZE; c++) {
+                    let icone;
+                    do {
+                        icone = CRUSH_ICONS[Math.floor(Math.random() * CRUSH_ICONS.length)];
+                    } while (
+                        (c >= 2 && crushGrid[r][c - 1] === icone && crushGrid[r][c - 2] === icone) ||
+                        (r >= 2 && crushGrid[r - 1][c] === icone && crushGrid[r - 2][c] === icone)
+                    );
+                    crushGrid[r][c] = icone;
+                }
+            }
+            desenharTabuleiroCrush();
+        }
+
+        function desenharTabuleiroCrush(celulasExplodindo = []) {
+            const boardEl = document.getElementById('crush-board');
+            boardEl.innerHTML = '';
+
+            for (let r = 0; r < CRUSH_SIZE; r++) {
+                for (let c = 0; c < CRUSH_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'crush-cell';
+                    if (crushSelected && crushSelected.r === r && crushSelected.c === c) {
+                        cell.classList.add('selected');
+                    }
+                    if (celulasExplodindo.some(pos => pos.r === r && pos.c === c)) {
+                        cell.classList.add('matched');
+                    }
+                    cell.innerText = crushGrid[r][c] || '';
+                    cell.onclick = () => clicarCelulaCrush(r, c);
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        window.iniciarNivelSolidCrush = async function() {
+            if (crushIsAnimating) return;
+            try {
+                const res = await fetch('/api/game/iniciar-nivel', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                const d = await res.json();
+                if (!d.sucesso) {
+                    return alert(d.mensagem);
+                }
+                crushLives = d.lives;
+                crushLevel = d.level;
+                crushGoal = calcularMetaNivel(crushLevel);
+                crushMoves = calcularMovimentosNivel(crushLevel);
+                crushScore = 0;
+                crushSelected = null;
+                crushGameActive = true;
+
+                document.getElementById('crush-overlay').style.display = 'none';
+                gerarTabuleiroInicialCrush();
+                atualizarInterfaceCrush();
+                somCrush(523.25, 0.15);
+            } catch (e) {
+                alert('Erro de conexão ao iniciar nível.');
+            }
+        };
+
+        async function clicarCelulaCrush(r, c) {
+            if (!crushGameActive || crushIsAnimating) return;
+
+            if (!crushSelected) {
+                crushSelected = { r, c };
+                somCrush(440, 0.06);
+                desenharTabuleiroCrush();
+                return;
+            }
+
+            if (crushSelected.r === r && crushSelected.c === c) {
+                crushSelected = null;
+                desenharTabuleiroCrush();
+                return;
+            }
+
+            const dist = Math.abs(crushSelected.r - r) + Math.abs(crushSelected.c - c);
+            if (dist !== 1) {
+                crushSelected = { r, c };
+                somCrush(440, 0.06);
+                desenharTabuleiroCrush();
+                return;
+            }
+
+            crushIsAnimating = true;
+            const r1 = crushSelected.r, c1 = crushSelected.c;
+            crushSelected = null;
+
+            // Troca as peças
+            const temp = crushGrid[r1][c1];
+            crushGrid[r1][c1] = crushGrid[r][c];
+            crushGrid[r][c] = temp;
+            desenharTabuleiroCrush();
+
+            const matches = encontrarCombinacoesCrush();
+            if (matches.length === 0) {
+                // Desfaz movimento inválido sem gastar jogada
+                await new Promise(resolve => setTimeout(resolve, 200));
+                crushGrid[r][c] = crushGrid[r1][c1];
+                crushGrid[r1][c1] = temp;
+                somCrush(220, 0.15);
+                desenharTabuleiroCrush();
+                crushIsAnimating = false;
+                return;
+            }
+
+            crushMoves -= 1;
+            atualizarInterfaceCrush();
+            await resolverCascataCrush();
+            crushIsAnimating = false;
+            verificarFimDePartidaCrush();
+        }
+
+        function encontrarCombinacoesCrush() {
+            const paraRemover = [];
+            const mapa = Array.from({ length: CRUSH_SIZE }, () => Array(CRUSH_SIZE).fill(false));
+
+            // Horizontais
+            for (let r = 0; r < CRUSH_SIZE; r++) {
+                let cont = 1;
+                for (let c = 1; c <= CRUSH_SIZE; c++) {
+                    if (c < CRUSH_SIZE && crushGrid[r][c] && crushGrid[r][c] === crushGrid[r][c - 1]) {
+                        cont++;
+                    } else {
+                        if (cont >= 3) {
+                            for (let k = c - cont; k < c; k++) mapa[r][k] = true;
+                        }
+                        cont = 1;
+                    }
+                }
+            }
+
+            // Verticais
+            for (let c = 0; c < CRUSH_SIZE; c++) {
+                let cont = 1;
+                for (let r = 1; r <= CRUSH_SIZE; r++) {
+                    if (r < CRUSH_SIZE && crushGrid[r][c] && crushGrid[r][c] === crushGrid[r - 1][c]) {
+                        cont++;
+                    } else {
+                        if (cont >= 3) {
+                            for (let k = r - cont; k < r; k++) mapa[k][c] = true;
+                        }
+                        cont = 1;
+                    }
+                }
+            }
+
+            for (let r = 0; r < CRUSH_SIZE; r++) {
+                for (let c = 0; c < CRUSH_SIZE; c++) {
+                    if (mapa[r][c]) paraRemover.push({ r, c });
+                }
+            }
+            return paraRemover;
+        }
+
+        async function resolverCascataCrush() {
+            let combo = 1;
+            while (true) {
+                const matches = encontrarCombinacoesCrush();
+                if (matches.length === 0) break;
+
+                // Pontuação com multiplicador de combo
+                const ptsGanhos = matches.length * 60 * combo;
+                crushScore += ptsGanhos;
+                somCrush(580 + (combo * 90), 0.14);
+                atualizarInterfaceCrush();
+
+                desenharTabuleiroCrush(matches);
+                await new Promise(resolve => setTimeout(resolve, 240));
+
+                matches.forEach(p => { crushGrid[p.r][p.c] = null; });
+
+                // Faz as peças caírem
+                for (let c = 0; c < CRUSH_SIZE; c++) {
+                    let linhaVazia = CRUSH_SIZE - 1;
+                    for (let r = CRUSH_SIZE - 1; r >= 0; r--) {
+                        if (crushGrid[r][c] !== null) {
+                            crushGrid[linhaVazia][c] = crushGrid[r][c];
+                            if (linhaVazia !== r) crushGrid[r][c] = null;
+                            linhaVazia--;
+                        }
+                    }
+                    for (let r = linhaVazia; r >= 0; r--) {
+                        crushGrid[r][c] = CRUSH_ICONS[Math.floor(Math.random() * CRUSH_ICONS.length)];
+                    }
+                }
+
+                desenharTabuleiroCrush();
+                await new Promise(resolve => setTimeout(resolve, 200));
+                combo++;
+            }
+        }
+
+        async function verificarFimDePartidaCrush() {
+            if (crushScore >= crushGoal) {
+                crushGameActive = false;
+                // Bônus pelos movimentos que sobraram
+                const bonusMovimentos = crushMoves * 120;
+                const pontuacaoFinalFase = crushScore + bonusMovimentos;
+                somCrush(880, 0.35);
+
+                try {
+                    const res = await fetch('/api/game/finalizar-nivel', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pontosObtidos: pontuacaoFinalFase, venceu: true })
+                    });
+                    const d = await res.json();
+                    if (d.sucesso) {
+                        crushLevel = d.level;
+                        crushAccumulated = d.accumulatedPoints;
+                        crushLives = d.lives;
+                        document.getElementById('crush-won-val').innerText = `${d.totalScWon} SC`;
+                        fetchDashboardData();
+                    }
+
+                    document.getElementById('crush-overlay-icon').innerText = '🏆';
+                    document.getElementById('crush-overlay-title').innerText = `Vitória! +${pontuacaoFinalFase.toLocaleString('pt-BR')} pts`;
+                    document.getElementById('crush-overlay-desc').innerText = d.mensagem || `Você avançou para o Nível ${crushLevel}!`;
+                    document.getElementById('btn-start-crush').innerText = `▶️ JOGAR NÍVEL ${crushLevel} (Usa 1 Vida)`;
+                    document.getElementById('crush-overlay').style.display = 'flex';
+                    atualizarInterfaceCrush();
+                } catch (e) {}
+            } else if (crushMoves <= 0) {
+                crushGameActive = false;
+                somCrush(190, 0.35);
+                await fetch('/api/game/finalizar-nivel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pontosObtidos: 0, venceu: false })
+                });
+
+                document.getElementById('crush-overlay-icon').innerText = '😢';
+                document.getElementById('crush-overlay-title').innerText = `Fim dos Movimentos!`;
+                document.getElementById('crush-overlay-desc').innerText = `Faltaram ${(crushGoal - crushScore).toLocaleString('pt-BR')} pontos para concluir o Nível ${crushLevel}.`;
+                document.getElementById('btn-start-crush').innerText = `🔄 TENTAR NOVAMENTE (Usa 1 Vida)`;
+                document.getElementById('crush-overlay').style.display = 'flex';
+            }
+        }
+
+        window.recarregarVidasSolidCrush = async function() {
+            if (!confirm('Deseja recarregar suas 5 vidas imediatamente por 50 SolidCoins?')) return;
+            try {
+                const res = await fetch('/api/game/recarregar-vidas', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                const d = await res.json();
+                alert(d.mensagem);
+                if (d.sucesso) {
+                    crushLives = d.lives;
+                    atualizarInterfaceCrush();
+                    fetchDashboardData();
+                }
+            } catch (e) {}
+        };
+
+        window.comprarMovimentosSolidCrush = async function() {
+            if (!crushGameActive) return alert('Inicie uma partida primeiro para adicionar movimentos extras!');
+            if (!confirm('Deseja comprar +5 Movimentos Extras nesta partida por 20 SolidCoins?')) return;
+            try {
+                const res = await fetch('/api/game/comprar-movimentos', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                const d = await res.json();
+                alert(d.mensagem);
+                if (d.sucesso) {
+                    crushMoves += 5;
+                    atualizarInterfaceCrush();
+                    fetchDashboardData();
+                }
+            } catch (e) {}
         };
 
         // ==========================================
@@ -1276,7 +1713,6 @@
                     if (resumoBox) resumoBox.innerText = `Aguardando aprovação: ${itens.join(' • ')}`;
                     if (alertaBox) alertaBox.style.display = 'flex';
 
-                    // Dispara som e notificação caso entre um pedido novo
                     if (ultimoTotalPendentes !== null && total > ultimoTotalPendentes) {
                         tocarSomNotificacaoCEO();
                         if ("Notification" in window && Notification.permission === "granted") {
@@ -1308,7 +1744,6 @@
                             limiteEl.innerText = data.usuario.limiteDeSaque.toFixed(2);
                         }
 
-                        // Se for o CEO, verifica as filas pendentes automaticamente
                         if (data.usuario.isAdmin) {
                             verificarNotificacoesCEO();
                         }
