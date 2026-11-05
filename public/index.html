@@ -11,7 +11,7 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     
     <style>
-        body { background-color: #0a0a0a; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        body { background-color: #0a0a0a; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
         .auth-container { background-color: #1a1a1a; padding: 40px 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.85); border: 1px solid rgba(212, 175, 55, 0.25); width: 100%; max-width: 400px; text-align: center; }
         .logo-auth { width: 75px; height: 75px; object-fit: contain; margin-bottom: 10px; border-radius: 50%; border: 2px solid #d4af37; padding: 3px; background: #0a0a0a; }
         h1 { color: #d4af37; margin-top: 5px; margin-bottom: 20px; font-size: 1.6em; }
@@ -27,6 +27,11 @@
         .divider::before, .divider::after { content: ""; flex: 1; border-bottom: 1px solid #333; margin: 0 10px; }
         
         #status-auth-msg { display: none; margin-top: 12px; font-size: 0.9em; color: #f1c40f; font-weight: bold; }
+
+        /* RODAPÉ OFICIAL DE PROPRIEDADE */
+        .official-footer { margin-top: 25px; text-align: center; font-size: 0.85em; color: #aaa; line-height: 1.6; border-top: 1px solid #222; padding-top: 15px; width: 100%; max-width: 400px; }
+        .official-footer a { color: #d4af37; text-decoration: none; font-weight: bold; }
+        .official-footer a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -103,6 +108,12 @@
 
         <button class="toggle-btn" onclick="toggleAuth('login')">Já tem conta? Faça Login</button>
     </div>
+
+    <!-- RODAPÉ COM E-MAIL OFICIAL PARA VERIFICAÇÃO DE PROPRIEDADE -->
+    <footer class="official-footer">
+        <p style="margin: 0;">© 2026 <strong>SolidCoin Community (SLC)</strong></p>
+        <p style="margin: 4px 0 0 0;">Contato & Suporte Oficial: <a href="mailto:solidcoinn@gmail.com">solidcoinn@gmail.com</a></p>
+    </footer>
 
     <!-- SCRIPT DE AÇÕES DA PÁGINA -->
     <script>
