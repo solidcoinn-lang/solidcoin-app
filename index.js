@@ -519,7 +519,6 @@ app.get('/api/game/status', checkAuthenticated, async (req, res) => {
     }
 });
 
-// NOVA ROTA: Ranking Top 10 Jogadores do SolidCrush Saga
 app.get('/api/game/ranking', checkAuthenticated, async (req, res) => {
     try {
         const topProfiles = await GameProfile.find({})
@@ -553,7 +552,6 @@ app.post('/api/game/iniciar-nivel', checkAuthenticated, async (req, res) => {
                 mensagem: `Suas vidas acabaram! Aguarde a renovação gratuita de 24h ou recarregue 5 vidas por ${GAME_REFILL_COST_SC} SC.`
             });
         }
-        // Reserva 1 vida ao iniciar (se o usuário vencer a fase, ela é devolvida em /finalizar-nivel!)
         profile.lives -= 1;
         await profile.save();
         res.json({ sucesso: true, lives: profile.lives, level: profile.level });
@@ -568,7 +566,6 @@ app.post('/api/game/finalizar-nivel', checkAuthenticated, async (req, res) => {
         const profile = await obterPerfilJogo(req.session.user.id);
 
         if (!venceu) {
-            // Como a vida já foi reservada no início, na derrota ela permanece descontada
             return res.json({
                 sucesso: true,
                 mensagem: "Fim dos movimentos! Você perdeu 1 vida. Tente novamente!",
@@ -578,18 +575,16 @@ app.post('/api/game/finalizar-nivel', checkAuthenticated, async (req, res) => {
             });
         }
 
-        // Trava Anti-Cheat de tempo mínimo por fase (12 segundos)
         const segundosDesdeUltima = (Date.now() - new Date(profile.lastLevelCompletedAt).getTime()) / 1000;
         if (segundosDesdeUltima < 12) {
             return res.status(400).json({ sucesso: false, mensagem: "Aguarde alguns segundos! Partida finalizada rápido demais." });
         }
 
-        // DEVOLVE A VIDA AO JOGADOR PORQUE ELE VENCEU A FASE (Estilo Candy Crush!)
+        // Devolve a vida porque o jogador venceu a fase (estilo Candy Crush)
         if (profile.lives < GAME_MAX_LIVES) {
             profile.lives += 1;
         }
 
-        // Trava Anti-Cheat de limite máximo de pontos por fase
         const tetoMaximoFase = 12000 + (profile.level * 35);
         let pontosValidos = Math.max(100, Math.min(parseInt(pontosObtidos) || 0, tetoMaximoFase));
 
@@ -605,7 +600,6 @@ app.post('/api/game/finalizar-nivel', checkAuthenticated, async (req, res) => {
         const admin = await User.findOne({ email: ADMIN_EMAIL });
         let scGanhosAgora = 0;
 
-        // Verifica se bateu a meta de 1.000.000 de pontos (1000 mil pontos = 1000 SC)
         while (profile.accumulatedPoints >= GAME_POINTS_TARGET) {
             if (admin && admin.saldo >= GAME_SC_REWARD && user.email !== ADMIN_EMAIL) {
                 profile.accumulatedPoints -= GAME_POINTS_TARGET;
@@ -1458,12 +1452,13 @@ app.post('/api/depositar', checkAuthenticated, async (req, res) => {
 app.post('/api/salvar-carteira', checkAuthenticated, async (req, res) => {
     try {
         await User.findByIdAndUpdate(req.session.user.id, { 
-            solanaWallet: req.body.solanaWallet || '', tronWallet: req.body.tronWallet || '', minipayWallet: req.body.minipayWallet || '' 
+            solanaWallet: req.body.solanaWallet || '', tronWallet: '', minipayWallet: req.body.minipayWallet || '' 
         });
         res.json({ sucesso: true, mensagem: "Carteiras atualizadas com sucesso!" });
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao salvar carteiras." }); }
 });
 
+// ATUALIZADO: Levantamentos via Rede Tron desativados (Apenas MiniPay Celo e Solana)
 app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
     try {
         const valor = parseFloat(req.body.valor);
@@ -1471,17 +1466,18 @@ app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
         const user = await User.findById(req.session.user.id);
         
         if (!valor || valor <= 0) return res.status(400).json({ sucesso: false, mensagem: "Valor inválido." });
+        if (metodo === 'Tron') return res.status(400).json({ sucesso: false, mensagem: "Saques pela rede Tron foram desativados. Utilize MiniPay (Rede Celo) ou Solana." });
         
         let carteiraParaSaque = '';
         if (metodo === 'MiniPay') {
-            if (!user.minipayWallet) return res.status(400).json({ sucesso: false, mensagem: "Salve sua carteira MiniPay primeiro."});
+            if (!user.minipayWallet) return res.status(400).json({ sucesso: false, mensagem: "Salve sua carteira MiniPay / Celo primeiro."});
             carteiraParaSaque = `MiniPay: ${user.minipayWallet}`;
         } else if (metodo === 'Solana') {
             if (!user.solanaWallet) return res.status(400).json({ sucesso: false, mensagem: "Salve sua carteira Solana primeiro."});
             carteiraParaSaque = `Solana: ${user.solanaWallet}`;
         } else {
-            if (!user.tronWallet && !user.solanaWallet && !user.minipayWallet) return res.status(400).json({ sucesso: false, mensagem: "Você precisa salvar pelo menos uma carteira de saque."});
-            carteiraParaSaque = metodo === 'Tron' ? `Tron: ${user.tronWallet}` : (user.solanaWallet ? `Solana: ${user.solanaWallet}` : (user.tronWallet ? `Tron: ${user.tronWallet}` : `MiniPay: ${user.minipayWallet}`));
+            if (!user.solanaWallet && !user.minipayWallet) return res.status(400).json({ sucesso: false, mensagem: "Você precisa salvar uma carteira MiniPay (Celo) ou Solana."});
+            carteiraParaSaque = user.minipayWallet ? `MiniPay: ${user.minipayWallet}` : `Solana: ${user.solanaWallet}`;
         }
         
         const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
@@ -1661,22 +1657,24 @@ app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
         const { mensagem } = req.body;
         const msg = (mensagem || '').toLowerCase();
         
-        let resposta = "Olá! Eu sou o Assistente SolidCoin 🤖. Como posso te ajudar hoje?\n\nTente perguntar sobre: 'jogo', 'solidcrush', 'saque', 'pix', 'minipay', 'sócio', 'staking', 'nfc', 'indicação', 'investimentos' ou 'nft'.";
+        let resposta = "Olá! Eu sou o Assistente SolidCoin 🤖. Como posso te ajudar hoje?\n\nTente perguntar sobre: 'celo', 'metamask', 'jogo', 'solidcrush', 'saque', 'pix', 'minipay', 'sócio', 'staking', 'nfc', 'indicação', 'investimentos' ou 'nft'.";
 
         if (msg.includes('jogo') || msg.includes('crush') || msg.includes('ponto') || msg.includes('level') || msg.includes('nível')) {
             resposta = "🍬 **SolidCrush Saga (Nível 1 ao 1000):** Combine as joias da SolidCoin para passar de fase! Se você vencer a fase, **não perde vida** e continua jogando! A cada **1.000.000 de pontos** acumulados, você ganha automaticamente **1.000 SolidCoins**!";
+        } else if (msg.includes('metamask') || msg.includes('resgate rendimento') || msg.includes('contrato')) {
+            resposta = "🦊 **Resgate Rendimento na Rede Celo (Mainnet):** Clique no botão 'Resgate Rendimento (Celo)' no menu principal! Tanto no PC quanto no Celular, ele abre sua **MetaMask** automaticamente na Rede Celo para você resgatar seu rendimento de **1% ao dia** com taxas de gás ultra baratas. O contrato oficial da SolidCoin (SLC) na Celo é: `0x6Ff689e75DD0f49375A2932E44354DD3271586f6`.";
         } else if (msg.includes('saque') || msg.includes('sacar') || msg.includes('retirar')) {
             if (msg.includes('pix')) {
                 resposta = "💸 **Saque Pix VIP:** É exclusivo para Sócios da plataforma. Tem uma taxa de 5% e o valor cai direto na sua conta bancária conectada. Importante: moedas ganhas pelos planos de sócio e prêmios do jogo liberam 25% a cada 30 dias para segurança do sistema.";
             } else if (msg.includes('minipay') || msg.includes('celo')) {
-                resposta = "💳 **Saque MiniPay (Web3):** O saque via MiniPay na Rede Celo é automatizado! Você recebe em dólares digitais (USDC) direto na sua carteira do Opera, podendo converter via Pix por lá. Não esqueça de salvar sua carteira na seção 'Carteiras'.";
+                resposta = "💳 **Saque MiniPay (Web3 - Rede Celo):** O saque via MiniPay na Rede Celo é automatizado! Você recebe em dólares digitais (USDC) direto na sua carteira do Opera, podendo converter via Pix por lá. Não esqueça de salvar sua carteira na seção 'Carteiras'.";
             } else {
-                resposta = "🏦 **Tipos de Saques:** Temos saque via Pix (Exclusivo para Sócios) e Saque Cripto (MiniPay Celo automatizado, Solana e Tron). Vá no menu e escolha o tipo de saque que deseja. Dica: A MiniPay é a forma mais rápida!";
+                resposta = "🏦 **Tipos de Saques:** Temos saque via Pix (Exclusivo para Sócios) e Saque Cripto (MiniPay Celo automatizado e Rede Solana). Vá no menu e escolha o tipo de saque que deseja. Dica: A MiniPay na Rede Celo é a forma mais rápida e econômica!";
             }
         } else if (msg.includes('sócio') || msg.includes('socio') || msg.includes('plano')) {
             resposta = "💎 **Clube de Sócios:** Sendo sócio você recebe moedas garantidas todos os meses, libera o cobiçado Saque Pix VIP e ganha 5% de comissão sobre os planos de quem você indicar! Lembre-se: O saldo comprado no plano entra em 'Vesting', ou seja, fica bloqueado e libera 25% a cada 30 dias na sua conta.";
         } else if (msg.includes('staking') || msg.includes('stake') || msg.includes('render')) {
-            resposta = "📈 **Staking:** Coloque suas moedas para trabalhar para você! O Staking da SolidCoin paga 5% ao mês sobre o valor guardado. Seus fundos ficam trancados por um mínimo de 48 horas antes de você poder clicar em resgatar o capital.";
+            resposta = "📈 **Staking:** Coloque suas moedas para trabalhar para você! O Staking da SolidCoin paga 5% ao mês sobre o valor guardado na plataforma, além do rendimento Web3 de 1% ao dia direto no Smart Contract da Rede Celo.";
         } else if (msg.includes('nfc') || msg.includes('cartão') || msg.includes('cartao') || msg.includes('maquininha')) {
             resposta = "💳 **Tecnologia NFC:** Transforme seu celular numa maquininha! Você pode cobrar de outros usuários apenas encostando o cartão deles no seu celular. Vá na seção 'Tecnologia NFC' para gerar seu código ou pedir o Cartão Black físico de PVC na sua casa.";
         } else if (msg.includes('indica') || msg.includes('convid') || msg.includes('amigo')) {
@@ -2195,7 +2193,7 @@ async function setupInicial() {
                 await ceo.save();
             }
 
-            console.log("✅ Ajuste retroativo e rotas do SolidCrush Saga (com Ranking Top 10) prontos!");
+            console.log("✅ Ecossistema SolidCoin (Rede Celo Mainnet + SolidCrush Saga) configurado com sucesso!");
         }
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }

@@ -16,6 +16,7 @@
         .btn-nft { border-bottom: 4px solid #ff9f43; }
         .btn-cedulas { border-bottom: 4px solid #d4af37; }
         .btn-game { border-bottom: 4px solid #ff4757; background: linear-gradient(145deg, #2a0c1e, #1a0812); }
+        .btn-celo { border-bottom: 4px solid #35d07f; }
 
         .feature-section { display: none; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -236,8 +237,8 @@
             <button class="feature-btn btn-invest" onclick="abrirSecao('sec-investimentos')">
                 <span class="icon">📈</span><span class="text">Mercado (FIIs & Ações)</span>
             </button>
-            <button class="feature-btn btn-tron" onclick="abrirSecao('sec-tron')">
-                <span class="icon">🌐</span><span class="text">Resgate Rendimento</span>
+            <button class="feature-btn btn-celo" onclick="abrirSecao('sec-tron')">
+                <span class="icon">🌐</span><span class="text">Resgate Rendimento (Celo)</span>
             </button>
             <button class="feature-btn btn-ind" onclick="abrirSecao('sec-indicacao')">
                 <span class="icon">🤝</span><span class="text">Programa Indicação</span>
@@ -288,13 +289,11 @@
                     Combine 3 ou mais joias iguais! Se vencer o nível, <strong>sua vida é mantida</strong>. A cada <strong style="color: #ffd32a;">1.000.000 de pontos</strong> acumulados, você recebe automaticamente <strong style="color: #00ff88;">1.000 SolidCoins</strong>!
                 </p>
 
-                <!-- Barra de Progresso de 1.000.000 Pontos para 1.000 SC -->
                 <div class="crush-progress-wrap">
                     <div id="crush-bank-bar" class="crush-progress-fill"></div>
                     <div id="crush-bank-text" class="crush-progress-label">Cofre de Prêmios: 0 / 1.000.000 pts (Ganha 1.000 SC)</div>
                 </div>
 
-                <!-- Placar da Partida -->
                 <div class="crush-stats-bar">
                     <div class="crush-stat-box">
                         <span>❤️ Vidas Diárias</span>
@@ -314,11 +313,9 @@
                     </div>
                 </div>
 
-                <!-- Tabuleiro 8x8 -->
                 <div class="crush-board-wrapper">
                     <div id="crush-board" class="crush-board"></div>
 
-                    <!-- Camada de Início / Fim de Fase -->
                     <div id="crush-overlay" class="crush-overlay">
                         <div style="font-size: 3em; margin-bottom: 8px;" id="crush-overlay-icon">🍬</div>
                         <h3 id="crush-overlay-title" style="color: #ffd32a; margin: 0 0 8px 0;">Pronto para o Nível 1?</h3>
@@ -331,7 +328,6 @@
                     </div>
                 </div>
 
-                <!-- Boosters e Recarga (Sustentabilidade Econômica) -->
                 <div class="crush-actions-row">
                     <button class="crush-btn-action" style="background: #e74c3c; color: #fff;" onclick="recarregarVidasSolidCrush()">
                         ❤️ Recarregar 5 Vidas (50 SC)
@@ -341,7 +337,6 @@
                     </button>
                 </div>
 
-                <!-- RANKING TOP 10 JOGADORES SOLIDCRUSH -->
                 <div class="crush-ranking-box">
                     <h3 style="color: #ffd32a; margin: 0 0 8px 0; text-align: center;">🏆 Ranking Top 10 Jogadores</h3>
                     <div style="overflow-x: auto;">
@@ -514,21 +509,42 @@
             </div>
         </div>
 
+        <!-- ========================================================= -->
+        <!-- SEÇÃO RESGATE DE RENDIMENTO NA REDE CELO MAINNET (METAMASK) -->
+        <!-- ========================================================= -->
         <div id="sec-tron" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
-            <div class="card" style="border-left: 5px solid #ff0013; background: linear-gradient(145deg, #1a0505, #2a0a0a);">
-                <h2 style="color: #ff4757;">🌐 Resgate aqui suas SolidCoins de rendimento da Carteira Tron</h2>
-                <p style="color: #ddd; font-size: 0.95em;">Conecte sua carteira para interagir diretamente com nosso Smart Contract na rede de testes da Tron.</p>
-                <ul style="color: #aaa; font-size: 0.9em; text-align: left; margin: 10px 0; padding-left: 20px;">
-                    <li>Rendimento: <strong>1% ao dia</strong> direto na carteira.</li>
-                    <li>Necessário ter a extensão <strong>TronLink</strong> instalada.</li>
-                    <li>Você precisará de <strong>TRX (Testnet)</strong> para pagar a taxa de gás da rede.</li>
+            <div class="card" style="border-left: 5px solid #35d07f; background: linear-gradient(145deg, #071f12, #0d2e1b);">
+                <h2 style="color: #35d07f; margin-top: 0;">🌐 Resgate Suas SolidCoins de Rendimento na Rede Celo (Mainnet)</h2>
+                <p style="color: #ddd; font-size: 0.95em;">
+                    Conecte sua carteira <strong>MetaMask</strong> (no PC ou Celular) para resgatar os rendimentos diretamente do nosso Smart Contract oficial na Rede Celo com taxas de gás ultra baratas!
+                </p>
+                <ul style="color: #aaa; font-size: 0.9em; text-align: left; margin: 10px 0; padding-left: 20px; line-height: 1.6;">
+                    <li>Rendimento: <strong>1% ao dia</strong> pago direto na sua carteira Web3.</li>
+                    <li>Rede Oficial: <strong>Celo Mainnet</strong> (Configurada automaticamente ao clicar).</li>
+                    <li>Taxa de Gás: Frações de centavos em <strong>CELO</strong> (muito mais econômico para você!).</li>
+                    <li>Contrato Oficial SLC: <code style="color: #f1c40f; word-break: break-all;">0x6Ff689e75DD0f49375A2932E44354DD3271586f6</code></li>
                 </ul>
-                <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
-                    <button id="btn-connect-tron" style="background-color: #ff4757; color: #fff; flex: 1;">Conectar TronLink</button>
-                    <button id="btn-claim-tron" style="background-color: #2ecc71; color: #000; flex: 1; display: none;">Resgatar Rendimentos</button>
+
+                <div id="celo-wallet-box" style="display: none; background: #06150c; border: 1px dashed #35d07f; padding: 12px; border-radius: 8px; margin: 15px 0; text-align: center;">
+                    <span style="color: #aaa; font-size: 0.85em;">Carteira Conectada:</span><br>
+                    <strong id="celo-connected-address" style="color: #35d07f; font-family: monospace; font-size: 1em; word-break: break-all;"></strong>
                 </div>
-                <p id="tron-status" style="color: #f1c40f; font-size: 0.85em; margin-top: 10px; text-align: center;"></p>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+                    <button type="button" id="btn-connect-celo" onclick="conectarMetaMaskCelo()" style="background-color: #f6851b; color: #fff; font-weight: bold; flex: 1; padding: 15px; border-radius: 8px; border: none; cursor: pointer; font-size: 1.05em;">
+                        🦊 Conectar MetaMask (PC / Celular)
+                    </button>
+                    <button type="button" id="btn-claim-celo" onclick="resgatarRendimentoCelo()" style="background-color: #35d07f; color: #000; font-weight: bold; flex: 1; padding: 15px; border-radius: 8px; border: none; cursor: pointer; font-size: 1.05em; display: none;">
+                        💰 Resgatar Rendimento (1% ao Dia)
+                    </button>
+                </div>
+
+                <button type="button" onclick="adicionarTokenSolidCoinMetaMask()" style="background: #112a1c; color: #d4af37; border: 1px solid #d4af37; padding: 10px; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 12px; font-weight: bold; font-size: 0.9em;">
+                    ➕ Adicionar Token SolidCoin (SLC) na MetaMask
+                </button>
+
+                <p id="celo-status" style="color: #f1c40f; font-size: 0.9em; margin-top: 15px; text-align: center; font-weight: bold;"></p>
             </div>
         </div>
 
@@ -579,7 +595,6 @@
                         <option value="" disabled selected>Forma de Pagamento</option>
                         <option value="Pix">Pix Automático (Gerar QR Code)</option>
                         <option value="Solana">USDC (Rede Solana)</option>
-                        <option value="Tron">USDT (Rede Tron)</option>
                     </select>
                     <div id="socio-instrucoes" style="display: none; background-color: #111; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px dashed #d4af37; text-align: center; word-break: break-all;">
                         <p style="margin: 0 0 5px 0; font-size: 0.85em; color: #aaa;" id="socio-instrucao-texto">...</p>
@@ -617,6 +632,9 @@
             </div>
         </div>
 
+        <!-- ========================================================= -->
+        <!-- SEÇÃO SAQUE VIA WEB3 / CRIPTO (SEM REDE TRON) -->
+        <!-- ========================================================= -->
         <div id="sec-saque-cripto" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #3498db; background: linear-gradient(145deg, #0a1128, #1a2238);">
@@ -625,9 +643,8 @@
                 
                 <select id="metodo-saque-cripto" required class="input-web3" style="font-weight: bold; border: 1px solid #3498db; background: #0a1128; cursor: pointer;">
                     <option value="" disabled selected>Escolha a Rede de Destino...</option>
-                    <option value="MiniPay">💳 Carteira MiniPay (Rede Celo)</option>
+                    <option value="MiniPay">💳 Carteira MiniPay / Celo (USDC)</option>
                     <option value="Solana">🟣 Rede Solana (SOL)</option>
-                    <option value="Tron">🔴 Rede Tron (TRX / USDT)</option>
                 </select>
 
                 <div id="area-operacao-cripto" style="display: none; padding-top: 10px;">
@@ -639,7 +656,7 @@
                             <label style="color: #d4af37; font-size: 0.9em; margin-bottom: 8px; display: block; font-weight: bold;">1. Salve ou Atualize sua Carteira:</label>
                             
                             <div id="div-minipay" style="display: none;">
-                                <label style="color: #aaa; font-size: 0.8em; margin-bottom: 2px; display: block;">Endereço MiniPay (Rede Celo)</label>
+                                <label style="color: #aaa; font-size: 0.8em; margin-bottom: 2px; display: block;">Endereço MiniPay / Celo (0x...)</label>
                                 <input type="text" id="minipay-wallet" class="input-web3" placeholder="Ex: 0x..." style="margin-bottom: 10px;">
                             </div>
                             
@@ -648,10 +665,7 @@
                                 <input type="text" id="solana-wallet" class="input-web3" placeholder="Ex: SOL..." style="margin-bottom: 10px;">
                             </div>
                             
-                            <div id="div-tron" style="display: none;">
-                                <label style="color: #aaa; font-size: 0.8em; margin-bottom: 2px; display: block;">Endereço Tron</label>
-                                <input type="text" id="tron-wallet" class="input-web3" placeholder="Ex: TRX..." style="margin-bottom: 10px;">
-                            </div>
+                            <input type="hidden" id="tron-wallet" value="">
                             
                             <button type="submit" class="secondary-btn" style="width: 100%; padding: 12px; font-size: 0.95em;">Gravar Endereço</button>
                         </form>
@@ -676,8 +690,8 @@
                 <form id="deposito-form">
                     <select id="deposito-rede" required>
                         <option value="" disabled selected>Selecione a Rede para envio</option>
+                        <option value="Celo">Rede Celo (SolidCoin / CELO)</option>
                         <option value="Solana">Rede Solana (SOL)</option>
-                        <option value="Tron">Rede Tron (TRC-20)</option>
                     </select>
                     <div id="deposito-carteira-box" style="display: none; background-color: #111; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px dashed #d4af37; word-break: break-all; text-align: center;">
                         <p style="margin: 0 0 5px 0; font-size: 0.85em; color: #aaa;">Copie nossa carteira e faça o envio:</p>
@@ -844,6 +858,140 @@
 
     <!-- 2º SCRIPT COM LÓGICA DINÂMICA INJETADO NO FINAL -->
     <script>
+        // =========================================================================
+        // --- INTEGRAÇÃO METAMASK + REDE CELO MAINNET (PC E CELULAR) ---
+        // =========================================================================
+        const SOLIDCOIN_CELO_ADDRESS = "0x6Ff689e75DD0f49375A2932E44354DD3271586f6";
+        const CELO_MAINNET_PARAMS = {
+            chainId: "0xa4ec", // 42220 em Hexadecimal (Celo Mainnet)
+            chainName: "Celo Mainnet",
+            nativeCurrency: { name: "CELO", symbol: "CELO", decimals: 18 },
+            rpcUrls: ["https://forno.celo.org"],
+            blockExplorerUrls: ["https://celoscan.io/"]
+        };
+        let celoUserAddress = null;
+
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        window.conectarMetaMaskCelo = async function() {
+            const statusEl = document.getElementById('celo-status');
+
+            // Se não tiver window.ethereum e estiver no celular, abre direto o app da MetaMask via DeepLink!
+            if (typeof window.ethereum === 'undefined') {
+                if (isMobileDevice()) {
+                    statusEl.style.color = '#f1c40f';
+                    statusEl.innerText = '📲 Abrindo o aplicativo da MetaMask...';
+                    const dappUrl = window.location.host + window.location.pathname;
+                    window.location.href = `https://metamask.app.link/dapp/${dappUrl}`;
+                    return;
+                } else {
+                    alert("MetaMask não detectada! Por favor, instale a extensão MetaMask no seu navegador.");
+                    window.open("https://metamask.io/download/", "_blank");
+                    return;
+                }
+            }
+
+            try {
+                statusEl.style.color = '#f1c40f';
+                statusEl.innerText = '🔄 Solicitando conexão na MetaMask...';
+
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                celoUserAddress = accounts[0];
+
+                // Troca ou adiciona automaticamente a Rede Celo Mainnet (ChainID 42220 / 0xa4ec)
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: CELO_MAINNET_PARAMS.chainId }]
+                    });
+                } catch (switchError) {
+                    if (switchError.code === 4902 || switchError.message.includes("Unrecognized chain ID")) {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [CELO_MAINNET_PARAMS]
+                        });
+                    } else {
+                        throw switchError;
+                    }
+                }
+
+                document.getElementById('celo-wallet-box').style.display = 'block';
+                document.getElementById('celo-connected-address').innerText = celoUserAddress;
+                document.getElementById('btn-connect-celo').innerText = '✅ Carteira Conectada';
+                document.getElementById('btn-claim-celo').style.display = 'inline-block';
+
+                statusEl.style.color = '#00ff88';
+                statusEl.innerText = '✅ Conectado à Rede Celo Mainnet! Clique em "Resgatar Rendimento" para confirmar na MetaMask.';
+            } catch (err) {
+                console.error(err);
+                statusEl.style.color = '#e74c3c';
+                statusEl.innerText = '❌ Conexão cancelada ou erro ao mudar para a Rede Celo.';
+            }
+        };
+
+        window.resgatarRendimentoCelo = async function() {
+            const statusEl = document.getElementById('celo-status');
+            if (!window.ethereum || !celoUserAddress) {
+                await window.conectarMetaMaskCelo();
+                if (!celoUserAddress) return;
+            }
+
+            try {
+                statusEl.style.color = '#f1c40f';
+                statusEl.innerText = '⏳ Confirme a transação na janela da sua MetaMask...';
+
+                // Garante que está na Celo Mainnet antes de disparar a transação
+                const currentChain = await window.ethereum.request({ method: 'eth_chainId' });
+                if (currentChain.toLowerCase() !== CELO_MAINNET_PARAMS.chainId.toLowerCase()) {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: CELO_MAINNET_PARAMS.chainId }]
+                    });
+                }
+
+                // Seletor hexadecimal oficial da função Solidity: claimRewards() -> 0x372500ab
+                const claimRewardsData = "0x372500ab";
+
+                const txHash = await window.ethereum.request({
+                    method: 'eth_sendTransaction',
+                    params: [{
+                        from: celoUserAddress,
+                        to: SOLIDCOIN_CELO_ADDRESS,
+                        data: claimRewardsData
+                    }]
+                });
+
+                statusEl.style.color = '#00ff88';
+                statusEl.innerHTML = `🎉 Rendimento resgatado com sucesso na Rede Celo!<br><a href="https://celoscan.io/tx/${txHash}" target="_blank" style="color:#ffd32a; text-decoration:underline;">Ver comprovante no CeloScan (${txHash.slice(0, 10)}...)</a>`;
+            } catch (err) {
+                console.error(err);
+                statusEl.style.color = '#e74c3c';
+                statusEl.innerText = '⚠️ Transação não concluída. Verifique se já completou 24h desde o último resgate e se possui CELO para o gás.';
+            }
+        };
+
+        window.adicionarTokenSolidCoinMetaMask = async function() {
+            if (!window.ethereum) {
+                return window.conectarMetaMaskCelo();
+            }
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_watchAsset',
+                    params: {
+                        type: 'ERC20',
+                        options: {
+                            address: SOLIDCOIN_CELO_ADDRESS,
+                            symbol: 'SLC',
+                            decimals: 18,
+                            image: 'https://i.postimg.cc/3wqXzkBf/Design-sem-nome-(1).png'
+                        }
+                    }
+                });
+            } catch (e) {}
+        };
+
         // --- FUNÇÕES DO SOLIDBOT ---
         function toggleChatbot() {
             const chatWindow = document.getElementById('chatbotWindow');
@@ -1839,8 +1987,6 @@
                             if(minipayInput) minipayInput.value = data.usuario.minipayWallet || '';
                             const solanaInput = document.getElementById('solana-wallet');
                             if(solanaInput) solanaInput.value = data.usuario.solanaWallet || '';
-                            const tronInput = document.getElementById('tron-wallet');
-                            if(tronInput) tronInput.value = data.usuario.tronWallet || '';
 
                             const avatarEl = document.getElementById('user-avatar-header');
                             if (avatarEl) {
@@ -1893,7 +2039,6 @@
             
             const divMinipay = document.getElementById('div-minipay');
             const divSolana = document.getElementById('div-solana');
-            const divTron = document.getElementById('div-tron');
 
             if (selector) {
                 selector.addEventListener('change', function() {
@@ -1901,20 +2046,15 @@
                     
                     divMinipay.style.display = 'none';
                     divSolana.style.display = 'none';
-                    divTron.style.display = 'none';
 
                     if (this.value === 'MiniPay') {
-                        tituloRede.innerHTML = '💳 Carteira Celo (MiniPay)';
+                        tituloRede.innerHTML = '💳 Carteira Celo (MiniPay / USDC)';
                         tituloRede.style.color = '#2ecc71';
                         divMinipay.style.display = 'block';
                     } else if (this.value === 'Solana') {
                         tituloRede.innerHTML = '🟣 Rede Solana';
                         tituloRede.style.color = '#9b59b6';
                         divSolana.style.display = 'block';
-                    } else if (this.value === 'Tron') {
-                        tituloRede.innerHTML = '🔴 Rede Tron';
-                        tituloRede.style.color = '#e74c3c';
-                        divTron.style.display = 'block';
                     }
                 });
             }
@@ -1928,7 +2068,7 @@
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ 
                                 solanaWallet: document.getElementById('solana-wallet').value, 
-                                tronWallet: document.getElementById('tron-wallet').value,
+                                tronWallet: '',
                                 minipayWallet: document.getElementById('minipay-wallet').value
                             })
                         });
