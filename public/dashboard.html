@@ -23,7 +23,7 @@
         .voltar-btn { background-color: #222; color: #d4af37; border: 1px solid #d4af37; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-bottom: 10px; display: inline-flex; align-items: center; gap: 8px; font-weight: bold; transition: 0.3s; }
         
         /* ========================================================= */
-        /* ESTILOS DO JOGO SOLIDCRUSH SAGA */
+        /* ESTILOS DO JOGO SOLIDCRUSH SAGA E RANKING TOP 10 */
         /* ========================================================= */
         .crush-stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 15px 0; }
         .crush-stat-box { background: #110818; border: 1px solid #ff6b81; border-radius: 8px; padding: 10px; text-align: center; }
@@ -46,6 +46,14 @@
         .crush-actions-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 15px; }
         .crush-btn-action { padding: 10px 16px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 0.9em; transition: 0.2s; width: auto !important; margin: 0 !important; }
         .crush-btn-action:hover { transform: scale(1.03); }
+
+        .crush-ranking-box { margin-top: 25px; background: #110818; border: 1px solid #ffd32a; border-radius: 12px; padding: 15px; }
+        .crush-ranking-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
+        .crush-ranking-table th { background: #1f0e2c; color: #ffd32a; padding: 10px; text-align: center; border-bottom: 1px solid #444; }
+        .crush-ranking-table td { padding: 10px; text-align: center; border-bottom: 1px solid #281438; color: #eee; }
+        .crush-ranking-table tr:nth-child(1) td { color: #ffd32a; font-weight: bold; background: rgba(255, 211, 42, 0.08); }
+        .crush-ranking-table tr:nth-child(2) td { color: #e0e0e0; font-weight: bold; }
+        .crush-ranking-table tr:nth-child(3) td { color: #ff9f43; font-weight: bold; }
 
         /* NFT Cards Base */
         .nft-card { background: #111; border-radius: 8px; overflow: hidden; text-align: center; display: flex; flex-direction: column; justify-content: space-between; transition: 0.3s; }
@@ -270,14 +278,14 @@
         </div>
 
         <!-- ========================================================= -->
-        <!-- SEÇÃO SOLIDCRUSH SAGA (NÍVEL 1 AO 1000) -->
+        <!-- SEÇÃO SOLIDCRUSH SAGA (NÍVEL 1 AO 1000 + RANKING TOP 10) -->
         <!-- ========================================================= -->
         <div id="sec-solidcrush" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #ff4757; background: linear-gradient(145deg, #1a0814, #2a0e22);">
                 <h2 style="color: #ff6b81; margin-top: 0; text-align: center;">🍬 SolidCrush Saga • Nível <span id="crush-level-num">1</span> / 1000</h2>
                 <p style="color: #ddd; font-size: 0.9em; text-align: center; margin-bottom: 10px;">
-                    Combine 3 ou mais joias iguais! A cada <strong style="color: #ffd32a;">1.000.000 de pontos</strong> acumulados, você recebe automaticamente <strong style="color: #00ff88;">1.000 SolidCoins</strong>!
+                    Combine 3 ou mais joias iguais! Se vencer o nível, <strong>sua vida é mantida</strong>. A cada <strong style="color: #ffd32a;">1.000.000 de pontos</strong> acumulados, você recebe automaticamente <strong style="color: #00ff88;">1.000 SolidCoins</strong>!
                 </p>
 
                 <!-- Barra de Progresso de 1.000.000 Pontos para 1.000 SC -->
@@ -315,10 +323,10 @@
                         <div style="font-size: 3em; margin-bottom: 8px;" id="crush-overlay-icon">🍬</div>
                         <h3 id="crush-overlay-title" style="color: #ffd32a; margin: 0 0 8px 0;">Pronto para o Nível 1?</h3>
                         <p id="crush-overlay-desc" style="color: #ccc; font-size: 0.9em; margin: 0 0 18px 0;">
-                            Bata a meta de pontos antes que os movimentos acabem para avançar rumo ao Nível 1000!
+                            Vença a fase para avançar sem perder vida!
                         </p>
                         <button id="btn-start-crush" class="crush-btn-action" style="background: #00ff88; color: #000; font-size: 1.05em; padding: 14px 28px;" onclick="iniciarNivelSolidCrush()">
-                            ▶️ JOGAR NÍVEL (Usa 1 Vida)
+                            ▶️ JOGAR NÍVEL
                         </button>
                     </div>
                 </div>
@@ -331,6 +339,27 @@
                     <button class="crush-btn-action" style="background: #3498db; color: #fff;" onclick="comprarMovimentosSolidCrush()">
                         ⚡ +5 Movimentos Extras (20 SC)
                     </button>
+                </div>
+
+                <!-- RANKING TOP 10 JOGADORES SOLIDCRUSH -->
+                <div class="crush-ranking-box">
+                    <h3 style="color: #ffd32a; margin: 0 0 8px 0; text-align: center;">🏆 Ranking Top 10 Jogadores</h3>
+                    <div style="overflow-x: auto;">
+                        <table class="crush-ranking-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Investidor</th>
+                                    <th>Nível</th>
+                                    <th>Pontos Totais</th>
+                                    <th>Prêmios (SC)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="crush-ranking-body">
+                                <tr><td colspan="5" style="color: #aaa;">Carregando ranking...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -878,6 +907,7 @@
             }
             if(idSecao === 'sec-solidcrush') {
                 carregarStatusSolidCrush();
+                carregarRankingSolidCrush();
             }
         };
 
@@ -888,7 +918,7 @@
         };
 
         // =========================================================================
-        // --- MOTOR COMPLETO DO JOGO SOLIDCRUSH SAGA (NÍVEL 1 AO 1000) ---
+        // --- MOTOR COMPLETO DO JOGO SOLIDCRUSH SAGA + RANKING TOP 10 ---
         // =========================================================================
         const CRUSH_SIZE = 8;
         const CRUSH_ICONS = ['🪙', '💎', '👑', '⚡', '🚀', '🍀'];
@@ -939,6 +969,38 @@
             document.getElementById('crush-bank-text').innerText = `Cofre: ${crushAccumulated.toLocaleString('pt-BR')} / 1.000.000 pts (Prêmio: 1.000 SC)`;
         }
 
+        async function carregarRankingSolidCrush() {
+            const tbody = document.getElementById('crush-ranking-body');
+            if (!tbody) return;
+            try {
+                const res = await fetch('/api/game/ranking');
+                const d = await res.json();
+                if (d.sucesso && d.ranking) {
+                    if (d.ranking.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" style="color:#aaa;">Seja o primeiro a entrar no Ranking!</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = '';
+                    d.ranking.forEach(item => {
+                        let medalha = `${item.posicao}º`;
+                        if (item.posicao === 1) medalha = '🥇 1º';
+                        else if (item.posicao === 2) medalha = '🥈 2º';
+                        else if (item.posicao === 3) medalha = '🥉 3º';
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${medalha}</td>
+                                <td>${item.nome}</td>
+                                <td>Nv. ${item.level}</td>
+                                <td>${(item.totalPointsEarned || 0).toLocaleString('pt-BR')} pts</td>
+                                <td style="color:#00ff88; font-weight:bold;">${item.totalScWon || 0} SC</td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (e) {}
+        }
+
         async function carregarStatusSolidCrush() {
             try {
                 const res = await fetch('/api/game/status');
@@ -959,8 +1021,8 @@
                     if (!crushGameActive) {
                         document.getElementById('crush-overlay-icon').innerText = '🍬';
                         document.getElementById('crush-overlay-title').innerText = `Nível ${crushLevel} de 1000`;
-                        document.getElementById('crush-overlay-desc').innerText = `Meta da Fase: ${crushGoal.toLocaleString('pt-BR')} pontos em ${crushMoves} movimentos.`;
-                        document.getElementById('btn-start-crush').innerText = `▶️ JOGAR NÍVEL ${crushLevel} (Usa 1 Vida)`;
+                        document.getElementById('crush-overlay-desc').innerText = `Meta da Fase: ${crushGoal.toLocaleString('pt-BR')} pontos em ${crushMoves} movimentos. (Vencendo a fase, você não perde vida!)`;
+                        document.getElementById('btn-start-crush').innerText = `▶️ JOGAR NÍVEL ${crushLevel}`;
                         document.getElementById('crush-overlay').style.display = 'flex';
                         gerarTabuleiroInicialCrush();
                     }
@@ -1060,7 +1122,6 @@
             const r1 = crushSelected.r, c1 = crushSelected.c;
             crushSelected = null;
 
-            // Troca as peças
             const temp = crushGrid[r1][c1];
             crushGrid[r1][c1] = crushGrid[r][c];
             crushGrid[r][c] = temp;
@@ -1068,7 +1129,6 @@
 
             const matches = encontrarCombinacoesCrush();
             if (matches.length === 0) {
-                // Desfaz movimento inválido sem gastar jogada
                 await new Promise(resolve => setTimeout(resolve, 200));
                 crushGrid[r][c] = crushGrid[r1][c1];
                 crushGrid[r1][c1] = temp;
@@ -1089,7 +1149,6 @@
             const paraRemover = [];
             const mapa = Array.from({ length: CRUSH_SIZE }, () => Array(CRUSH_SIZE).fill(false));
 
-            // Horizontais
             for (let r = 0; r < CRUSH_SIZE; r++) {
                 let cont = 1;
                 for (let c = 1; c <= CRUSH_SIZE; c++) {
@@ -1104,7 +1163,6 @@
                 }
             }
 
-            // Verticais
             for (let c = 0; c < CRUSH_SIZE; c++) {
                 let cont = 1;
                 for (let r = 1; r <= CRUSH_SIZE; r++) {
@@ -1133,7 +1191,6 @@
                 const matches = encontrarCombinacoesCrush();
                 if (matches.length === 0) break;
 
-                // Pontuação com multiplicador de combo
                 const ptsGanhos = matches.length * 60 * combo;
                 crushScore += ptsGanhos;
                 somCrush(580 + (combo * 90), 0.14);
@@ -1144,7 +1201,6 @@
 
                 matches.forEach(p => { crushGrid[p.r][p.c] = null; });
 
-                // Faz as peças caírem
                 for (let c = 0; c < CRUSH_SIZE; c++) {
                     let linhaVazia = CRUSH_SIZE - 1;
                     for (let r = CRUSH_SIZE - 1; r >= 0; r--) {
@@ -1168,7 +1224,6 @@
         async function verificarFimDePartidaCrush() {
             if (crushScore >= crushGoal) {
                 crushGameActive = false;
-                // Bônus pelos movimentos que sobraram
                 const bonusMovimentos = crushMoves * 120;
                 const pontuacaoFinalFase = crushScore + bonusMovimentos;
                 somCrush(880, 0.35);
@@ -1186,12 +1241,13 @@
                         crushLives = d.lives;
                         document.getElementById('crush-won-val').innerText = `${d.totalScWon} SC`;
                         fetchDashboardData();
+                        carregarRankingSolidCrush();
                     }
 
                     document.getElementById('crush-overlay-icon').innerText = '🏆';
                     document.getElementById('crush-overlay-title').innerText = `Vitória! +${pontuacaoFinalFase.toLocaleString('pt-BR')} pts`;
-                    document.getElementById('crush-overlay-desc').innerText = d.mensagem || `Você avançou para o Nível ${crushLevel}!`;
-                    document.getElementById('btn-start-crush').innerText = `▶️ JOGAR NÍVEL ${crushLevel} (Usa 1 Vida)`;
+                    document.getElementById('crush-overlay-desc').innerText = d.mensagem || `Sua vida foi mantida! Avance para o Nível ${crushLevel}!`;
+                    document.getElementById('btn-start-crush').innerText = `▶️ JOGAR NÍVEL ${crushLevel}`;
                     document.getElementById('crush-overlay').style.display = 'flex';
                     atualizarInterfaceCrush();
                 } catch (e) {}
@@ -1205,10 +1261,11 @@
                 });
 
                 document.getElementById('crush-overlay-icon').innerText = '😢';
-                document.getElementById('crush-overlay-title').innerText = `Fim dos Movimentos!`;
+                document.getElementById('crush-overlay-title').innerText = `Fim dos Movimentos! (-1 Vida)`;
                 document.getElementById('crush-overlay-desc').innerText = `Faltaram ${(crushGoal - crushScore).toLocaleString('pt-BR')} pontos para concluir o Nível ${crushLevel}.`;
-                document.getElementById('btn-start-crush').innerText = `🔄 TENTAR NOVAMENTE (Usa 1 Vida)`;
+                document.getElementById('btn-start-crush').innerText = `🔄 TENTAR NOVAMENTE`;
                 document.getElementById('crush-overlay').style.display = 'flex';
+                atualizarInterfaceCrush();
             }
         }
 

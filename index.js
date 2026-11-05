@@ -214,7 +214,6 @@ function normalizarChavePix(chave, tipo = '') {
     return nums;
 }
 
-// Protege a economia aplicando Vesting nos planos de Sócio e nos prêmios altos do SolidCrush
 async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
     if (userEmail === ADMIN_EMAIL) return currentSaldo; 
     
@@ -481,7 +480,7 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
 });
 
 // =========================================================================
-// --- ROTAS DO JOGO SOLIDCRUSH SAGA (ATÉ LEVEL 1000 & ECONOMIA BLINDADA) ---
+// --- ROTAS DO JOGO SOLIDCRUSH SAGA (VIDA DEVOLVIDA NA VITÓRIA + RANKING) ---
 // =========================================================================
 
 async function obterPerfilJogo(userId) {
@@ -520,15 +519,41 @@ app.get('/api/game/status', checkAuthenticated, async (req, res) => {
     }
 });
 
+// NOVA ROTA: Ranking Top 10 Jogadores do SolidCrush Saga
+app.get('/api/game/ranking', checkAuthenticated, async (req, res) => {
+    try {
+        const topProfiles = await GameProfile.find({})
+            .sort({ level: -1, totalPointsEarned: -1 })
+            .limit(10)
+            .populate('userId', 'nome')
+            .lean();
+
+        const ranking = topProfiles
+            .filter(p => p.userId)
+            .map((p, idx) => ({
+                posicao: idx + 1,
+                nome: p.userId.nome || 'Investidor',
+                level: p.level || 1,
+                totalPointsEarned: p.totalPointsEarned || 0,
+                totalScWon: p.totalScWon || 0
+            }));
+
+        res.json({ sucesso: true, ranking });
+    } catch (e) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao carregar ranking." });
+    }
+});
+
 app.post('/api/game/iniciar-nivel', checkAuthenticated, async (req, res) => {
     try {
         const profile = await obterPerfilJogo(req.session.user.id);
         if (profile.lives <= 0) {
             return res.status(400).json({
                 sucesso: false,
-                mensagem: `Suas vidas diárias acabaram! Aguarde a renovação gratuita de 24h ou recarregue 5 vidas por ${GAME_REFILL_COST_SC} SC.`
+                mensagem: `Suas vidas acabaram! Aguarde a renovação gratuita de 24h ou recarregue 5 vidas por ${GAME_REFILL_COST_SC} SC.`
             });
         }
+        // Reserva 1 vida ao iniciar (se o usuário vencer a fase, ela é devolvida em /finalizar-nivel!)
         profile.lives -= 1;
         await profile.save();
         res.json({ sucesso: true, lives: profile.lives, level: profile.level });
@@ -543,7 +568,14 @@ app.post('/api/game/finalizar-nivel', checkAuthenticated, async (req, res) => {
         const profile = await obterPerfilJogo(req.session.user.id);
 
         if (!venceu) {
-            return res.json({ sucesso: true, mensagem: "Fim dos movimentos! Tente novamente.", level: profile.level, accumulatedPoints: profile.accumulatedPoints, lives: profile.lives });
+            // Como a vida já foi reservada no início, na derrota ela permanece descontada
+            return res.json({
+                sucesso: true,
+                mensagem: "Fim dos movimentos! Você perdeu 1 vida. Tente novamente!",
+                level: profile.level,
+                accumulatedPoints: profile.accumulatedPoints,
+                lives: profile.lives
+            });
         }
 
         // Trava Anti-Cheat de tempo mínimo por fase (12 segundos)
@@ -552,7 +584,12 @@ app.post('/api/game/finalizar-nivel', checkAuthenticated, async (req, res) => {
             return res.status(400).json({ sucesso: false, mensagem: "Aguarde alguns segundos! Partida finalizada rápido demais." });
         }
 
-        // Trava Anti-Cheat de limite máximo de pontos por fase (escalonado com o nível para equilíbrio da economia)
+        // DEVOLVE A VIDA AO JOGADOR PORQUE ELE VENCEU A FASE (Estilo Candy Crush!)
+        if (profile.lives < GAME_MAX_LIVES) {
+            profile.lives += 1;
+        }
+
+        // Trava Anti-Cheat de limite máximo de pontos por fase
         const tetoMaximoFase = 12000 + (profile.level * 35);
         let pontosValidos = Math.max(100, Math.min(parseInt(pontosObtidos) || 0, tetoMaximoFase));
 
@@ -592,7 +629,7 @@ app.post('/api/game/finalizar-nivel', checkAuthenticated, async (req, res) => {
 
         await Promise.all([profile.save(), user.save(), admin ? admin.save() : Promise.resolve()]);
 
-        let msgRetorno = `🎉 Nível concluído! +${pontosValidos.toLocaleString('pt-BR')} pontos adicionados.`;
+        let msgRetorno = `🎉 Nível concluído! Sua vida foi mantida e +${pontosValidos.toLocaleString('pt-BR')} pontos foram somados.`;
         if (scGanhosAgora > 0) {
             msgRetorno = `🏆 INCRÍVEL! Você atingiu 1.000.000 de pontos e ganhou +${scGanhosAgora} SolidCoins na sua conta!`;
         }
@@ -1627,7 +1664,7 @@ app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
         let resposta = "Olá! Eu sou o Assistente SolidCoin 🤖. Como posso te ajudar hoje?\n\nTente perguntar sobre: 'jogo', 'solidcrush', 'saque', 'pix', 'minipay', 'sócio', 'staking', 'nfc', 'indicação', 'investimentos' ou 'nft'.";
 
         if (msg.includes('jogo') || msg.includes('crush') || msg.includes('ponto') || msg.includes('level') || msg.includes('nível')) {
-            resposta = "🍬 **SolidCrush Saga (Nível 1 ao 1000):** Combine as joias da SolidCoin para passar de fase! A cada **1.000.000 de pontos** acumulados, você ganha automaticamente **1.000 SolidCoins**! Você recebe 5 vidas grátis todos os dias e pode recarregar vidas ou comprar movimentos extras usando seu saldo.";
+            resposta = "🍬 **SolidCrush Saga (Nível 1 ao 1000):** Combine as joias da SolidCoin para passar de fase! Se você vencer a fase, **não perde vida** e continua jogando! A cada **1.000.000 de pontos** acumulados, você ganha automaticamente **1.000 SolidCoins**!";
         } else if (msg.includes('saque') || msg.includes('sacar') || msg.includes('retirar')) {
             if (msg.includes('pix')) {
                 resposta = "💸 **Saque Pix VIP:** É exclusivo para Sócios da plataforma. Tem uma taxa de 5% e o valor cai direto na sua conta bancária conectada. Importante: moedas ganhas pelos planos de sócio e prêmios do jogo liberam 25% a cada 30 dias para segurança do sistema.";
@@ -2158,7 +2195,7 @@ async function setupInicial() {
                 await ceo.save();
             }
 
-            console.log("✅ Ajuste retroativo e rotas do SolidCrush Saga prontos!");
+            console.log("✅ Ajuste retroativo e rotas do SolidCrush Saga (com Ranking Top 10) prontos!");
         }
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }
