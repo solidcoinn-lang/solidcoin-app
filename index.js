@@ -221,6 +221,33 @@ const NftItemSchema = new mongoose.Schema({
 });
 const NftItem = mongoose.models.NftItem || mongoose.model('NftItem', NftItemSchema);
 
+// NOVOS SCHEMAS: Pedidos de Compra de SolidCoin via Pix e Mint de NFT via Pix
+const ScPixOrderSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    nomeUsuario: String,
+    emailUsuario: String,
+    valorReais: Number,
+    moedasReceber: Number,
+    txId: String,
+    status: { type: String, default: 'Pendente' },
+    data: { type: Date, default: Date.now }
+});
+const ScPixOrder = mongoose.models.ScPixOrder || mongoose.model('ScPixOrder', ScPixOrderSchema);
+
+const NftPixOrderSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    nomeUsuario: String,
+    emailUsuario: String,
+    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'NftTemplate' },
+    nftName: String,
+    precoSC: Number,
+    valorReais: Number,
+    txId: String,
+    status: { type: String, default: 'Pendente' },
+    data: { type: Date, default: Date.now }
+});
+const NftPixOrder = mongoose.models.NftPixOrder || mongoose.model('NftPixOrder', NftPixOrderSchema);
+
 const GameProfileSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true },
     level: { type: Number, default: 1 },
@@ -313,6 +340,136 @@ async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
     return Math.max(0, limiteDisponivel);
 }
 
+// =========================================================================
+// --- FUNÇÃO UNIFICADA DE APROVAÇÃO PIX (SÓCIO, COMPRA SC E MINT NFT) ---
+// =========================================================================
+async function processarAprovacaoPixPorTxId(txid_pago) {
+    if (!txid_pago) return false;
+    const admin = await User.findOne({ email: ADMIN_EMAIL });
+    if (!admin) return false;
+
+    // 1. Verifica se é Ordem de Plano de Sócio
+    const ordemSocio = await SocioOrder.findOne({ txId: txid_pago, status: 'Pendente' });
+    if (ordemSocio) {
+        const user = await User.findById(ordemSocio.userId);
+        if (user && admin.saldo >= ordemSocio.moedasReceber) {
+            if (user.email !== ADMIN_EMAIL) {
+                admin.saldo -= ordemSocio.moedasReceber;
+                user.saldo += ordemSocio.moedasReceber;
+            }
+            user.statusSocio = 'Ativo';
+            user.planoSocio = ordemSocio.plano;
+            user.vencimentoSocio = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+            ordemSocio.status = 'Aprovado';
+
+            const transacoesToSave = [
+                new Transaction({ userId: user._id, tipo: 'Assinatura Sócio SolidCoin', descricao: `Plano ${ordemSocio.plano} (Pix Efí)`, valor: ordemSocio.moedasReceber }),
+                new Transaction({ userId: admin._id, tipo: 'Pagamento Sócio', descricao: `Para ${user.nome}`, valor: -ordemSocio.moedasReceber })
+            ];
+            const updatesToSave = [user.save(), ordemSocio.save()];
+
+            if (user.indicadoPor) {
+                const referrer = await User.findById(user.indicadoPor);
+                if (referrer && referrer.email !== ADMIN_EMAIL) {
+                    const comissao = ordemSocio.moedasReceber * 0.05;
+                    if (admin.saldo >= comissao) {
+                        admin.saldo -= comissao;
+                        referrer.saldo += comissao;
+                        transacoesToSave.push(new Transaction({ userId: referrer._id, tipo: 'Comissão de Indicação (Sócio)', descricao: `5% de ${user.nome}`, valor: comissao }));
+                        transacoesToSave.push(new Transaction({ userId: admin._id, tipo: 'Pagamento de Comissão', descricao: `Para ${referrer.nome}`, valor: -comissao }));
+                        updatesToSave.push(referrer.save());
+                    }
+                }
+            }
+            updatesToSave.push(admin.save());
+            for (let tx of transacoesToSave) updatesToSave.push(tx.save());
+            await Promise.all(updatesToSave);
+            return true;
+        }
+    }
+
+    // 2. Verifica se é Ordem de Compra Direta de SolidCoins (Card de Saldo)
+    const ordemSc = await ScPixOrder.findOne({ txId: txid_pago, status: 'Pendente' });
+    if (ordemSc) {
+        const user = await User.findById(ordemSc.userId);
+        if (user && admin.saldo >= ordemSc.moedasReceber) {
+            if (user.email !== ADMIN_EMAIL) {
+                admin.saldo -= ordemSc.moedasReceber;
+                user.saldo += ordemSc.moedasReceber;
+            }
+            ordemSc.status = 'Aprovado';
+
+            await Promise.all([
+                user.save(),
+                admin.save(),
+                ordemSc.save(),
+                new Transaction({ userId: user._id, tipo: 'Compra SolidCoin (Pix)', descricao: `R$ ${ordemSc.valorReais.toFixed(2)} via Pix Efí`, valor: ordemSc.moedasReceber }).save(),
+                new Transaction({ userId: admin._id, tipo: 'Venda SolidCoin (Pix)', descricao: `Para ${user.nome} (R$ ${ordemSc.valorReais.toFixed(2)})`, valor: -ordemSc.moedasReceber }).save()
+            ]);
+            return true;
+        }
+    }
+
+    // 3. Verifica se é Ordem de Mintagem de NFT via Pix
+    const ordemNft = await NftPixOrder.findOne({ txId: txid_pago, status: 'Pendente' });
+    if (ordemNft) {
+        const user = await User.findById(ordemNft.userId);
+        const template = await NftTemplate.findById(ordemNft.templateId);
+        if (!user) return false;
+
+        const jaExiste = template ? await NftItem.findOne({
+            $or: [
+                { templateId: template._id },
+                { 'metadata.name': template.metadata.name }
+            ]
+        }) : true;
+
+        // Se o NFT ainda está disponível, entrega o NFT exclusivo no inventário do usuário
+        if (template && template.ativo && !jaExiste) {
+            const maxBatteryAttr = template.metadata.attributes.find(a => a.trait_type === "Carga Máxima de Bateria");
+            const maxBattery = maxBatteryAttr ? maxBatteryAttr.value : 100;
+            const linkJsonBanco = `https://www.solidcoincommunity.com/api/nfts/metadata/${template._id}.json`;
+            const metadataComImagem = { ...template.metadata, image: template.imageUrl };
+
+            const newItem = new NftItem({
+                templateId: template._id,
+                ownerId: user._id,
+                imageUrl: template.imageUrl,
+                tokenUri: linkJsonBanco,
+                metadata: metadataComImagem,
+                mintPrice: ordemNft.precoSC,
+                battery: maxBattery
+            });
+
+            ordemNft.status = 'Aprovado';
+
+            await Promise.all([
+                NftTemplate.updateMany({ $or: [{ _id: template._id }, { 'metadata.name': template.metadata.name }] }, { $set: { ativo: false } }),
+                newItem.save(),
+                ordemNft.save(),
+                new Transaction({ userId: user._id, tipo: 'Mint NFT (Pix Efí)', descricao: `${template.metadata.name} (Pago R$ ${ordemNft.valorReais.toFixed(2)})`, valor: 0 }).save()
+            ]);
+            return true;
+        } else {
+            // Caso raro em que outra pessoa mintou o mesmo NFT segundos antes: credita as SolidCoins equivalentes na conta do usuário
+            if (admin.saldo >= ordemNft.precoSC && user.email !== ADMIN_EMAIL) {
+                admin.saldo -= ordemNft.precoSC;
+                user.saldo += ordemNft.precoSC;
+            }
+            ordemNft.status = 'Aprovado';
+            await Promise.all([
+                user.save(),
+                admin.save(),
+                ordemNft.save(),
+                new Transaction({ userId: user._id, tipo: 'Crédito Pix (NFT já mintado)', descricao: `Conversão automática de ${ordemNft.nftName}`, valor: ordemNft.precoSC }).save()
+            ]);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
 // =========================================================================
@@ -331,7 +488,6 @@ app.get('/api/nfts/metadata/:id', async (req, res) => {
 
         const metadataJson = JSON.parse(JSON.stringify(doc.metadata));
 
-        // Prioriza o campo imageUrl salvo no banco de dados (que tem o link completo da imagem em vez de "3.png")
         let img = '';
         if (doc.imageUrl && (doc.imageUrl.startsWith('http://') || doc.imageUrl.startsWith('https://') || doc.imageUrl.startsWith('ipfs://'))) {
             img = doc.imageUrl.trim();
@@ -341,7 +497,6 @@ app.get('/api/nfts/metadata/:id', async (req, res) => {
             img = (doc.imageUrl || metadataJson.image || '').trim();
         }
 
-        // Converte ipfs:// para gateway HTTPS público para abrir direto na MetaMask e CeloScan
         if (img.startsWith('ipfs://')) {
             img = img.replace('ipfs://', 'https://ipfs.io/ipfs/');
         }
@@ -589,6 +744,88 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
 });
 
 // =========================================================================
+// --- NOVAS ROTAS PIX EFÍ: COMPRA DE SOLIDCOIN (MÍN R$ 1) E VERIFICAÇÃO ---
+// =========================================================================
+
+app.post('/api/comprar-sc/pix', checkAuthenticated, async (req, res) => {
+    try {
+        const valorNum = parseFloat(req.body.valorReais);
+        if (isNaN(valorNum) || valorNum < 1) {
+            return res.status(400).json({ sucesso: false, mensagem: "O valor mínimo para compra via Pix é R$ 1,00." });
+        }
+
+        const scRate = await getSCRate();
+        const moedasReceber = parseFloat((valorNum * scRate).toFixed(2));
+        const user = await User.findById(req.session.user.id);
+
+        const bodyCob = {
+            calendario: { expiracao: 3600 },
+            valor: { original: valorNum.toFixed(2) },
+            chave: process.env.EFI_PIX_KEY,
+            solicitacaoPagador: `Compra de ${moedasReceber} SolidCoins - SolidCoin`
+        };
+
+        const cobResponse = await efipayPF.pixCreateImmediateCharge({}, bodyCob);
+        const qrCodeResponse = await efipayPF.pixGenerateQRCode({ id: cobResponse.loc.id });
+
+        await new ScPixOrder({
+            userId: user._id,
+            nomeUsuario: user.nome,
+            emailUsuario: user.email,
+            valorReais: valorNum,
+            moedasReceber: moedasReceber,
+            txId: cobResponse.txid,
+            status: 'Pendente'
+        }).save();
+
+        res.json({
+            sucesso: true,
+            mensagem: "QR Code Pix gerado com sucesso!",
+            pixCopiaECola: qrCodeResponse.qrcode,
+            imagemQrcode: qrCodeResponse.imagemQrcode,
+            txid: cobResponse.txid,
+            valorReais: valorNum,
+            moedasReceber: moedasReceber
+        });
+    } catch (error) {
+        console.error("Erro ao gerar Pix Compra SC:", error);
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao gerar cobrança Pix na Efí." });
+    }
+});
+
+// Rota que verifica em tempo real se um Pix (Sócio, Compra SC ou Mint NFT) já foi pago
+app.get('/api/pix/verificar-txid/:txid', checkAuthenticated, async (req, res) => {
+    try {
+        const txid = req.params.txid;
+        if (!txid) return res.status(400).json({ sucesso: false, pago: false });
+
+        // Verifica se já consta como Aprovado no banco
+        const socio = await SocioOrder.findOne({ txId: txid });
+        const scOrder = await ScPixOrder.findOne({ txId: txid });
+        const nftOrder = await NftPixOrder.findOne({ txId: txid });
+
+        if ((socio && socio.status === 'Aprovado') || (scOrder && scOrder.status === 'Aprovado') || (nftOrder && nftOrder.status === 'Aprovado')) {
+            return res.json({ sucesso: true, pago: true, mensagem: "✅ Pagamento Pix confirmado e liberado com sucesso!" });
+        }
+
+        // Consulta diretamente na Efí se o pagamento acabou de cair
+        try {
+            const cob = await efipayPF.pixDetailCharge({ txid: txid });
+            if (cob && cob.status === 'CONCLUIDA') {
+                const aprovadoAgora = await processarAprovacaoPixPorTxId(txid);
+                if (aprovadoAgora) {
+                    return res.json({ sucesso: true, pago: true, mensagem: "✅ Pagamento Pix confirmado e liberado com sucesso!" });
+                }
+            }
+        } catch (errEfi) {}
+
+        res.json({ sucesso: true, pago: false, mensagem: "Aguardando confirmação do pagamento pelo banco..." });
+    } catch (e) {
+        res.status(500).json({ sucesso: false, pago: false });
+    }
+});
+
+// =========================================================================
 // --- ROTAS DO JOGO SOLIDCRUSH SAGA (VIDA DEVOLVIDA NA VITÓRIA + RANKING) ---
 // =========================================================================
 
@@ -818,7 +1055,7 @@ app.post('/api/game/comprar-movimentos', checkAuthenticated, async (req, res) =>
 });
 
 // =========================================================================
-// --- ROTAS DO MARKETPLACE NFT + MINT NA BLOCKCHAIN CELO (SOLIDNFT) ---
+// --- ROTAS DO MARKETPLACE NFT + MINT VIA PIX EFÍ + BLOCKCHAIN CELO ---
 // =========================================================================
 
 app.get('/api/admin/nft-configs', isAdmin, async (req, res) => {
@@ -842,7 +1079,6 @@ app.post('/api/admin/nft-templates', isAdmin, async (req, res) => {
         const { imageUrl, metadataJson } = req.body;
         const metadata = JSON.parse(metadataJson);
         
-        // Garante que o campo image dentro do JSON já receba o link completo de imageUrl
         let cleanImg = (imageUrl || '').trim();
         if (cleanImg.startsWith('ipfs://')) cleanImg = cleanImg.replace('ipfs://', 'https://ipfs.io/ipfs/');
         if (cleanImg) metadata.image = cleanImg;
@@ -1046,6 +1282,73 @@ app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
 
         res.json({ sucesso: true, mensagem: `Você mintou o NFT exclusivo ${template.metadata.name} na plataforma! Agora você pode usá-lo aqui ou enviá-lo para a Blockchain Celo no seu Inventário.` });
     } catch(e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao mintar NFT." }); }
+});
+
+// NOVA ROTA: Gerar QR Code Pix Efí para Mintar um NFT diretamente
+app.post('/api/nfts/mintar-pix', checkAuthenticated, async (req, res) => {
+    try {
+        const { templateId } = req.body;
+        const template = await NftTemplate.findById(templateId);
+
+        if (!template) {
+            return res.status(404).json({ sucesso: false, mensagem: "NFT não encontrado." });
+        }
+
+        const jaExiste = await NftItem.findOne({
+            $or: [
+                { templateId: template._id },
+                { 'metadata.name': template.metadata.name }
+            ]
+        });
+
+        if (!template.ativo || jaExiste) {
+            await NftTemplate.updateMany({ 'metadata.name': template.metadata.name }, { $set: { ativo: false } });
+            return res.status(400).json({ sucesso: false, mensagem: "Este NFT é único e já foi adquirido por outro usuário!" });
+        }
+
+        const settings = await SysSettings.findOne() || new SysSettings();
+        const priceSC = settings.nftPrices[template.rarity] || 1600;
+        const scRate = settings.scPorReal || 500;
+        const valorReais = Math.max(1, parseFloat((priceSC / scRate).toFixed(2)));
+
+        const user = await User.findById(req.session.user.id);
+
+        const bodyCob = {
+            calendario: { expiracao: 3600 },
+            valor: { original: valorReais.toFixed(2) },
+            chave: process.env.EFI_PIX_KEY,
+            solicitacaoPagador: `Mint NFT ${template.metadata.name} - SolidCoin`
+        };
+
+        const cobResponse = await efipayPF.pixCreateImmediateCharge({}, bodyCob);
+        const qrCodeResponse = await efipayPF.pixGenerateQRCode({ id: cobResponse.loc.id });
+
+        await new NftPixOrder({
+            userId: user._id,
+            nomeUsuario: user.nome,
+            emailUsuario: user.email,
+            templateId: template._id,
+            nftName: template.metadata.name,
+            precoSC: priceSC,
+            valorReais: valorReais,
+            txId: cobResponse.txid,
+            status: 'Pendente'
+        }).save();
+
+        res.json({
+            sucesso: true,
+            mensagem: "Cobrança Pix para Mintagem gerada com sucesso!",
+            pixCopiaECola: qrCodeResponse.qrcode,
+            imagemQrcode: qrCodeResponse.imagemQrcode,
+            txid: cobResponse.txid,
+            valorReais: valorReais,
+            precoSC: priceSC,
+            nftName: template.metadata.name
+        });
+    } catch (error) {
+        console.error("Erro ao gerar Pix para Mint NFT:", error);
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao gerar cobrança Pix na Efí para este NFT." });
+    }
 });
 
 app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => {
@@ -1633,43 +1936,13 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro geral ao processar saque." }); }
 });
 
+// Webhook Oficial da Efí: Processa automaticamente Sócio, Compra de SC e Mint de NFT
 app.post('/api/webhook/pix', async (req, res) => {
     res.status(200).send('OK');
     try {
         if (req.body.pix && req.body.pix.length > 0) {
             for (let pagamento of req.body.pix) {
-                const txid_pago = pagamento.txid;
-                const ordem = await SocioOrder.findOne({ txId: txid_pago, status: 'Pendente' });
-                
-                if (ordem) {
-                    const user = await User.findById(ordem.userId);
-                    const admin = await User.findOne({ email: ADMIN_EMAIL });
-                    
-                    if (admin && admin.saldo >= ordem.moedasReceber) {
-                        admin.saldo -= ordem.moedasReceber; user.saldo += ordem.moedasReceber;
-                        user.statusSocio = 'Ativo'; user.planoSocio = ordem.plano; user.vencimentoSocio = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); 
-                        ordem.status = 'Aprovado';
-
-                        const transacoesToSave = [
-                            new Transaction({ userId: user._id, tipo: 'Assinatura Sócio SolidCoin', descricao: `Plano ${ordem.plano}`, valor: ordem.moedasReceber }),
-                            new Transaction({ userId: admin._id, tipo: 'Pagamento Sócio', descricao: `Para ${user.nome}`, valor: -ordem.moedasReceber })
-                        ];
-                        const updatesToSave = [user.save(), ordem.save()];
-
-                        if (user.indicadoPor) {
-                            const referrer = await User.findById(user.indicadoPor);
-                            if (referrer && referrer.email !== ADMIN_EMAIL && admin.saldo >= (ordem.moedasReceber * 0.05)) {
-                                admin.saldo -= (ordem.moedasReceber * 0.05); referrer.saldo += (ordem.moedasReceber * 0.05);
-                                transacoesToSave.push(new Transaction({ userId: referrer._id, tipo: 'Comissão de Indicação (Sócio)', descricao: `5% de ${user.nome}`, valor: (ordem.moedasReceber * 0.05) }));
-                                transacoesToSave.push(new Transaction({ userId: admin._id, tipo: 'Pagamento de Comissão', descricao: `Para ${referrer.nome}`, valor: -(ordem.moedasReceber * 0.05) }));
-                                updatesToSave.push(referrer.save());
-                            }
-                        }
-                        updatesToSave.push(admin.save());
-                        for (let tx of transacoesToSave) updatesToSave.push(tx.save());
-                        await Promise.all(updatesToSave);
-                    }
-                }
+                await processarAprovacaoPixPorTxId(pagamento.txid);
             }
         }
     } catch (e) { }
@@ -1677,30 +1950,28 @@ app.post('/api/webhook/pix', async (req, res) => {
 
 app.post('/api/admin/verificar-pix-efi', isAdmin, async (req, res) => {
     try {
-        const ordensPendentes = await SocioOrder.find({ status: 'Pendente', metodoPagamento: 'Pix Efí' });
+        const sociosPendentes = await SocioOrder.find({ status: 'Pendente', metodoPagamento: 'Pix Efí' });
+        const scPendentes = await ScPixOrder.find({ status: 'Pendente' });
+        const nftPendentes = await NftPixOrder.find({ status: 'Pendente' });
+
+        const todosTxIds = [
+            ...sociosPendentes.map(o => o.txId),
+            ...scPendentes.map(o => o.txId),
+            ...nftPendentes.map(o => o.txId)
+        ].filter(Boolean);
+
         let aprovadas = 0;
 
-        for (let ordem of ordensPendentes) {
+        for (let txid of todosTxIds) {
             try {
-                const cob = await efipayPF.pixDetailCharge({ txid: ordem.txId });
+                const cob = await efipayPF.pixDetailCharge({ txid: txid });
                 if (cob.status === 'CONCLUIDA') {
-                    const user = await User.findById(ordem.userId);
-                    const admin = await User.findOne({ email: ADMIN_EMAIL });
-                    if (admin && admin.saldo >= ordem.moedasReceber) {
-                        admin.saldo -= ordem.moedasReceber; user.saldo += ordem.moedasReceber;
-                        user.statusSocio = 'Ativo'; user.planoSocio = ordem.plano; user.vencimentoSocio = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); 
-                        ordem.status = 'Aprovado';
-                        await Promise.all([
-                            user.save(), admin.save(), ordem.save(),
-                            new Transaction({ userId: user._id, tipo: 'Assinatura Sócio SolidCoin', descricao: `Verificado pelo ADM`, valor: ordem.moedasReceber }).save(),
-                            new Transaction({ userId: admin._id, tipo: 'Pagamento Sócio', descricao: `Para ${user.nome} (Verificado ADM)`, valor: -ordem.moedasReceber }).save()
-                        ]);
-                        aprovadas++;
-                    }
+                    const ok = await processarAprovacaoPixPorTxId(txid);
+                    if (ok) aprovadas++;
                 }
             } catch (e) { }
         }
-        res.json({ sucesso: true, mensagem: `Sincronização concluída. ${aprovadas} pagamentos Pix foram identificados.` });
+        res.json({ sucesso: true, mensagem: `Sincronização concluída. ${aprovadas} pagamentos Pix foram identificados e liberados.` });
     } catch (e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao comunicar com a Efí." }); }
 });
 
@@ -1933,9 +2204,11 @@ app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
         const { mensagem } = req.body;
         const msg = (mensagem || '').toLowerCase();
         
-        let resposta = "Olá! Eu sou o Assistente SolidCoin 🤖. Como posso te ajudar hoje?\n\nTente perguntar sobre: 'celo', 'metamask', 'jogo', 'solidcrush', 'saque', 'pix', 'minipay', 'sócio', 'staking', 'nfc', 'indicação', 'investimentos' ou 'nft'.";
+        let resposta = "Olá! Eu sou o Assistente SolidCoin 🤖. Como posso te ajudar hoje?\n\nTente perguntar sobre: 'comprar', 'celo', 'metamask', 'jogo', 'solidcrush', 'saque', 'pix', 'minipay', 'sócio', 'staking', 'nfc', 'indicação', 'investimentos' ou 'nft'.";
 
-        if (msg.includes('jogo') || msg.includes('crush') || msg.includes('ponto') || msg.includes('level') || msg.includes('nível')) {
+        if (msg.includes('comprar') || msg.includes('recarregar saldo')) {
+            resposta = "⚡ **Compra Rápida via Pix:** Agora você pode comprar SolidCoins diretamente no card do **Seu Saldo** a partir de **R$ 1,00** via Pix automático! Basta digitar o valor em reais, copiar o código Pix (ou ler o QR Code) e suas moedas caem na hora e 100% livres!";
+        } else if (msg.includes('jogo') || msg.includes('crush') || msg.includes('ponto') || msg.includes('level') || msg.includes('nível')) {
             resposta = "🍬 **SolidCrush Saga (Nível 1 ao 1000):** Combine as joias da SolidCoin para passar de fase! Se você vencer a fase, **não perde vida** e continua jogando! A cada **1.000.000 de pontos** acumulados, você ganha automaticamente **1.000 SolidCoins**!";
         } else if (msg.includes('metamask') || msg.includes('resgate rendimento') || msg.includes('contrato')) {
             resposta = "🦊 **Rede Celo (Mainnet):** Você pode resgatar seu rendimento de **1% ao dia** direto na MetaMask e também enviar seus NFTs da plataforma para a Blockchain Celo!\n\nContrato SolidCoin (SLC): `0x6Ff689e75DD0f49375A2932E44354DD3271586f6`\nContrato SolidNFT (SNFT): `0x4340C2751F443B846262B99EE4f572Bc8784cC65`";
@@ -1959,11 +2232,11 @@ app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
             resposta = "📊 **Mercado de Ativos:** Use suas SolidCoins para comprar cotas de Fundos Imobiliários (FIIs) e Ações de empresas reais no nosso simulador atrelado à vida real. Você receberá dividendos sempre que o ADM distribuir os lucros no sistema!";
         } else if (msg.includes('nft') || msg.includes('avatar') || msg.includes('farm') || msg.includes('raridade')) {
             resposta = "🖼️ **Universo NFT SolidCoin:** Aqui está tudo o que você precisa saber sobre os nossos NFTs:\n\n" +
-                       "✨ **Mint na Plataforma & Raridade (1/1):** Você pode Mintar novos NFTs na aba de Lançamentos. Cada NFT é único e sai da loja assim que alguém o compra!\n\n" +
+                       "✨ **Mint com Saldo ou Pix:** Você pode Mintar novos NFTs na aba de Lançamentos usando seu saldo de SolidCoins ou pagando direto via **Pix Efí**! Assim que o Pix é pago, o NFT vai direto para o seu Inventário!\n\n" +
                        "⛏️ **Farm Diário & Avatar:** Vá no seu Inventário e clique em 'Equipar Avatar'. Sua foto de perfil mudará e o NFT começará a minerar SolidCoins automaticamente a cada 24 horas!\n\n" +
-                       "⛓️ **Mintar na Blockchain (Celo):** No seu Inventário, você pode clicar em 'Mintar na Blockchain' para transferir seu NFT oficialmente para sua carteira MetaMask na Rede Celo (`0x4340C2751F443B846262B99EE4f572Bc8784cC65`). Ao fazer isso, ele passa para a Blockchain e sai da plataforma!";
+                       "⛓️ **Mintar na Blockchain (Celo):** No seu Inventário, você pode clicar em 'Mintar na Blockchain' para transferir seu NFT oficialmente para sua carteira MetaMask na Rede Celo (`0x4340C2751F443B846262B99EE4f572Bc8784cC65`).";
         } else if (msg.includes('bloquea') || msg.includes('vesting') || msg.includes('limite')) {
-            resposta = "⚠️ **Saldo Bloqueado / Limite (Vesting):** Para garantir a vida longa do sistema, as moedas dos Planos de Sócio e os pacotes de 1.000 SC do SolidCrush liberam 25% a cada 30 dias de conta ativa. Porém, ganhos de indicações, vendas, farm de NFT e depósitos são 100% livres desde o primeiro dia!";
+            resposta = "⚠️ **Saldo Bloqueado / Limite (Vesting):** Para garantir a vida longa do sistema, as moedas dos Planos de Sócio e os pacotes de 1.000 SC do SolidCrush liberam 25% a cada 30 dias de conta ativa. Porém, compras diretas de SolidCoin via Pix, indicações, vendas e farm de NFT são 100% livres desde o primeiro dia!";
         }
 
         res.json({ sucesso: true, resposta });
@@ -2388,9 +2661,6 @@ async function setupInicial() {
 
         if (!(await SysSettings.findOne())) { await new SysSettings({ scPorReal: 500 }).save(); }
 
-        // =========================================================================
-        // --- SINCRONIZAÇÃO AUTOMÁTICA DAS IMAGENS DOS NFTS NO BANCO DE DADOS ---
-        // =========================================================================
         const todosTemplates = await NftTemplate.find({});
         for (let t of todosTemplates) {
             if (t.imageUrl && t.metadata) {
@@ -2499,48 +2769,29 @@ async function setupInicial() {
                 await ceo.save();
             }
 
-            console.log("✅ Ecossistema SolidCoin + Links de Imagem do Banco sincronizados no JSON da Blockchain!");
+            console.log("✅ Ecossistema SolidCoin + Pix Efí para Compra de SC e Mint de NFT ativo!");
         }
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }
 
+// Robô de verificação automática a cada 60s (Sócio, Compra de SC e Mint de NFT via Pix)
 async function verificarPixPendentesAutomatizado() {
     try {
-        const ordensPendentes = await SocioOrder.find({ status: 'Pendente', metodoPagamento: 'Pix Efí' });
-        for (let ordem of ordensPendentes) {
-            try {
-                const cob = await efipayPF.pixDetailCharge({ txid: ordem.txId });
-                if (cob.status === 'CONCLUIDA') {
-                    const user = await User.findById(ordem.userId);
-                    const admin = await User.findOne({ email: ADMIN_EMAIL });
-                    
-                    if (admin && admin.saldo >= ordem.moedasReceber) {
-                        admin.saldo -= ordem.moedasReceber; user.saldo += ordem.moedasReceber;
-                        user.statusSocio = 'Ativo'; user.planoSocio = ordem.plano; user.vencimentoSocio = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); 
-                        ordem.status = 'Aprovado';
-                        
-                        const transacoesToSave = [
-                            new Transaction({ userId: user._id, tipo: 'Assinatura Sócio SolidCoin', descricao: `Pix Automático (Robô)`, valor: ordem.moedasReceber }),
-                            new Transaction({ userId: admin._id, tipo: 'Pagamento Sócio', descricao: `Para ${user.nome}`, valor: -ordem.moedasReceber })
-                        ];
-                        const updatesToSave = [user.save(), ordem.save()];
+        const sociosPendentes = await SocioOrder.find({ status: 'Pendente', metodoPagamento: 'Pix Efí' });
+        const scPendentes = await ScPixOrder.find({ status: 'Pendente' });
+        const nftPendentes = await NftPixOrder.find({ status: 'Pendente' });
 
-                        if (user.indicadoPor) {
-                            const referrer = await User.findById(user.indicadoPor);
-                            if (referrer && referrer.email !== ADMIN_EMAIL) {
-                                const comissao = ordem.moedasReceber * 0.05;
-                                if (admin.saldo >= comissao) {
-                                    admin.saldo -= comissao; referrer.saldo += comissao;
-                                    transacoesToSave.push(new Transaction({ userId: referrer._id, tipo: 'Comissão de Indicação (Sócio)', descricao: `Robô: 5% de ${user.nome}`, valor: comissao }));
-                                    transacoesToSave.push(new Transaction({ userId: admin._id, tipo: 'Pagamento de Comissão', descricao: `Para ${referrer.nome}`, valor: -comissao }));
-                                    updatesToSave.push(referrer.save());
-                                }
-                            }
-                        }
-                        updatesToSave.push(admin.save());
-                        for (let tx of transacoesToSave) updatesToSave.push(tx.save());
-                        await Promise.all(updatesToSave);
-                    }
+        const todosTxIds = [
+            ...sociosPendentes.map(o => o.txId),
+            ...scPendentes.map(o => o.txId),
+            ...nftPendentes.map(o => o.txId)
+        ].filter(Boolean);
+
+        for (let txid of todosTxIds) {
+            try {
+                const cob = await efipayPF.pixDetailCharge({ txid: txid });
+                if (cob.status === 'CONCLUIDA') {
+                    await processarAprovacaoPixPorTxId(txid);
                 }
             } catch (e) { }
         }
