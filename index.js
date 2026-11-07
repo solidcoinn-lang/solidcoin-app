@@ -11,11 +11,16 @@ const EfiPay = require('sdk-node-apis-efi');
 const { OAuth2Client } = require('google-auth-library'); 
 
 // =========================================================================
-// --- INTEGRAÇÃO WEB3 MINIPAY (REDE CELO - USDC / cUSD / USDT) ---
+// --- INTEGRAÇÃO WEB3 REDE CELO (MINIPAY USDC + SOLIDCOIN SLC + SOLIDNFT) ---
 // =========================================================================
 let celoProvider = null;
 let celoWallet = null;
 let usdcContract = null;
+let slcContract = null;
+let solidNftContract = null;
+
+const SOLIDCOIN_CELO_ADDRESS = "0x6Ff689e75DD0f49375A2932E44354DD3271586f6";
+const SOLIDNFT_CELO_ADDRESS = "0x4340C2751F443B846262B99EE4f572Bc8784cC65";
 
 try {
     const { ethers } = require('ethers');
@@ -32,12 +37,27 @@ try {
 
     if (celoWallet) {
         const USDC_ADDRESS = "0xcebA9300f2b948710d2653dD7B07f33A8B32118C";
-        const erc20Abi = ["function transfer(address to, uint256 value) public returns (bool)"];
+        const erc20Abi = [
+            "function transfer(address to, uint256 value) public returns (bool)",
+            "function balanceOf(address owner) view returns (uint256)",
+            "function allowance(address owner, address spender) view returns (uint256)"
+        ];
+        const solidNftAbi = [
+            "function adminMintComum(address usuario, string memory linkExato) public",
+            "function adminMintIncomum(address usuario, string memory linkExato) public",
+            "function adminMintRaro(address usuario, string memory linkExato) public",
+            "function adminMintLendario(address usuario, string memory linkExato) public",
+            "function adminWallet() view returns (address)"
+        ];
+
         usdcContract = new ethers.Contract(USDC_ADDRESS, erc20Abi, celoWallet);
-        console.log(`✅ Carteira MiniPay (${celoWallet.address}) conectada na Rede Celo!`);
+        slcContract = new ethers.Contract(SOLIDCOIN_CELO_ADDRESS, erc20Abi, celoWallet);
+        solidNftContract = new ethers.Contract(SOLIDNFT_CELO_ADDRESS, solidNftAbi, celoWallet);
+
+        console.log(`✅ Carteira Admin Celo (${celoWallet.address}) conectada (USDC, SLC e SolidNFT)!`);
     }
 } catch (error) {
-    console.error("⚠️ Aviso: Biblioteca 'ethers' não instalada ou erro ao configurar carteira MiniPay:", error.message);
+    console.error("⚠️ Aviso: Biblioteca 'ethers' não instalada ou erro ao configurar carteira Celo:", error.message);
 }
 
 // =========================================================================
@@ -100,11 +120,11 @@ const CUSTO_RECARGA_NFT = 10;
 
 // --- CONFIGURAÇÕES ECONÔMICAS DO JOGO SOLIDCRUSH SAGA ---
 const GAME_MAX_LEVEL = 1000;
-const GAME_POINTS_TARGET = 1000000; // 1.000 mil pontos (1 milhão de pontos)
-const GAME_SC_REWARD = 1000;        // 1.000 SolidCoins por meta batida
-const GAME_MAX_LIVES = 5;           // 5 vidas diárias gratuitas
-const GAME_REFILL_COST_SC = 50;     // 50 SC para recarregar 5 vidas imediatamente
-const GAME_BOOSTER_MOVES_COST = 20; // 20 SC para comprar +5 movimentos extras
+const GAME_POINTS_TARGET = 1000000; 
+const GAME_SC_REWARD = 1000;        
+const GAME_MAX_LIVES = 5;           
+const GAME_REFILL_COST_SC = 50;     
+const GAME_BOOSTER_MOVES_COST = 20; 
 
 const PLANOS_SOCIO = {
     "Socio SolidCoin para Todos": { valorReais: 1, sc: 500, imagemUrl: "https://i.postimg.cc/QxzG1q50/Design-sem-nome.png" },
@@ -134,6 +154,7 @@ const NftTemplateSchema = new mongoose.Schema({
     imageUrl: { type: String, required: true },
     metadata: { type: Object, required: true },
     rarity: { type: String, required: true },
+    tokenUri: { type: String, default: '' },
     ativo: { type: Boolean, default: true }
 });
 const NftTemplate = mongoose.models.NftTemplate || mongoose.model('NftTemplate', NftTemplateSchema);
@@ -142,6 +163,7 @@ const NftItemSchema = new mongoose.Schema({
     templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'NftTemplate' },
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     imageUrl: String,
+    tokenUri: { type: String, default: '' },
     metadata: Object,
     mintPrice: Number,
     isEquipped: { type: Boolean, default: false },
@@ -168,10 +190,10 @@ const GameProfile = mongoose.models.GameProfile || mongoose.model('GameProfile',
 const SystemSettingsSchema = new mongoose.Schema({
     scPorReal: { type: Number, default: 500 },
     nftPrices: {
-        Comum: { type: Number, default: 1000 },
-        Incomum: { type: Number, default: 2500 },
-        Raro: { type: Number, default: 5000 },
-        Lendario: { type: Number, default: 10000 }
+        Comum: { type: Number, default: 1600 },
+        Incomum: { type: Number, default: 3200 },
+        Raro: { type: Number, default: 8000 },
+        Lendario: { type: Number, default: 16000 }
     }
 });
 if(mongoose.models.SystemSettings) delete mongoose.models.SystemSettings;
@@ -580,7 +602,6 @@ app.post('/api/game/finalizar-nivel', checkAuthenticated, async (req, res) => {
             return res.status(400).json({ sucesso: false, mensagem: "Aguarde alguns segundos! Partida finalizada rápido demais." });
         }
 
-        // Devolve a vida porque o jogador venceu a fase (estilo Candy Crush)
         if (profile.lives < GAME_MAX_LIVES) {
             profile.lives += 1;
         }
@@ -710,7 +731,7 @@ app.post('/api/game/comprar-movimentos', checkAuthenticated, async (req, res) =>
 });
 
 // =========================================================================
-// --- ROTAS DO MARKETPLACE NFT ---
+// --- ROTAS DO MARKETPLACE NFT + MINT NA BLOCKCHAIN CELO (SOLIDNFT) ---
 // =========================================================================
 
 app.get('/api/admin/nft-configs', isAdmin, async (req, res) => {
@@ -736,7 +757,7 @@ app.post('/api/admin/nft-templates', isAdmin, async (req, res) => {
         const rarityAttr = metadata.attributes.find(a => a.trait_type === "Classificação" || a.trait_type === "Rarity");
         const rarity = rarityAttr ? rarityAttr.value : "Comum";
 
-        await new NftTemplate({ imageUrl, metadata, rarity, ativo: true }).save();
+        await new NftTemplate({ imageUrl, metadata, rarity, tokenUri: imageUrl, ativo: true }).save();
         res.json({ sucesso: true, mensagem: "NFT adicionado ao catálogo para Mintagem!" });
     } catch(e) { res.status(400).json({ sucesso: false, mensagem: "Erro. Verifique se o JSON é válido." }); }
 });
@@ -750,9 +771,10 @@ app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
             return res.status(400).json({ sucesso: false, mensagem: "Forneça o Link da Pasta do Pinata e a quantidade de NFTs." });
         }
 
-        let baseUrl = ipfsUrl.trim();
-        if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
-        
+        let rawFolder = ipfsUrl.trim();
+        if (rawFolder.endsWith('/')) rawFolder = rawFolder.slice(0, -1);
+
+        let baseUrl = rawFolder;
         if (baseUrl.startsWith('ipfs://')) {
             baseUrl = baseUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
         }
@@ -762,7 +784,8 @@ app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
 
         for (let i = 1; i <= quantidade; i++) {
             try {
-                const response = await fetch(`${baseUrl}/${i}.json`);
+                const jsonGatewayUrl = `${baseUrl}/${i}.json`;
+                const response = await fetch(jsonGatewayUrl);
                 if (!response.ok) {
                     erros++;
                     continue;
@@ -777,8 +800,9 @@ app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
 
                 const rarityAttr = metadata.attributes.find(a => a.trait_type === "Classificação" || a.trait_type === "Rarity");
                 const rarity = rarityAttr ? rarityAttr.value : "Comum";
+                const exactTokenUri = `${rawFolder}/${i}.json`;
 
-                await new NftTemplate({ imageUrl: imgUrl, metadata, rarity, ativo: true }).save();
+                await new NftTemplate({ imageUrl: imgUrl, metadata, rarity, tokenUri: exactTokenUri, ativo: true }).save();
                 importados++;
             } catch (errLoop) {
                 erros++;
@@ -811,7 +835,7 @@ app.get('/api/admin/nft-templates', isAdmin, async (req, res) => {
                 donoEmail = item.ownerId.email;
             } else if (t.ativo === false) {
                 jaMintado = true;
-                donoNome = "Mintado (Usuário removido)";
+                donoNome = "Mintado na Blockchain Celo (Retirado da Plataforma)";
             }
 
             return {
@@ -900,8 +924,13 @@ app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
         const maxBattery = maxBatteryAttr ? maxBatteryAttr.value : 100;
 
         const newItem = new NftItem({
-            templateId: template._id, ownerId: user._id, imageUrl: template.imageUrl, metadata: template.metadata,
-            mintPrice: price, battery: maxBattery
+            templateId: template._id,
+            ownerId: user._id,
+            imageUrl: template.imageUrl,
+            tokenUri: template.tokenUri || template.imageUrl,
+            metadata: template.metadata,
+            mintPrice: price,
+            battery: maxBattery
         });
 
         await Promise.all([
@@ -913,8 +942,133 @@ app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
             new Transaction({ userId: admin._id, tipo: 'Venda NFT (Mint)', descricao: `Para ${user.nome}`, valor: price }).save()
         ]);
 
-        res.json({ sucesso: true, mensagem: `Você mintou o NFT exclusivo ${template.metadata.name} com sucesso!` });
+        res.json({ sucesso: true, mensagem: `Você mintou o NFT exclusivo ${template.metadata.name} na plataforma! Agora você pode usá-lo aqui ou enviá-lo para a Blockchain Celo no seu Inventário.` });
     } catch(e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao mintar NFT." }); }
+});
+
+// NOVA ROTA: Mintar o NFT do Inventário para a Blockchain Celo (Contrato 0x4340C2751F443B846262B99EE4f572Bc8784cC65) e remover da Plataforma
+app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => {
+    try {
+        const { nftId, walletAddress } = req.body;
+        if (!walletAddress) {
+            return res.status(400).json({ sucesso: false, mensagem: "Conecte sua carteira MetaMask primeiro." });
+        }
+
+        if (!celoWallet || !solidNftContract || !slcContract) {
+            return res.status(500).json({ sucesso: false, mensagem: "Carteira Admin Celo não configurada no servidor (MINIPAY_PRIVATE_KEY ou MINIPAY_SEED_PHRASE)." });
+        }
+
+        const { ethers } = require('ethers');
+        const enderecoLimpo = walletAddress.trim();
+        const isAddrValid = ethers.isAddress ? ethers.isAddress(enderecoLimpo) : ethers.utils.isAddress(enderecoLimpo);
+        if (!isAddrValid) {
+            return res.status(400).json({ sucesso: false, mensagem: "Endereço da carteira Celo inválido." });
+        }
+
+        const nft = await NftItem.findOne({ _id: nftId, ownerId: req.session.user.id });
+        if (!nft) {
+            return res.status(404).json({ sucesso: false, mensagem: "NFT não encontrado no seu inventário." });
+        }
+        if (nft.isForSale) {
+            return res.status(400).json({ sucesso: false, mensagem: "Cancele a venda do NFT no mercado antes de enviá-lo para a Blockchain." });
+        }
+
+        // Identifica a raridade e o preço exato exigido pelo Smart Contract SolidNFT
+        const rarityAttr = nft.metadata && nft.metadata.attributes 
+            ? nft.metadata.attributes.find(a => a.trait_type === "Classificação" || a.trait_type === "Rarity")
+            : null;
+        let rarity = rarityAttr ? String(rarityAttr.value).trim() : "Comum";
+        if (rarity === "Lendário") rarity = "Lendario";
+
+        const precosContrato = {
+            Comum: "1600",
+            Incomum: "3200",
+            Raro: "8000",
+            Lendario: "16000"
+        };
+        const precoStr = precosContrato[rarity] || "1600";
+
+        const parseUnitsFn = ethers.parseUnits ? ethers.parseUnits : ethers.utils.parseUnits;
+        const precoWei = parseUnitsFn(precoStr, 18);
+
+        // 1. Verifica se o usuário já aprovou (approve) o contrato SolidNFT no token SLC
+        const allowanceAtual = await slcContract.allowance(enderecoLimpo, SOLIDNFT_CELO_ADDRESS);
+        const temAllowance = (typeof allowanceAtual === 'bigint') 
+            ? (allowanceAtual >= precoWei) 
+            : allowanceAtual.gte(precoWei);
+
+        if (!temAllowance) {
+            return res.status(400).json({
+                sucesso: false,
+                precisaApprove: true,
+                precoRequerido: precoStr,
+                mensagem: `Autorize primeiro o contrato SolidNFT na sua MetaMask para validar o envio de ${precoStr} SLC.`
+            });
+        }
+
+        // 2. Como o usuário já pagou pelo NFT na plataforma, se a carteira Web3 dele não tiver as SLC on-chain exigidas pelo contrato SolidNFT,
+        // a carteira Admin envia automaticamente as SLC necessárias para a carteira dele antes do mint (elas voltam para a carteira Admin no próprio mint!)
+        const saldoSlcUsuario = await slcContract.balanceOf(enderecoLimpo);
+        const temSaldoOnChain = (typeof saldoSlcUsuario === 'bigint')
+            ? (saldoSlcUsuario >= precoWei)
+            : saldoSlcUsuario.gte(precoWei);
+
+        if (!temSaldoOnChain) {
+            const diferencaWei = (typeof saldoSlcUsuario === 'bigint')
+                ? (precoWei - saldoSlcUsuario)
+                : precoWei.sub(saldoSlcUsuario);
+            
+            const txFunding = await slcContract.transfer(enderecoLimpo, diferencaWei);
+            await txFunding.wait();
+        }
+
+        // 3. Monta o link exato dos metadados (tokenURI) para gravar no NFT na Blockchain
+        let linkExato = nft.tokenUri || '';
+        if (!linkExato && nft.templateId) {
+            const tmpl = await NftTemplate.findById(nft.templateId);
+            if (tmpl && tmpl.tokenUri) linkExato = tmpl.tokenUri;
+        }
+        if (!linkExato) {
+            linkExato = (nft.metadata && nft.metadata.image) ? nft.metadata.image : nft.imageUrl;
+        }
+
+        // 4. Aciona a função exata do contrato SolidNFT de acordo com a raridade
+        let txMint;
+        if (rarity === "Lendario") {
+            txMint = await solidNftContract.adminMintLendario(enderecoLimpo, linkExato);
+        } else if (rarity === "Raro") {
+            txMint = await solidNftContract.adminMintRaro(enderecoLimpo, linkExato);
+        } else if (rarity === "Incomum") {
+            txMint = await solidNftContract.adminMintIncomum(enderecoLimpo, linkExato);
+        } else {
+            txMint = await solidNftContract.adminMintComum(enderecoLimpo, linkExato);
+        }
+
+        await txMint.wait();
+
+        // 5. Remove o NFT da plataforma SolidCoin (pois agora ele vive na carteira Web3 do usuário na Blockchain Celo)
+        await NftItem.findByIdAndDelete(nft._id);
+
+        await new Transaction({
+            userId: req.session.user.id,
+            tipo: 'Mint NFT na Blockchain (Celo)',
+            descricao: `${nft.metadata.name} -> Carteira ${enderecoLimpo.slice(0, 6)}...${enderecoLimpo.slice(-4)} (Hash: ${txMint.hash.slice(0, 10)}...)`,
+            valor: 0
+        }).save();
+
+        res.json({
+            sucesso: true,
+            txHash: txMint.hash,
+            mensagem: `🎉 Sucesso! O ${nft.metadata.name} foi mintado oficialmente na Blockchain Celo na sua carteira e retirado da plataforma!`
+        });
+    } catch (err) {
+        console.error("Erro ao mintar NFT na Blockchain Celo:", err);
+        const detalhe = err.shortMessage || err.reason || err.message || "Falha na transação Web3.";
+        res.status(500).json({
+            sucesso: false,
+            mensagem: `Erro ao mintar na Blockchain Celo: ${detalhe}`
+        });
+    }
 });
 
 app.get('/api/nfts/meus', checkAuthenticated, async (req, res) => {
@@ -950,7 +1104,7 @@ app.post('/api/nfts/desequipar', checkAuthenticated, async (req, res) => {
         nft.isEquipped = false;
         await nft.save();
 
-        res.json({ sucesso: true, mensagem: "NFT retirado do perfil com sucesso! Agora você pode vendê-lo ou equipar outro." });
+        res.json({ sucesso: true, mensagem: "NFT retirado do perfil com sucesso! Agora você pode vendê-lo, equipar outro ou enviá-lo para a Blockchain." });
     } catch(e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao desequipar NFT." }); }
 });
 
@@ -1458,7 +1612,6 @@ app.post('/api/salvar-carteira', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro ao salvar carteiras." }); }
 });
 
-// ATUALIZADO: Levantamentos via Rede Tron desativados (Apenas MiniPay Celo e Solana)
 app.post('/api/solicitar-saque', checkAuthenticated, async (req, res) => {
     try {
         const valor = parseFloat(req.body.valor);
@@ -1662,7 +1815,7 @@ app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
         if (msg.includes('jogo') || msg.includes('crush') || msg.includes('ponto') || msg.includes('level') || msg.includes('nível')) {
             resposta = "🍬 **SolidCrush Saga (Nível 1 ao 1000):** Combine as joias da SolidCoin para passar de fase! Se você vencer a fase, **não perde vida** e continua jogando! A cada **1.000.000 de pontos** acumulados, você ganha automaticamente **1.000 SolidCoins**!";
         } else if (msg.includes('metamask') || msg.includes('resgate rendimento') || msg.includes('contrato')) {
-            resposta = "🦊 **Resgate Rendimento na Rede Celo (Mainnet):** Clique no botão 'Resgate Rendimento (Celo)' no menu principal! Tanto no PC quanto no Celular, ele abre sua **MetaMask** automaticamente na Rede Celo para você resgatar seu rendimento de **1% ao dia** com taxas de gás ultra baratas. O contrato oficial da SolidCoin (SLC) na Celo é: `0x6Ff689e75DD0f49375A2932E44354DD3271586f6`.";
+            resposta = "🦊 **Rede Celo (Mainnet):** Você pode resgatar seu rendimento de **1% ao dia** direto na MetaMask e também enviar seus NFTs da plataforma para a Blockchain Celo!\n\nContrato SolidCoin (SLC): `0x6Ff689e75DD0f49375A2932E44354DD3271586f6`\nContrato SolidNFT (SNFT): `0x4340C2751F443B846262B99EE4f572Bc8784cC65`";
         } else if (msg.includes('saque') || msg.includes('sacar') || msg.includes('retirar')) {
             if (msg.includes('pix')) {
                 resposta = "💸 **Saque Pix VIP:** É exclusivo para Sócios da plataforma. Tem uma taxa de 5% e o valor cai direto na sua conta bancária conectada. Importante: moedas ganhas pelos planos de sócio e prêmios do jogo liberam 25% a cada 30 dias para segurança do sistema.";
@@ -1683,10 +1836,9 @@ app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
             resposta = "📊 **Mercado de Ativos:** Use suas SolidCoins para comprar cotas de Fundos Imobiliários (FIIs) e Ações de empresas reais no nosso simulador atrelado à vida real. Você receberá dividendos sempre que o ADM distribuir os lucros no sistema!";
         } else if (msg.includes('nft') || msg.includes('avatar') || msg.includes('farm') || msg.includes('raridade')) {
             resposta = "🖼️ **Universo NFT SolidCoin:** Aqui está tudo o que você precisa saber sobre os nossos NFTs:\n\n" +
-                       "✨ **Mint & Raridade (1/1):** Você pode Mintar (gerar) novos NFTs na aba de Lançamentos. Cada NFT é único e sai da loja assim que alguém o compra! Eles possuem raridades (Comum, Incomum, Raro e Lendário) que definem o poder de Farm e os efeitos visuais de brilho no seu card!\n\n" +
+                       "✨ **Mint na Plataforma & Raridade (1/1):** Você pode Mintar novos NFTs na aba de Lançamentos. Cada NFT é único e sai da loja assim que alguém o compra!\n\n" +
                        "⛏️ **Farm Diário & Avatar:** Vá no seu Inventário e clique em 'Equipar Avatar'. Sua foto de perfil mudará e o NFT começará a minerar SolidCoins automaticamente a cada 24 horas!\n\n" +
-                       "🔋 **Bateria:** O Farm consome a bateria do seu NFT. Fique de olho na carga máxima!\n\n" +
-                       "🤝 **Mercado P2P:** Quer lucrar? Você pode listar seu NFT único no mercado para outros investidores comprarem. Para proteger a economia, o sistema não permite vender abaixo do preço de custo (Mintagem). Lembre-se: para vender, você precisa clicar em 'Desequipar Avatar' primeiro!";
+                       "⛓️ **Mintar na Blockchain (Celo):** No seu Inventário, você pode clicar em 'Mintar na Blockchain' para transferir seu NFT oficialmente para sua carteira MetaMask na Rede Celo (`0x4340C2751F443B846262B99EE4f572Bc8784cC65`). Ao fazer isso, ele passa para a Blockchain e sai da plataforma!";
         } else if (msg.includes('bloquea') || msg.includes('vesting') || msg.includes('limite')) {
             resposta = "⚠️ **Saldo Bloqueado / Limite (Vesting):** Para garantir a vida longa do sistema, as moedas dos Planos de Sócio e os pacotes de 1.000 SC do SolidCrush liberam 25% a cada 30 dias de conta ativa. Porém, ganhos de indicações, vendas, farm de NFT e depósitos são 100% livres desde o primeiro dia!";
         }
@@ -2193,7 +2345,7 @@ async function setupInicial() {
                 await ceo.save();
             }
 
-            console.log("✅ Ecossistema SolidCoin (Rede Celo Mainnet + SolidCrush Saga) configurado com sucesso!");
+            console.log("✅ Ecossistema SolidCoin + SolidNFT Blockchain Celo configurado com sucesso!");
         }
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }

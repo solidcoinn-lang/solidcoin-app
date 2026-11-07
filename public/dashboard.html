@@ -70,10 +70,12 @@
         .nft-rarity.Lendario { background: #f1c40f; color: #000; }
         
         /* Botões do NFT */
-        .nft-btn { width: 100%; padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+        .nft-btn { width: 100%; padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 8px; }
         .nft-btn-primary { background: #d4af37; color: #000; }
         .nft-btn-primary:hover { background: #f1c40f; }
         .nft-btn-danger { background: #e74c3c; color: #fff; }
+        .nft-btn-blockchain { background: linear-gradient(135deg, #8e44ad, #3498db); color: #fff; border: 1px solid #d4af37; box-shadow: 0 0 10px rgba(142, 68, 173, 0.5); }
+        .nft-btn-blockchain:hover { filter: brightness(1.15); transform: scale(1.02); }
 
         /* ========================================================= */
         /* EFEITOS DE BRILHO (AURA) E ESTRELAS MÁGICAS DOS NFTs */
@@ -372,13 +374,13 @@
         </div>
 
         <!-- ========================================================= -->
-        <!-- SEÇÃO NFT MARKETPLACE (MINT, INVENTÁRIO, MERCADO P2P) -->
+        <!-- SEÇÃO NFT MARKETPLACE (MINT, INVENTÁRIO + BLOCKCHAIN CELO) -->
         <!-- ========================================================= -->
         <div id="sec-nft-marketplace" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #ff9f43; background: linear-gradient(145deg, #1f1406, #2d1e0d);">
                 <h2 style="color: #ff9f43; margin-top: 0;">🖼️ Universo NFT SolidCoin</h2>
-                <p style="color: #ddd; font-size: 0.95em;">Minte, equipe no seu perfil para ganhar farm diário ou negocie com outros investidores no mercado secundário!</p>
+                <p style="color: #ddd; font-size: 0.95em;">Minte na plataforma, equipe no seu perfil para farm diário, negocie no Mercado P2P ou envie seu NFT direto para sua carteira na <strong>Blockchain Celo</strong>!</p>
                 
                 <div style="display: flex; gap: 10px; margin: 20px 0;">
                     <button onclick="mudarAbaNft('mint')" style="flex:1; padding: 10px; background: #333; color: #fff; border: 1px solid #555; border-radius:6px; font-weight:bold; cursor: pointer;">Lançamentos (Mint)</button>
@@ -392,7 +394,8 @@
                 </div>
 
                 <div id="nft-tab-meus" style="display: none;">
-                    <h3 style="color: #00ff88; text-align: center;">Meu Inventário & Avatar</h3>
+                    <h3 style="color: #00ff88; text-align: center;">Meu Inventário & Mint na Blockchain Celo</h3>
+                    <p id="nft-blockchain-status" style="color: #f1c40f; text-align: center; font-weight: bold; font-size: 0.9em; display: none; background: #111; padding: 10px; border-radius: 8px; border: 1px dashed #d4af37; margin-bottom: 15px;"></p>
                     <div id="lista-meus-nfts" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;"></div>
                 </div>
 
@@ -632,9 +635,6 @@
             </div>
         </div>
 
-        <!-- ========================================================= -->
-        <!-- SEÇÃO SAQUE VIA WEB3 / CRIPTO (SEM REDE TRON) -->
-        <!-- ========================================================= -->
         <div id="sec-saque-cripto" class="feature-section">
             <button class="voltar-btn" onclick="voltarMenu()">🔙 Voltar ao Menu Inicial</button>
             <div class="card" style="border-left: 5px solid #3498db; background: linear-gradient(145deg, #0a1128, #1a2238);">
@@ -812,6 +812,9 @@
                     𝕏 (Antigo Twitter)
                 </a>
             </div>
+            <p style="color: #888; margin-top: 20px; font-size: 0.9em;">
+                © 2026 <strong>SolidCoin Community (SLC)</strong> • Contato Oficial: <a href="mailto:solidcoinn@gmail.com" style="color: #d4af37; text-decoration: none; font-weight: bold;">solidcoinn@gmail.com</a>
+            </p>
         </footer>
     </div>
     
@@ -859,9 +862,10 @@
     <!-- 2º SCRIPT COM LÓGICA DINÂMICA INJETADO NO FINAL -->
     <script>
         // =========================================================================
-        // --- INTEGRAÇÃO METAMASK + REDE CELO MAINNET (PC E CELULAR) ---
+        // --- INTEGRAÇÃO METAMASK + REDE CELO MAINNET (SLC + SOLIDNFT) ---
         // =========================================================================
         const SOLIDCOIN_CELO_ADDRESS = "0x6Ff689e75DD0f49375A2932E44354DD3271586f6";
+        const SOLIDNFT_CELO_ADDRESS = "0x4340C2751F443B846262B99EE4f572Bc8784cC65";
         const CELO_MAINNET_PARAMS = {
             chainId: "0xa4ec", // 42220 em Hexadecimal (Celo Mainnet)
             chainName: "Celo Mainnet",
@@ -878,36 +882,38 @@
         window.conectarMetaMaskCelo = async function() {
             const statusEl = document.getElementById('celo-status');
 
-            // Se não tiver window.ethereum e estiver no celular, abre direto o app da MetaMask via DeepLink!
             if (typeof window.ethereum === 'undefined') {
                 if (isMobileDevice()) {
-                    statusEl.style.color = '#f1c40f';
-                    statusEl.innerText = '📲 Abrindo o aplicativo da MetaMask...';
+                    if (statusEl) {
+                        statusEl.style.color = '#f1c40f';
+                        statusEl.innerText = '📲 Abrindo o aplicativo da MetaMask...';
+                    }
                     const dappUrl = window.location.host + window.location.pathname;
                     window.location.href = `https://metamask.app.link/dapp/${dappUrl}`;
-                    return;
+                    return null;
                 } else {
                     alert("MetaMask não detectada! Por favor, instale a extensão MetaMask no seu navegador.");
                     window.open("https://metamask.io/download/", "_blank");
-                    return;
+                    return null;
                 }
             }
 
             try {
-                statusEl.style.color = '#f1c40f';
-                statusEl.innerText = '🔄 Solicitando conexão na MetaMask...';
+                if (statusEl) {
+                    statusEl.style.color = '#f1c40f';
+                    statusEl.innerText = '🔄 Solicitando conexão na MetaMask...';
+                }
 
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                 celoUserAddress = accounts[0];
 
-                // Troca ou adiciona automaticamente a Rede Celo Mainnet (ChainID 42220 / 0xa4ec)
                 try {
                     await window.ethereum.request({
                         method: 'wallet_switchEthereumChain',
                         params: [{ chainId: CELO_MAINNET_PARAMS.chainId }]
                     });
                 } catch (switchError) {
-                    if (switchError.code === 4902 || switchError.message.includes("Unrecognized chain ID")) {
+                    if (switchError.code === 4902 || (switchError.message && switchError.message.includes("Unrecognized chain ID"))) {
                         await window.ethereum.request({
                             method: 'wallet_addEthereumChain',
                             params: [CELO_MAINNET_PARAMS]
@@ -917,17 +923,28 @@
                     }
                 }
 
-                document.getElementById('celo-wallet-box').style.display = 'block';
-                document.getElementById('celo-connected-address').innerText = celoUserAddress;
-                document.getElementById('btn-connect-celo').innerText = '✅ Carteira Conectada';
-                document.getElementById('btn-claim-celo').style.display = 'inline-block';
+                const walletBox = document.getElementById('celo-wallet-box');
+                const addrEl = document.getElementById('celo-connected-address');
+                const btnConnect = document.getElementById('btn-connect-celo');
+                const btnClaim = document.getElementById('btn-claim-celo');
 
-                statusEl.style.color = '#00ff88';
-                statusEl.innerText = '✅ Conectado à Rede Celo Mainnet! Clique em "Resgatar Rendimento" para confirmar na MetaMask.';
+                if (walletBox) walletBox.style.display = 'block';
+                if (addrEl) addrEl.innerText = celoUserAddress;
+                if (btnConnect) btnConnect.innerText = '✅ Carteira Conectada';
+                if (btnClaim) btnClaim.style.display = 'inline-block';
+
+                if (statusEl) {
+                    statusEl.style.color = '#00ff88';
+                    statusEl.innerText = '✅ Conectado à Rede Celo Mainnet! Clique em "Resgatar Rendimento" para confirmar na MetaMask.';
+                }
+                return celoUserAddress;
             } catch (err) {
                 console.error(err);
-                statusEl.style.color = '#e74c3c';
-                statusEl.innerText = '❌ Conexão cancelada ou erro ao mudar para a Rede Celo.';
+                if (statusEl) {
+                    statusEl.style.color = '#e74c3c';
+                    statusEl.innerText = '❌ Conexão cancelada ou erro ao mudar para a Rede Celo.';
+                }
+                return null;
             }
         };
 
@@ -942,7 +959,6 @@
                 statusEl.style.color = '#f1c40f';
                 statusEl.innerText = '⏳ Confirme a transação na janela da sua MetaMask...';
 
-                // Garante que está na Celo Mainnet antes de disparar a transação
                 const currentChain = await window.ethereum.request({ method: 'eth_chainId' });
                 if (currentChain.toLowerCase() !== CELO_MAINNET_PARAMS.chainId.toLowerCase()) {
                     await window.ethereum.request({
@@ -951,7 +967,6 @@
                     });
                 }
 
-                // Seletor hexadecimal oficial da função Solidity: claimRewards() -> 0x372500ab
                 const claimRewardsData = "0x372500ab";
 
                 const txHash = await window.ethereum.request({
@@ -990,6 +1005,113 @@
                     }
                 });
             } catch (e) {}
+        };
+
+        // Codifica approve(address spender, uint256 amount) para o contrato ERC-20 SolidCoin (SLC)
+        function gerarDadosApproveERC20(spenderAddress, valorInteiroSLC) {
+            const selector = "0x095ea7b3";
+            const spenderClean = spenderAddress.replace(/^0x/i, '').toLowerCase().padStart(64, '0');
+            const amountWei = BigInt(valorInteiroSLC) * (10n ** 18n);
+            const amountHex = amountWei.toString(16).padStart(64, '0');
+            return selector + spenderClean + amountHex;
+        }
+
+        async function aguardarConfirmacaoTransacaoCelo(txHash) {
+            for (let tentativa = 0; tentativa < 30; tentativa++) {
+                try {
+                    const receipt = await window.ethereum.request({
+                        method: 'eth_getTransactionReceipt',
+                        params: [txHash]
+                    });
+                    if (receipt && receipt.status) {
+                        return receipt.status === '0x1';
+                    }
+                } catch (e) {}
+                await new Promise(r => setTimeout(r, 2000));
+            }
+            return true;
+        }
+
+        // NOVA FUNÇÃO: Envia o NFT da Plataforma para o Smart Contract SolidNFT na Blockchain Celo e retira da plataforma
+        window.mintarNftNaBlockchain = async function(nftId, nomeNft) {
+            const statusBox = document.getElementById('nft-blockchain-status');
+
+            if (!confirm(`⛓️ MINTAR NA BLOCKCHAIN CELO\n\nDeseja transferir o "${nomeNft}" para a sua carteira MetaMask na Rede Celo?\n\n⚠️ Importante: Ao confirmar, o NFT será registado no Smart Contract oficial (${SOLIDNFT_CELO_ADDRESS.slice(0, 8)}...) e sairá da plataforma SolidCoin.`)) {
+                return;
+            }
+
+            const carteiraConectada = await window.conectarMetaMaskCelo();
+            if (!carteiraConectada) return;
+
+            if (statusBox) {
+                statusBox.style.display = 'block';
+                statusBox.style.color = '#f1c40f';
+                statusBox.innerText = `⏳ Verificando permissão do contrato SolidNFT para mintar o ${nomeNft}...`;
+            }
+
+            try {
+                let res = await fetch('/api/nfts/mintar-blockchain', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nftId, walletAddress: carteiraConectada })
+                });
+                let data = await res.json();
+
+                // Se o contrato SolidNFT precisar de approve(SolidNFT, preco) na MetaMask do usuário
+                if (!data.sucesso && data.precisaApprove) {
+                    const precoReq = data.precoRequerido || "1600";
+                    if (statusBox) {
+                        statusBox.innerText = `🦊 Autorize na sua MetaMask a aprovação de ${precoReq} SLC para o contrato SolidNFT...`;
+                    }
+
+                    const approveDataHex = gerarDadosApproveERC20(SOLIDNFT_CELO_ADDRESS, precoReq);
+                    const txApproveHash = await window.ethereum.request({
+                        method: 'eth_sendTransaction',
+                        params: [{
+                            from: carteiraConectada,
+                            to: SOLIDCOIN_CELO_ADDRESS,
+                            data: approveDataHex
+                        }]
+                    });
+
+                    if (statusBox) {
+                        statusBox.innerText = `⏳ Aprovação enviada! Aguardando confirmação na Blockchain Celo para concluir o Mint do ${nomeNft}...`;
+                    }
+
+                    await aguardarConfirmacaoTransacaoCelo(txApproveHash);
+
+                    // Chama novamente o servidor para executar o adminMint e retirar o NFT da plataforma
+                    res = await fetch('/api/nfts/mintar-blockchain', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ nftId, walletAddress: carteiraConectada })
+                    });
+                    data = await res.json();
+                }
+
+                if (data.sucesso) {
+                    if (statusBox) {
+                        statusBox.style.color = '#00ff88';
+                        statusBox.innerHTML = `🎉 ${data.mensagem}<br><a href="https://celoscan.io/tx/${data.txHash}" target="_blank" style="color:#ffd32a; text-decoration:underline;">🔗 Ver NFT na Blockchain (CeloScan)</a>`;
+                    }
+                    alert(data.mensagem);
+                    carregarMeusNfts();
+                    fetchDashboardData();
+                } else {
+                    if (statusBox) {
+                        statusBox.style.color = '#e74c3c';
+                        statusBox.innerText = `❌ ${data.mensagem}`;
+                    }
+                    alert(data.mensagem);
+                }
+            } catch (err) {
+                console.error(err);
+                if (statusBox) {
+                    statusBox.style.color = '#e74c3c';
+                    statusBox.innerText = '❌ Operação cancelada na MetaMask ou falha de conexão com a Rede Celo.';
+                }
+                alert('Operação cancelada ou erro ao comunicar com a MetaMask.');
+            }
         };
 
         // --- FUNÇÕES DO SOLIDBOT ---
@@ -1447,7 +1569,7 @@
         };
 
         // ==========================================
-        // LÓGICA DO MARKETPLACE NFT
+        // LÓGICA DO MARKETPLACE NFT + BLOCKCHAIN CELO
         // ==========================================
         window.mudarAbaNft = function(aba) {
             document.getElementById('nft-tab-mint').style.display = aba === 'mint' ? 'block' : 'none';
@@ -1515,7 +1637,7 @@
                 const data = await res.json();
                 if(data.sucesso) {
                     container.innerHTML = '';
-                    if(data.nfts.length === 0) return container.innerHTML = '<p style="text-align:center; color:#aaa;">Você não tem nenhum NFT.</p>';
+                    if(data.nfts.length === 0) return container.innerHTML = '<p style="text-align:center; color:#aaa;">Você não tem nenhum NFT na plataforma no momento.</p>';
                     
                     data.nfts.forEach(nft => {
                         const farmAttr = nft.metadata.attributes.find(a => a.trait_type === "Classificação" || a.trait_type === "Rarity");
@@ -1541,7 +1663,8 @@
                             buttonsHtml += `<button class="nft-btn nft-btn-danger" onclick="desequiparNft('${nft._id}')">❌ Desequipar Avatar</button>`;
                         } else {
                             buttonsHtml = `<button class="nft-btn nft-btn-primary" onclick="equiparNft('${nft._id}')">Equipar Avatar</button>
-                                           <button class="nft-btn" style="background:#555; color:#fff;" onclick="venderNft('${nft._id}', ${nft.mintPrice})">Vender</button>`;
+                                           <button class="nft-btn" style="background:#555; color:#fff;" onclick="venderNft('${nft._id}', ${nft.mintPrice})">Vender no Mercado P2P</button>
+                                           <button class="nft-btn nft-btn-blockchain" onclick="mintarNftNaBlockchain('${nft._id}', '${nft.metadata.name}')">⛓️ Mintar na Blockchain (Celo)</button>`;
                         }
 
                         const equipClass = nft.isEquipped ? 'nft-equipped-glow' : `rarity-glow-${rarity}`;
@@ -1556,6 +1679,7 @@
                                     <div class="nft-sparkles sparkle-${rarity}"></div>
                                 </div>
                                 <div class="nft-card-body">
+                                    <span class="nft-rarity ${rarity}">${rarity}</span>
                                     <h3>${nft.metadata.name}</h3>
                                     <p>Farm: ${farmValue} SC/dia</p>
                                     ${buttonsHtml}
@@ -1580,7 +1704,7 @@
         };
 
         window.desequiparNft = async function(nftId) {
-            if(!confirm('Deseja retirar este NFT do seu perfil? Ele pausará o farm diário e ficará livre para venda.')) return;
+            if(!confirm('Deseja retirar este NFT do seu perfil? Ele pausará o farm diário e ficará livre para venda ou envio para a Blockchain.')) return;
             try {
                 const res = await fetch('/api/nfts/desequipar', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nftId }) });
                 const data = await res.json();
