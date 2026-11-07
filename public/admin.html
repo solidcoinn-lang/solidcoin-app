@@ -3,6 +3,7 @@
 <head>
     <link rel="icon" type="image/png" href="https://i.postimg.cc/3wqXzkBf/Design-sem-nome-(1).png">
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel ADM - SolidCoin</title>
     <link rel="stylesheet" href="styles.css">
     <style>
@@ -26,15 +27,31 @@
         .rejeitar-btn:hover { background-color: #c0392b; }
 
         .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin: 20px 0 40px 0; }
-        .feature-btn { background: linear-gradient(145deg, #1a1a1a, #222); border: 1px solid #333; border-radius: 12px; padding: 25px 15px; color: #fff; cursor: pointer; transition: all 0.3s ease; display: flex; flex-direction: column; align-items: center; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .feature-btn { position: relative; background: linear-gradient(145deg, #1a1a1a, #222); border: 1px solid #333; border-radius: 12px; padding: 25px 15px; color: #fff; cursor: pointer; transition: all 0.3s ease; display: flex; flex-direction: column; align-items: center; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         .feature-btn:hover { transform: translateY(-5px); background: linear-gradient(145deg, #222, #2a2a2a); box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3); }
         .feature-btn .icon { font-size: 2.5em; margin-bottom: 15px; }
         .feature-btn .text { font-size: 0.9em; font-weight: bold; line-height: 1.3; }
         
+        .badge-count-adm {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #e74c3c;
+            color: #fff;
+            font-size: 0.75em;
+            font-weight: bold;
+            padding: 3px 8px;
+            border-radius: 20px;
+            box-shadow: 0 0 8px rgba(231, 76, 60, 0.8);
+            display: none;
+        }
+
         .btn-users { border-bottom: 4px solid #9b59b6; }
         .btn-cotacao { border-bottom: 4px solid #3498db; }
         .btn-gerargift { border-bottom: 4px solid #d4af37; }
         .btn-sociosaprov { border-bottom: 4px solid #8e44ad; }
+        .btn-comprasscpix { border-bottom: 4px solid #00ff88; }
+        .btn-mintsnftpix { border-bottom: 4px solid #ff9f43; }
         .btn-inad { border-bottom: 4px solid #e74c3c; }
         .btn-saquepix { border-bottom: 4px solid #00b894; }
         .btn-depositos { border-bottom: 4px solid #2ecc71; }
@@ -67,6 +84,30 @@
         </div>
 
         <div id="menu-botoes" class="feature-grid">
+            <button class="feature-btn btn-comprasscpix" onclick="abrirSecaoPainel('sec-compras-sc-pix')">
+                <span id="badge-compras-sc" class="badge-count-adm">0</span>
+                <span class="icon">💠</span><span class="text">Compras SC (PIX)</span>
+            </button>
+            <button class="feature-btn btn-mintsnftpix" onclick="abrirSecaoPainel('sec-mints-nft-pix')">
+                <span id="badge-mints-nft" class="badge-count-adm">0</span>
+                <span class="icon">⚡</span><span class="text">Mint NFT (PIX)</span>
+            </button>
+            <button class="feature-btn btn-sociosaprov" onclick="abrirSecaoPainel('sec-socios')">
+                <span id="badge-socios" class="badge-count-adm">0</span>
+                <span class="icon">💎</span><span class="text">Aprovar Planos Sócio</span>
+            </button>
+            <button class="feature-btn btn-saquepix" onclick="abrirSecaoPainel('sec-saques-pix')">
+                <span id="badge-saques-pix" class="badge-count-adm">0</span>
+                <span class="icon">💸</span><span class="text">Aprovar Saques PIX</span>
+            </button>
+            <button class="feature-btn btn-saquecripto" onclick="abrirSecaoPainel('sec-saques-cripto')">
+                <span id="badge-saques-cripto" class="badge-count-adm">0</span>
+                <span class="icon">🪙</span><span class="text">Aprovar Saques Web3</span>
+            </button>
+            <button class="feature-btn btn-depositos" onclick="abrirSecaoPainel('sec-depositos')">
+                <span id="badge-depositos" class="badge-count-adm">0</span>
+                <span class="icon">📥</span><span class="text">Aprovar Depósitos</span>
+            </button>
             <button class="feature-btn btn-links-adm" onclick="abrirSecaoPainel('sec-links-adm')">
                 <span class="icon">🔗</span><span class="text">Gerenciar Links Ref</span>
             </button>
@@ -77,21 +118,10 @@
                 <span class="icon">🖼️</span><span class="text">Gerenciar NFTs</span>
             </button>
             <button class="feature-btn btn-imagens" onclick="abrirSecaoPainel('sec-imagens')">
-                <span class="icon">🖼️</span><span class="text">Gerenciar Imagens</span>
-            </button>
-            <button class="feature-btn btn-saquepix" onclick="abrirSecaoPainel('sec-saques-pix')">
-                <span class="icon">⚡</span><span class="text">Aprovar Saques PIX</span>
-            </button>
-            <button class="feature-btn btn-depositos" onclick="abrirSecaoPainel('sec-depositos')">
-                <span class="icon">📥</span><span class="text">Aprovar Depósitos</span>
-            </button>
-            <button class="feature-btn btn-saquecripto" onclick="abrirSecaoPainel('sec-saques-cripto')">
-                <span class="icon">🪙</span><span class="text">Aprovar Saques Web3</span>
-            </button>
-            <button class="feature-btn btn-sociosaprov" onclick="abrirSecaoPainel('sec-socios')">
-                <span class="icon">💎</span><span class="text">Aprovar Planos Sócio</span>
+                <span class="icon">🎨</span><span class="text">Gerenciar Imagens</span>
             </button>
             <button class="feature-btn btn-nfc" onclick="abrirSecaoPainel('sec-pedidos-nfc')">
+                <span id="badge-nfc" class="badge-count-adm">0</span>
                 <span class="icon">💳</span><span class="text">Pedidos Cartão NFC</span>
             </button>
             <button class="feature-btn btn-inad" onclick="abrirSecaoPainel('sec-inadimplentes')">
@@ -107,15 +137,83 @@
                 <span class="icon">🎟️</span><span class="text">Gerar Gift Interno</span>
             </button>
             <button class="feature-btn btn-gifts" onclick="abrirSecaoPainel('sec-pedidos-gift')">
+                <span id="badge-gifts" class="badge-count-adm">0</span>
                 <span class="icon">🛍️</span><span class="text">Pedidos Gift Cards</span>
             </button>
             <button class="feature-btn btn-recargas" onclick="abrirSecaoPainel('sec-recargas')">
+                <span id="badge-recargas" class="badge-count-adm">0</span>
                 <span class="icon">📱</span><span class="text">Pedidos Recargas</span>
             </button>
         </div>
 
         <!-- ========================================================== -->
-        <!-- SECÇÃO DE GESTÃO DE NFTs ATUALIZADA COM DONO E IPFS -->
+        <!-- NOVA SEÇÃO: PEDIDOS DE COMPRA DE SOLIDCOINS VIA PIX -->
+        <!-- ========================================================== -->
+        <div id="sec-compras-sc-pix" class="feature-section">
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #00ff88;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h2 style="margin-top: 0; color: #00ff88;">💠 Pedidos de Compra de SolidCoins via Pix (Card de Saldo)</h2>
+                        <p style="color: #aaa; font-size: 0.9em; margin-top: -8px;">
+                            Pagamentos via Pix Efí são aprovados sozinhos pelo robô, mas você pode rejeitar cobranças não pagas ou aprovar manualmente abaixo.
+                        </p>
+                    </div>
+                    <button onclick="sincronizarPixEfiManual()" class="btn-admin" style="background: #00b894; color: #000;">🔄 Sincronizar Pagamentos na Efí</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Usuário</th>
+                            <th>Valor Pix (R$)</th>
+                            <th>Método & TxID Efí</th>
+                            <th>Liberar (SC)</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="compras-sc-pix-lista">
+                        <tr><td colspan="6" style="text-align: center;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ========================================================== -->
+        <!-- NOVA SEÇÃO: PEDIDOS DE MINT DE NFT VIA PIX -->
+        <!-- ========================================================== -->
+        <div id="sec-mints-nft-pix" class="feature-section">
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #ff9f43;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h2 style="margin-top: 0; color: #ff9f43;">⚡ Pedidos de Mint de NFT via Pix</h2>
+                        <p style="color: #aaa; font-size: 0.9em; margin-top: -8px;">
+                            Caso o usuário tenha gerado o QR Code do NFT e não tenha pago, clique em <strong>Rejeitar (Não Pagou)</strong> para limpar o pedido.
+                        </p>
+                    </div>
+                    <button onclick="sincronizarPixEfiManual()" class="btn-admin" style="background: #ff9f43; color: #000;">🔄 Sincronizar Pagamentos na Efí</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Usuário</th>
+                            <th>NFT Solicitado</th>
+                            <th>Valor Pix & TxID Efí</th>
+                            <th>Equivalente (SC)</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mints-nft-pix-lista">
+                        <tr><td colspan="6" style="text-align: center;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ========================================================== -->
+        <!-- SEÇÃO DE GESTÃO DE NFTs COM DONO E IPFS -->
         <!-- ========================================================== -->
         <div id="sec-nfts" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
@@ -289,7 +387,7 @@
                 <h2 style="margin-top: 0;">Avisos de Depósito Pendentes</h2>
                 <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Verifique o Hash na blockchain e libere as SolidCoins (serão debitadas do saldo do CEO).</p>
                 <table>
-                    <thead><tr><th>Data</th><th>Rede</th><th>Hash / TXID (Link Transação)</th><th>Valor Requerido</th><th>Ações</th></tr></thead>
+                    <thead><tr><th>Data</th><th>Usuário</th><th>Rede</th><th>Hash / TXID (Link Transação)</th><th>Valor Requerido</th><th>Ações</th></tr></thead>
                     <tbody id="depositos-lista"><tr><td colspan="6" style="text-align: center;">Carregando...</td></tr></tbody>
                 </table>
             </div>
@@ -299,7 +397,7 @@
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #f39c12;">
                 <h2 style="margin-top: 0;">Saques Pendentes (Cripto / Web3)</h2>
-                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Aprove transferências automáticas para MiniPay (Rede Celo) ou manuais (Solana/Tron).</p>
+                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Aprove transferências automáticas para MiniPay (Rede Celo) ou manuais (Solana).</p>
                 <table>
                     <thead><tr><th>Data</th><th>Usuário</th><th>Valor (SC)</th><th>Carteira Informada</th><th>Ações</th></tr></thead>
                     <tbody id="saques-lista"><tr><td colspan="5" style="text-align: center;">Carregando...</td></tr></tbody>
@@ -310,8 +408,13 @@
         <div id="sec-socios" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #8e44ad;">
-                <h2 style="margin-top: 0;">Assinaturas de Sócio SolidCoin</h2>
-                <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Verifique o pagamento na Blockchain/InfinitePay e libere as moedas do plano Sócio.</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h2 style="margin-top: 0;">Assinaturas de Sócio SolidCoin</h2>
+                        <p style="color: #aaa; font-size: 0.9em; margin-top: -10px;">Verifique o pagamento na Efí/Blockchain e libere as moedas do plano Sócio ou rejeite se não foi pago.</p>
+                    </div>
+                    <button onclick="sincronizarPixEfiManual()" class="btn-admin" style="background: #9b59b6; color: #fff;">🔄 Sincronizar Pagamentos na Efí</button>
+                </div>
                 <table>
                     <thead><tr><th>Data</th><th>Usuário</th><th>Plano</th><th>Método & TxID/Hash</th><th>Liberar (SC)</th><th>Ações</th></tr></thead>
                     <tbody id="socios-lista"><tr><td colspan="6" style="text-align: center;">Carregando...</td></tr></tbody>
@@ -427,10 +530,10 @@
 
     </div>
 
-    <!-- 1º CARREGA O SCRIPT ANTIGO COM A LÓGICA DE APROVAÇÕES -->
+    <!-- 1º CARREGA O SCRIPT COM A LÓGICA DE APROVAÇÕES -->
     <script src="admin-scripts.js"></script>
 
-    <!-- 2º SCRIPT COM AS FUNÇÕES ADICIONAIS E MARKETPLACE NFT -->
+    <!-- 2º SCRIPT COM AS FUNÇÕES DE COMPRA SC PIX, MINT NFT PIX E GESTÃO -->
     <script>
         window.fecharTodasSecoes = function() {
             const secoes = document.querySelectorAll('.feature-section');
@@ -438,6 +541,7 @@
             const menu = document.getElementById('menu-botoes');
             if(menu) menu.style.display = 'grid';
             window.scrollTo(0, 0);
+            carregarFilasPixExtrasAdm();
         };
 
         window.abrirSecaoPainel = function(idSecao) {
@@ -447,12 +551,167 @@
             document.getElementById(idSecao).style.display = 'block';
             window.scrollTo({ top: 0, behavior: 'smooth' });
             
+            if (idSecao === 'sec-compras-sc-pix' || idSecao === 'sec-mints-nft-pix' || idSecao === 'sec-socios') {
+                carregarFilasPixExtrasAdm();
+                if (typeof window.carregarPendentes === 'function') window.carregarPendentes();
+            }
             if (idSecao === 'sec-gerar-gift' && typeof window.carregarListaGiftCardsSC === 'function') window.carregarListaGiftCardsSC();
             if (idSecao === 'sec-acoes') carregarAtivos();
             if (idSecao === 'sec-imagens') carregarImagensSistema();
             if (idSecao === 'sec-links-adm') carregarLinksAdmin();
             if (idSecao === 'sec-nfts') { carregarConfigsNft(); carregarTemplatesNft(); }
         };
+
+        // =========================================================================
+        // --- CARREGAMENTO DIRETO DOS PEDIDOS DE COMPRA SC PIX E MINT NFT PIX ---
+        // =========================================================================
+        function atualizarBadgeBotaoAdm(idBadge, quantidade) {
+            const el = document.getElementById(idBadge);
+            if (!el) return;
+            if (quantidade > 0) {
+                el.innerText = quantidade;
+                el.style.display = 'inline-block';
+            } else {
+                el.style.display = 'none';
+            }
+        }
+
+        window.carregarFilasPixExtrasAdm = async function() {
+            try {
+                const res = await fetch('/api/admin/pedidos-pendentes');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!data.sucesso) return;
+
+                // Atualiza contadores vermelhos nos botões do menu ADM
+                atualizarBadgeBotaoAdm('badge-compras-sc', (data.comprasScPix || []).length);
+                atualizarBadgeBotaoAdm('badge-mints-nft', (data.mintsNftPix || []).length);
+                atualizarBadgeBotaoAdm('badge-socios', (data.socios || []).length);
+                atualizarBadgeBotaoAdm('badge-saques-pix', (data.saquesPix || []).length);
+                atualizarBadgeBotaoAdm('badge-saques-cripto', (data.saques || []).length);
+                atualizarBadgeBotaoAdm('badge-depositos', (data.depositos || []).length);
+                atualizarBadgeBotaoAdm('badge-nfc', (data.cartoesNfc || []).length);
+                atualizarBadgeBotaoAdm('badge-gifts', (data.gifts || []).length);
+                atualizarBadgeBotaoAdm('badge-recargas', (data.recharges || []).length);
+
+                // 1. Preenche tabela de Compras de SolidCoins via Pix
+                const comprasScPixList = document.getElementById('compras-sc-pix-lista');
+                if (comprasScPixList) {
+                    comprasScPixList.innerHTML = '';
+                    if (!data.comprasScPix || data.comprasScPix.length === 0) {
+                        comprasScPixList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhum pedido de compra de SolidCoins via Pix pendente.</td></tr>';
+                    } else {
+                        data.comprasScPix.forEach(ped => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td>${new Date(ped.data).toLocaleString('pt-BR')}</td>
+                                <td>${ped.nomeUsuario} <br><small style="color: #888;">${ped.emailUsuario}</small></td>
+                                <td><strong style="color:#00ff88">R$ ${parseFloat(ped.valorReais).toFixed(2)}</strong></td>
+                                <td style="font-size: 0.85em; word-break: break-all; max-width: 240px;">
+                                    <strong style="color:#3498db">Pix Efí</strong><br>
+                                    TxID: ${ped.txId}
+                                </td>
+                                <td><strong style="color:#d4af37">+${parseFloat(ped.moedasReceber).toLocaleString('pt-BR')} SC</strong></td>
+                                <td>
+                                    <button class="aprovar-btn" onclick="processarCompraScPix('${ped._id}', 'aprovar')">Aprovar (Creditar SC)</button>
+                                    <button class="rejeitar-btn" onclick="processarCompraScPix('${ped._id}', 'rejeitar')">Rejeitar (Não Pagou)</button>
+                                </td>
+                            `;
+                            comprasScPixList.appendChild(tr);
+                        });
+                    }
+                }
+
+                // 2. Preenche tabela de Mints de NFT via Pix
+                const mintsNftPixList = document.getElementById('mints-nft-pix-lista');
+                if (mintsNftPixList) {
+                    mintsNftPixList.innerHTML = '';
+                    if (!data.mintsNftPix || data.mintsNftPix.length === 0) {
+                        mintsNftPixList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhum pedido de Mint de NFT via Pix pendente.</td></tr>';
+                    } else {
+                        data.mintsNftPix.forEach(ped => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td>${new Date(ped.data).toLocaleString('pt-BR')}</td>
+                                <td>${ped.nomeUsuario} <br><small style="color: #888;">${ped.emailUsuario}</small></td>
+                                <td><strong style="color:#ff9f43">${ped.nftName}</strong></td>
+                                <td style="font-size: 0.85em; word-break: break-all; max-width: 240px;">
+                                    <strong style="color:#00ff88">R$ ${parseFloat(ped.valorReais).toFixed(2)}</strong><br>
+                                    TxID: ${ped.txId}
+                                </td>
+                                <td><strong style="color:#d4af37">${parseFloat(ped.precoSC).toLocaleString('pt-BR')} SC</strong></td>
+                                <td>
+                                    <button class="aprovar-btn" onclick="processarMintNftPix('${ped._id}', 'aprovar')">Aprovar (Liberar NFT)</button>
+                                    <button class="rejeitar-btn" onclick="processarMintNftPix('${ped._id}', 'rejeitar')">Rejeitar (Não Pagou)</button>
+                                </td>
+                            `;
+                            mintsNftPixList.appendChild(tr);
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error("Erro ao carregar filas Pix extras:", e);
+            }
+        };
+
+        window.processarCompraScPix = async function(id, acao) {
+            if (acao === 'aprovar' && !confirm('Confirma que o pagamento Pix caiu na conta? As SolidCoins serão creditadas ao usuário.')) return;
+            if (acao === 'rejeitar' && !confirm('Deseja rejeitar e remover este pedido de compra de SolidCoins via Pix (usuário não pagou)?')) return;
+
+            try {
+                const res = await fetch('/api/admin/processar-compra-sc-pix', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderId: id, acao })
+                });
+                const data = await res.json();
+                alert(data.mensagem);
+                if (data.sucesso) {
+                    carregarFilasPixExtrasAdm();
+                    if (typeof window.carregarPendentes === 'function') window.carregarPendentes();
+                }
+            } catch (e) {
+                alert("Erro ao processar pedido de compra de SolidCoins via Pix.");
+            }
+        };
+
+        window.processarMintNftPix = async function(id, acao) {
+            if (acao === 'aprovar' && !confirm('Confirma que o pagamento Pix caiu na conta? O NFT será entregue ao inventário do usuário.')) return;
+            if (acao === 'rejeitar' && !confirm('Deseja rejeitar este pedido de Mint via Pix (usuário não pagou)? O NFT continuará disponível na loja.')) return;
+
+            try {
+                const res = await fetch('/api/admin/processar-mint-nft-pix', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderId: id, acao })
+                });
+                const data = await res.json();
+                alert(data.mensagem);
+                if (data.sucesso) {
+                    carregarFilasPixExtrasAdm();
+                    if (typeof window.carregarPendentes === 'function') window.carregarPendentes();
+                }
+            } catch (e) {
+                alert("Erro ao processar pedido de Mint de NFT via Pix.");
+            }
+        };
+
+        window.sincronizarPixEfiManual = async function() {
+            try {
+                const res = await fetch('/api/admin/verificar-pix-efi', { method: 'POST' });
+                const data = await res.json();
+                alert(data.mensagem);
+                carregarFilasPixExtrasAdm();
+                if (typeof window.carregarPendentes === 'function') window.carregarPendentes();
+            } catch (e) {
+                alert("Erro ao sincronizar pagamentos com a Efí.");
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            carregarFilasPixExtrasAdm();
+            setInterval(carregarFilasPixExtrasAdm, 5000);
+        });
 
         // ==========================================
         // GESTÃO DE NFTs MARKETPLACE E IPFS (CEO)
@@ -462,10 +721,10 @@
                 const res = await fetch('/api/admin/nft-configs');
                 const data = await res.json();
                 if(data.sucesso && data.prices) {
-                    document.getElementById('preco-comum').value = data.prices.Comum || 1000;
-                    document.getElementById('preco-incomum').value = data.prices.Incomum || 2500;
-                    document.getElementById('preco-raro').value = data.prices.Raro || 5000;
-                    document.getElementById('preco-lendario').value = data.prices.Lendario || 10000;
+                    document.getElementById('preco-comum').value = data.prices.Comum || 1600;
+                    document.getElementById('preco-incomum').value = data.prices.Incomum || 3200;
+                    document.getElementById('preco-raro').value = data.prices.Raro || 8000;
+                    document.getElementById('preco-lendario').value = data.prices.Lendario || 16000;
                 }
             } catch(e) {}
         }
@@ -534,7 +793,6 @@
             }
         }
 
-        // ATUALIZADO: Exibe o proprietário atual de cada NFT na tabela do ADM
         async function carregarTemplatesNft() {
             const tbody = document.getElementById('tabela-nft-templates');
             try {
