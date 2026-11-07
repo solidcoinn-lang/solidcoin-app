@@ -30,9 +30,7 @@ function carregarCarteiraCelo(valorInput, provider, enderecoAlvo = null) {
     const { ethers } = require('ethers');
     const limpo = valorInput.trim().replace(/^['"]|['"]$/g, '').replace(/\s+/g, ' ');
 
-    // Se tiver espaço, interpreta como Frase de Recuperação (12/24 palavras)
     if (limpo.includes(' ')) {
-        // Verifica as primeiras 10 contas da frase caso a carteira criadora seja a Conta 2, 3, etc.
         for (let i = 0; i < 10; i++) {
             try {
                 const caminho = `m/44'/60'/0'/0/${i}`;
@@ -50,10 +48,8 @@ function carregarCarteiraCelo(valorInput, provider, enderecoAlvo = null) {
                 }
             } catch (e) {}
         }
-        // Se não encontrou o endereço alvo nas subcontas, retorna a Conta 1 (índice 0)
         return (ethers.Wallet.fromPhrase ? ethers.Wallet.fromPhrase(limpo) : ethers.Wallet.fromMnemonic(limpo)).connect(provider);
     } else {
-        // Interpreta como Chave Privada hexadecimal
         const pk = limpo.startsWith('0x') ? limpo : `0x${limpo}`;
         return new ethers.Wallet(pk, provider);
     }
@@ -72,7 +68,7 @@ try {
         celoWallet = carregarCarteiraCelo(process.env.MINIPAY_PRIVATE_KEY, celoProvider);
     }
 
-    // 2. Configura a carteira Admin do SolidNFT (aceita Frase de 12 palavras ou Chave Privada em NFT_ADMIN_PRIVATE_KEY)
+    // 2. Configura a carteira Admin do SolidNFT
     const chaveOuFraseNft = process.env.NFT_ADMIN_PRIVATE_KEY || process.env.NFT_ADMIN_SEED_PHRASE;
     if (chaveOuFraseNft) {
         nftAdminWallet = carregarCarteiraCelo(chaveOuFraseNft, celoProvider, CRIADOR_SOLIDNFT_ESPERADO);
@@ -320,7 +316,7 @@ async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
 // =========================================================================
-// --- ROTA PÚBLICA QUE ENTREGA O JSON SALVO NO BANCO PARA A BLOCKCHAIN ---
+// --- ROTA PÚBLICA QUE ENTREGA O JSON + IMAGEM DO BANCO PARA A BLOCKCHAIN ---
 // =========================================================================
 app.get('/api/nfts/metadata/:id', async (req, res) => {
     try {
@@ -335,10 +331,21 @@ app.get('/api/nfts/metadata/:id', async (req, res) => {
 
         const metadataJson = JSON.parse(JSON.stringify(doc.metadata));
 
-        let img = metadataJson.image || doc.imageUrl || '';
+        // Prioriza o campo imageUrl salvo no banco de dados (que tem o link completo da imagem em vez de "3.png")
+        let img = '';
+        if (doc.imageUrl && (doc.imageUrl.startsWith('http://') || doc.imageUrl.startsWith('https://') || doc.imageUrl.startsWith('ipfs://'))) {
+            img = doc.imageUrl.trim();
+        } else if (metadataJson.image && (metadataJson.image.startsWith('http://') || metadataJson.image.startsWith('https://') || metadataJson.image.startsWith('ipfs://'))) {
+            img = metadataJson.image.trim();
+        } else {
+            img = (doc.imageUrl || metadataJson.image || '').trim();
+        }
+
+        // Converte ipfs:// para gateway HTTPS público para abrir direto na MetaMask e CeloScan
         if (img.startsWith('ipfs://')) {
             img = img.replace('ipfs://', 'https://ipfs.io/ipfs/');
         }
+
         metadataJson.image = img;
 
         res.setHeader('Access-Control-Allow-Origin', '*');
@@ -834,10 +841,16 @@ app.post('/api/admin/nft-templates', isAdmin, async (req, res) => {
     try {
         const { imageUrl, metadataJson } = req.body;
         const metadata = JSON.parse(metadataJson);
+        
+        // Garante que o campo image dentro do JSON já receba o link completo de imageUrl
+        let cleanImg = (imageUrl || '').trim();
+        if (cleanImg.startsWith('ipfs://')) cleanImg = cleanImg.replace('ipfs://', 'https://ipfs.io/ipfs/');
+        if (cleanImg) metadata.image = cleanImg;
+
         const rarityAttr = metadata.attributes.find(a => a.trait_type === "Classificação" || a.trait_type === "Rarity");
         const rarity = rarityAttr ? rarityAttr.value : "Comum";
 
-        const novoTemplate = await new NftTemplate({ imageUrl, metadata, rarity, ativo: true }).save();
+        const novoTemplate = await new NftTemplate({ imageUrl: cleanImg || imageUrl, metadata, rarity, ativo: true }).save();
         novoTemplate.tokenUri = `https://www.solidcoincommunity.com/api/nfts/metadata/${novoTemplate._id}.json`;
         await novoTemplate.save();
 
@@ -880,6 +893,7 @@ app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
                 if (imgUrl.startsWith('ipfs://')) {
                     imgUrl = imgUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
                 }
+                if (imgUrl) metadata.image = imgUrl;
 
                 const rarityAttr = metadata.attributes.find(a => a.trait_type === "Classificação" || a.trait_type === "Rarity");
                 const rarity = rarityAttr ? rarityAttr.value : "Comum";
@@ -1009,13 +1023,14 @@ app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
         const maxBattery = maxBatteryAttr ? maxBatteryAttr.value : 100;
 
         const linkJsonBanco = `https://www.solidcoincommunity.com/api/nfts/metadata/${template._id}.json`;
+        const metadataComImagem = { ...template.metadata, image: template.imageUrl };
 
         const newItem = new NftItem({
             templateId: template._id,
             ownerId: user._id,
             imageUrl: template.imageUrl,
             tokenUri: linkJsonBanco,
-            metadata: template.metadata,
+            metadata: metadataComImagem,
             mintPrice: price,
             battery: maxBattery
         });
@@ -1119,15 +1134,22 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
         if (!templateDoc && nft.metadata && nft.metadata.name) {
             templateDoc = await NftTemplate.findOne({ 'metadata.name': nft.metadata.name });
         }
+
+        const imgFinal = nft.imageUrl || (templateDoc ? templateDoc.imageUrl : '');
+        const metadataAtualizado = { ...nft.metadata, image: imgFinal };
+
         if (!templateDoc) {
             templateDoc = await new NftTemplate({
-                imageUrl: nft.imageUrl,
-                metadata: nft.metadata,
+                imageUrl: imgFinal,
+                metadata: metadataAtualizado,
                 rarity: rarity,
                 ativo: false
             }).save();
-        } else if (templateDoc.ativo !== false) {
+        } else {
             templateDoc.ativo = false;
+            if (imgFinal) templateDoc.imageUrl = imgFinal;
+            templateDoc.metadata = { ...templateDoc.metadata, image: templateDoc.imageUrl };
+            templateDoc.markModified('metadata');
             await templateDoc.save();
         }
 
@@ -1160,7 +1182,7 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
             sucesso: true,
             txHash: txMint.hash,
             tokenUri: linkExato,
-            mensagem: `🎉 Sucesso! O ${nft.metadata.name} foi mintado oficialmente na Blockchain Celo com o JSON do seu banco de dados e retirado da plataforma!`
+            mensagem: `🎉 Sucesso! O ${nft.metadata.name} foi mintado oficialmente na Blockchain Celo com o JSON e a Imagem do seu banco de dados e retirado da plataforma!`
         });
     } catch (err) {
         console.error("Erro ao mintar NFT na Blockchain Celo:", err);
@@ -2366,6 +2388,37 @@ async function setupInicial() {
 
         if (!(await SysSettings.findOne())) { await new SysSettings({ scPorReal: 500 }).save(); }
 
+        // =========================================================================
+        // --- SINCRONIZAÇÃO AUTOMÁTICA DAS IMAGENS DOS NFTS NO BANCO DE DADOS ---
+        // =========================================================================
+        const todosTemplates = await NftTemplate.find({});
+        for (let t of todosTemplates) {
+            if (t.imageUrl && t.metadata) {
+                let urlLimpa = t.imageUrl.trim();
+                if (urlLimpa.startsWith('ipfs://')) urlLimpa = urlLimpa.replace('ipfs://', 'https://ipfs.io/ipfs/');
+                if (t.metadata.image !== urlLimpa || t.imageUrl !== urlLimpa) {
+                    t.imageUrl = urlLimpa;
+                    t.metadata = { ...t.metadata, image: urlLimpa };
+                    t.markModified('metadata');
+                    await t.save();
+                }
+            }
+        }
+
+        const todosItens = await NftItem.find({});
+        for (let item of todosItens) {
+            if (item.imageUrl && item.metadata) {
+                let urlLimpa = item.imageUrl.trim();
+                if (urlLimpa.startsWith('ipfs://')) urlLimpa = urlLimpa.replace('ipfs://', 'https://ipfs.io/ipfs/');
+                if (item.metadata.image !== urlLimpa || item.imageUrl !== urlLimpa) {
+                    item.imageUrl = urlLimpa;
+                    item.metadata = { ...item.metadata, image: urlLimpa };
+                    item.markModified('metadata');
+                    await item.save();
+                }
+            }
+        }
+
         if (ceo) {
             await Transaction.deleteMany({
                 userId: ceo._id,
@@ -2446,7 +2499,7 @@ async function setupInicial() {
                 await ceo.save();
             }
 
-            console.log("✅ Ecossistema SolidCoin + Suporte a Frase de Recuperação para SolidNFT Celo ativo!");
+            console.log("✅ Ecossistema SolidCoin + Links de Imagem do Banco sincronizados no JSON da Blockchain!");
         }
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }
