@@ -21,12 +21,77 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    garantirTabelasPixNoHtml();
     window.carregarPendentes();
     window.carregarInadimplentes();
     window.carregarUsuarios();
     window.carregarListaGiftCardsSC();
     window.carregarAtivos(); 
 });
+
+// Cria automaticamente as tabelas de Compra de SC via Pix e Mint de NFT via Pix no painel ADM caso não estejam no HTML
+function garantirTabelasPixNoHtml() {
+    const sociosTbody = document.getElementById('socios-lista');
+    if (!sociosTbody) return;
+
+    const tabelaSocios = sociosTbody.closest('table');
+    const containerReferencia = tabelaSocios ? (tabelaSocios.closest('.card') || tabelaSocios.parentElement) : null;
+    if (!containerReferencia || !containerReferencia.parentElement) return;
+
+    if (!document.getElementById('mints-nft-pix-lista')) {
+        const cardNftPix = document.createElement('div');
+        cardNftPix.className = containerReferencia.className || 'card';
+        cardNftPix.style.cssText = 'margin-top: 20px; border-left: 5px solid #ff9f43;';
+        cardNftPix.innerHTML = `
+            <h2 style="color: #ff9f43; margin-top: 0;">🖼️ Pedidos de Mint de NFT via Pix (Pendentes)</h2>
+            <div class="extrato-container" style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Usuário</th>
+                            <th>NFT Solicitado</th>
+                            <th>Pagamento Pix</th>
+                            <th>Equivalente SC</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mints-nft-pix-lista">
+                        <tr><td colspan="6" style="text-align: center; color: #888;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        `;
+        containerReferencia.insertAdjacentElement('afterend', cardNftPix);
+    }
+
+    if (!document.getElementById('compras-sc-pix-lista')) {
+        const cardScPix = document.createElement('div');
+        cardScPix.className = containerReferencia.className || 'card';
+        cardScPix.style.cssText = 'margin-top: 20px; border-left: 5px solid #00ff88;';
+        cardScPix.innerHTML = `
+            <h2 style="color: #00ff88; margin-top: 0;">⚡ Pedidos de Compra de SolidCoins via Pix (Pendentes)</h2>
+            <div class="extrato-container" style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Usuário</th>
+                            <th>Valor Pix (R$)</th>
+                            <th>TxID Efí</th>
+                            <th>Moedas a Receber</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="compras-sc-pix-lista">
+                        <tr><td colspan="6" style="text-align: center; color: #888;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        `;
+        containerReferencia.insertAdjacentElement('afterend', cardScPix);
+    }
+}
 
 window.carregarUsuarios = async () => {
     try {
@@ -85,6 +150,8 @@ window.alterarSenhaUsuario = async (userId, nomeUser) => {
 
 window.carregarPendentes = async () => {
     try {
+        garantirTabelasPixNoHtml();
+
         const res = await fetch('/api/admin/pedidos-pendentes');
         if (res.status === 401 || res.status === 403) { window.location.href = '/index.html'; return; }
         const data = await res.json();
@@ -172,6 +239,7 @@ window.carregarPendentes = async () => {
                 }
             }
 
+            // --- PLANOS DE SÓCIO PENDENTES ---
             const sociosList = document.getElementById('socios-lista');
             if (sociosList) {
                 sociosList.innerHTML = '';
@@ -191,7 +259,7 @@ window.carregarPendentes = async () => {
                             <td><strong style="color:#d4af37">${socio.moedasReceber.toLocaleString('pt-BR')} SC</strong></td>
                             <td>
                                 <button class="aprovar-btn" onclick="processarSocio('${socio._id}', 'aprovar')">Aprovar (Tornar Sócio)</button>
-                                <button class="rejeitar-btn" onclick="processarSocio('${socio._id}', 'rejeitar')">Rejeitar (Falso)</button>
+                                <button class="rejeitar-btn" onclick="processarSocio('${socio._id}', 'rejeitar')">Rejeitar (Não Pagou)</button>
                             </td>
                         `;
                         sociosList.appendChild(tr);
@@ -199,6 +267,63 @@ window.carregarPendentes = async () => {
                 }
             }
 
+            // --- COMPRAS DE SOLIDCOINS VIA PIX PENDENTES ---
+            const comprasScPixList = document.getElementById('compras-sc-pix-lista');
+            if (comprasScPixList) {
+                comprasScPixList.innerHTML = '';
+                if (!data.comprasScPix || data.comprasScPix.length === 0) {
+                    comprasScPixList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhum pedido de compra de SolidCoins via Pix pendente.</td></tr>';
+                } else {
+                    data.comprasScPix.forEach(ped => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${new Date(ped.data).toLocaleString('pt-BR')}</td>
+                            <td>${ped.nomeUsuario} <br><small style="color: #888;">${ped.emailUsuario}</small></td>
+                            <td><strong style="color:#00ff88">R$ ${parseFloat(ped.valorReais).toFixed(2)}</strong></td>
+                            <td style="font-size: 0.85em; word-break: break-all; max-width: 220px;">
+                                <strong style="color:#3498db">Pix Efí</strong><br>
+                                TxID: ${ped.txId}
+                            </td>
+                            <td><strong style="color:#d4af37">+${parseFloat(ped.moedasReceber).toLocaleString('pt-BR')} SC</strong></td>
+                            <td>
+                                <button class="aprovar-btn" onclick="processarCompraScPix('${ped._id}', 'aprovar')">Aprovar (Creditar SC)</button>
+                                <button class="rejeitar-btn" onclick="processarCompraScPix('${ped._id}', 'rejeitar')">Rejeitar (Não Pagou)</button>
+                            </td>
+                        `;
+                        comprasScPixList.appendChild(tr);
+                    });
+                }
+            }
+
+            // --- MINTS DE NFT VIA PIX PENDENTES ---
+            const mintsNftPixList = document.getElementById('mints-nft-pix-lista');
+            if (mintsNftPixList) {
+                mintsNftPixList.innerHTML = '';
+                if (!data.mintsNftPix || data.mintsNftPix.length === 0) {
+                    mintsNftPixList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhum pedido de Mint de NFT via Pix pendente.</td></tr>';
+                } else {
+                    data.mintsNftPix.forEach(ped => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${new Date(ped.data).toLocaleString('pt-BR')}</td>
+                            <td>${ped.nomeUsuario} <br><small style="color: #888;">${ped.emailUsuario}</small></td>
+                            <td><strong style="color:#ff9f43">${ped.nftName}</strong></td>
+                            <td style="font-size: 0.85em; word-break: break-all; max-width: 220px;">
+                                <strong style="color:#00ff88">R$ ${parseFloat(ped.valorReais).toFixed(2)}</strong><br>
+                                TxID: ${ped.txId}
+                            </td>
+                            <td><strong style="color:#d4af37">${parseFloat(ped.precoSC).toLocaleString('pt-BR')} SC</strong></td>
+                            <td>
+                                <button class="aprovar-btn" onclick="processarMintNftPix('${ped._id}', 'aprovar')">Aprovar (Liberar NFT)</button>
+                                <button class="rejeitar-btn" onclick="processarMintNftPix('${ped._id}', 'rejeitar')">Rejeitar (Não Pagou)</button>
+                            </td>
+                        `;
+                        mintsNftPixList.appendChild(tr);
+                    });
+                }
+            }
+
+            // --- DEPÓSITOS PENDENTES ---
             const depositosList = document.getElementById('depositos-lista');
             if (depositosList) {
                 depositosList.innerHTML = '';
@@ -223,9 +348,7 @@ window.carregarPendentes = async () => {
                 }
             }
 
-            // =================================================================================
-            // SAQUES CRIPTO / WEB3 / MINIPAY ATUALIZADO
-            // =================================================================================
+            // --- SAQUES CRIPTO / WEB3 / MINIPAY ---
             const saquesList = document.getElementById('saques-lista');
             if (saquesList) {
                 saquesList.innerHTML = '';
@@ -235,7 +358,6 @@ window.carregarPendentes = async () => {
                     data.saques.forEach(saq => {
                         const tr = document.createElement('tr');
                         
-                        // Lógica Visual para Identificar a Automação Celo (MiniPay)
                         let badgeWeb3 = '';
                         let infoCarteira = saq.solanaWallet || '';
                         const isMiniPay = infoCarteira.includes('MiniPay');
@@ -259,6 +381,7 @@ window.carregarPendentes = async () => {
                 }
             }
 
+            // --- GIFT CARDS PENDENTES ---
             const giftsList = document.getElementById('gifts-lista');
             if (giftsList) {
                 giftsList.innerHTML = '';
@@ -286,6 +409,7 @@ window.carregarPendentes = async () => {
                 }
             }
 
+            // --- RECARGAS DE CELULAR PENDENTES ---
             const rechargesList = document.getElementById('recharges-lista');
             if (rechargesList) {
                 rechargesList.innerHTML = '';
@@ -518,6 +642,44 @@ window.processarSocio = async (id, acao) => {
     } catch (e) { alert("Erro ao processar assinatura de sócio."); }
 };
 
+// NOVA FUNÇÃO: Aprovar ou Rejeitar Compra de SolidCoins via Pix
+window.processarCompraScPix = async (id, acao) => {
+    if (acao === 'aprovar' && !confirm('Confirma que o pagamento Pix caiu na conta? As SolidCoins serão creditadas ao usuário.')) return;
+    if (acao === 'rejeitar' && !confirm('Deseja rejeitar e remover este pedido de compra de SolidCoins via Pix (usuário não pagou)?')) return;
+
+    try {
+        const res = await fetch('/api/admin/processar-compra-sc-pix', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: id, acao })
+        });
+        const data = await res.json();
+        alert(data.mensagem);
+        if (data.sucesso) window.carregarPendentes();
+    } catch (e) {
+        alert("Erro ao processar pedido de compra de SolidCoins via Pix.");
+    }
+};
+
+// NOVA FUNÇÃO: Aprovar ou Rejeitar Mint de NFT via Pix
+window.processarMintNftPix = async (id, acao) => {
+    if (acao === 'aprovar' && !confirm('Confirma que o pagamento Pix caiu na conta? O NFT será entregue ao inventário do usuário.')) return;
+    if (acao === 'rejeitar' && !confirm('Deseja rejeitar este pedido de Mint via Pix (usuário não pagou)? O NFT continuará disponível na loja.')) return;
+
+    try {
+        const res = await fetch('/api/admin/processar-mint-nft-pix', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: id, acao })
+        });
+        const data = await res.json();
+        alert(data.mensagem);
+        if (data.sucesso) window.carregarPendentes();
+    } catch (e) {
+        alert("Erro ao processar pedido de Mint de NFT via Pix.");
+    }
+};
+
 window.processarDeposito = async (id, acao) => {
     if (acao === 'aprovar' && !confirm('Atenção: Ao aprovar, as SolidCoins serão DEBITADAS do seu saldo de CEO e enviadas ao usuário. Confirma?')) return;
     if (acao === 'rejeitar' && !confirm('Tem certeza que a transação é inválida/falsa?')) return;
@@ -533,12 +695,11 @@ window.processarDeposito = async (id, acao) => {
     } catch (e) { alert("Erro ao processar depósito."); }
 };
 
-// --- FUNÇÃO ATUALIZADA COM O AVISO DE AUTOMAÇÃO MINIPAY ---
 window.processarSaque = async (id, acao, isMiniPay) => {
     if (acao === 'aprovar' && isMiniPay) {
-        if (!confirm('⚡ AUTOMAÇÃO CELO: Tem certeza que deseja aprovar? O servidor irá transferir Celo Dólar (cUSD) diretamente da sua carteira matriz para a MiniPay deste utilizador agora mesmo.')) return;
+        if (!confirm('⚡ AUTOMAÇÃO CELO: Tem certeza que deseja aprovar? O servidor irá transferir Dólar Digital (USDC/cUSD/USDT) diretamente da sua carteira matriz na Rede Celo para a MiniPay deste utilizador agora mesmo.')) return;
     } else if (acao === 'aprovar') {
-        if (!confirm('Aprovando saque manual. Lembre-se de transferir os fundos na rede Tron ou Solana para a carteira do usuário. Continuar?')) return;
+        if (!confirm('Aprovando saque manual. Lembre-se de transferir os fundos na rede Solana para a carteira do usuário. Continuar?')) return;
     }
 
     if (acao === 'rejeitar' && !confirm('Tem certeza que deseja rejeitar este saque? (As moedas serão devolvidas para o usuário)')) return;

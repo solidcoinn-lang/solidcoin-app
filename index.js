@@ -221,7 +221,7 @@ const NftItemSchema = new mongoose.Schema({
 });
 const NftItem = mongoose.models.NftItem || mongoose.model('NftItem', NftItemSchema);
 
-// NOVOS SCHEMAS: Pedidos de Compra de SolidCoin via Pix e Mint de NFT via Pix
+// SCHEMAS: Pedidos de Compra de SolidCoin via Pix e Mint de NFT via Pix
 const ScPixOrderSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     nomeUsuario: String,
@@ -424,7 +424,6 @@ async function processarAprovacaoPixPorTxId(txid_pago) {
             ]
         }) : true;
 
-        // Se o NFT ainda está disponível, entrega o NFT exclusivo no inventário do usuário
         if (template && template.ativo && !jaExiste) {
             const maxBatteryAttr = template.metadata.attributes.find(a => a.trait_type === "Carga Máxima de Bateria");
             const maxBattery = maxBatteryAttr ? maxBatteryAttr.value : 100;
@@ -451,7 +450,6 @@ async function processarAprovacaoPixPorTxId(txid_pago) {
             ]);
             return true;
         } else {
-            // Caso raro em que outra pessoa mintou o mesmo NFT segundos antes: credita as SolidCoins equivalentes na conta do usuário
             if (admin.saldo >= ordemNft.precoSC && user.email !== ADMIN_EMAIL) {
                 admin.saldo -= ordemNft.precoSC;
                 user.saldo += ordemNft.precoSC;
@@ -744,7 +742,7 @@ app.get('/api/dados-dashboard', checkAuthenticated, async (req, res) => {
 });
 
 // =========================================================================
-// --- NOVAS ROTAS PIX EFÍ: COMPRA DE SOLIDCOIN (MÍN R$ 1) E VERIFICAÇÃO ---
+// --- ROTAS PIX EFÍ: COMPRA DE SOLIDCOIN (MÍN R$ 1) E VERIFICAÇÃO ---
 // =========================================================================
 
 app.post('/api/comprar-sc/pix', checkAuthenticated, async (req, res) => {
@@ -793,13 +791,11 @@ app.post('/api/comprar-sc/pix', checkAuthenticated, async (req, res) => {
     }
 });
 
-// Rota que verifica em tempo real se um Pix (Sócio, Compra SC ou Mint NFT) já foi pago
 app.get('/api/pix/verificar-txid/:txid', checkAuthenticated, async (req, res) => {
     try {
         const txid = req.params.txid;
         if (!txid) return res.status(400).json({ sucesso: false, pago: false });
 
-        // Verifica se já consta como Aprovado no banco
         const socio = await SocioOrder.findOne({ txId: txid });
         const scOrder = await ScPixOrder.findOne({ txId: txid });
         const nftOrder = await NftPixOrder.findOne({ txId: txid });
@@ -808,7 +804,10 @@ app.get('/api/pix/verificar-txid/:txid', checkAuthenticated, async (req, res) =>
             return res.json({ sucesso: true, pago: true, mensagem: "✅ Pagamento Pix confirmado e liberado com sucesso!" });
         }
 
-        // Consulta diretamente na Efí se o pagamento acabou de cair
+        if ((socio && socio.status === 'Rejeitado') || (scOrder && scOrder.status === 'Rejeitado') || (nftOrder && nftOrder.status === 'Rejeitado')) {
+            return res.json({ sucesso: false, pago: false, rejeitado: true, mensagem: "❌ Este pedido Pix foi cancelado pela administração." });
+        }
+
         try {
             const cob = await efipayPF.pixDetailCharge({ txid: txid });
             if (cob && cob.status === 'CONCLUIDA') {
@@ -1284,7 +1283,6 @@ app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
     } catch(e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao mintar NFT." }); }
 });
 
-// NOVA ROTA: Gerar QR Code Pix Efí para Mintar um NFT diretamente
 app.post('/api/nfts/mintar-pix', checkAuthenticated, async (req, res) => {
     try {
         const { templateId } = req.body;
@@ -1936,7 +1934,6 @@ app.post('/api/solicitar-saque-pix', checkAuthenticated, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false, mensagem: "Erro geral ao processar saque." }); }
 });
 
-// Webhook Oficial da Efí: Processa automaticamente Sócio, Compra de SC e Mint de NFT
 app.post('/api/webhook/pix', async (req, res) => {
     res.status(200).send('OK');
     try {
@@ -2358,6 +2355,9 @@ app.post('/api/resgatar-giftcard-solidcoin', checkAuthenticated, async (req, res
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
+// =========================================================================
+// --- ROTAS DE PEDIDOS PENDENTES NO PAINEL ADM (INCLUINDO PIX SC E NFT) ---
+// =========================================================================
 app.get('/api/admin/pedidos-pendentes', isAdmin, async (req, res) => {
     try {
         const saques = await Withdrawal.find({ status: 'Pendente' }).sort({ data: 1 });
@@ -2367,9 +2367,72 @@ app.get('/api/admin/pedidos-pendentes', isAdmin, async (req, res) => {
         const socios = await SocioOrder.find({ status: 'Pendente' }).sort({ data: 1 });
         const saquesPix = await PixWithdrawal.find({ status: 'Pendente' }).sort({ data: 1 }); 
         const cartoesNfc = await NfcOrder.find({ status: 'Pendente' }).sort({ data: 1 });
+        const comprasScPix = await ScPixOrder.find({ status: 'Pendente' }).sort({ data: 1 });
+        const mintsNftPix = await NftPixOrder.find({ status: 'Pendente' }).sort({ data: 1 });
 
-        res.json({ sucesso: true, saques, gifts, recharges, depositos, socios, saquesPix, cartoesNfc });
+        res.json({
+            sucesso: true,
+            saques,
+            gifts,
+            recharges,
+            depositos,
+            socios,
+            saquesPix,
+            cartoesNfc,
+            comprasScPix,
+            mintsNftPix
+        });
     } catch (error) { res.status(500).json({ sucesso: false }); }
+});
+
+// Processar (Aprovar ou Rejeitar) Pedido de Compra de SolidCoins via Pix no Painel ADM
+app.post('/api/admin/processar-compra-sc-pix', isAdmin, async (req, res) => {
+    try {
+        const { orderId, acao } = req.body;
+        const ordem = await ScPixOrder.findById(orderId);
+        if (!ordem || ordem.status !== 'Pendente') {
+            return res.status(404).json({ sucesso: false, mensagem: "Pedido não encontrado ou já processado." });
+        }
+
+        if (acao === 'aprovar') {
+            const ok = await processarAprovacaoPixPorTxId(ordem.txId);
+            if (!ok) {
+                return res.status(400).json({ sucesso: false, mensagem: "Não foi possível aprovar (verifique o saldo do CEO)." });
+            }
+            res.json({ sucesso: true, mensagem: `✅ Compra de ${ordem.moedasReceber} SC para ${ordem.nomeUsuario} aprovada com sucesso!` });
+        } else {
+            ordem.status = 'Rejeitado';
+            await ordem.save();
+            res.json({ sucesso: true, mensagem: "🗑️ Pedido de compra de SolidCoins via Pix rejeitado e removido da fila!" });
+        }
+    } catch (error) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao processar pedido de compra de SC." });
+    }
+});
+
+// Processar (Aprovar ou Rejeitar) Pedido de Mint de NFT via Pix no Painel ADM
+app.post('/api/admin/processar-mint-nft-pix', isAdmin, async (req, res) => {
+    try {
+        const { orderId, acao } = req.body;
+        const ordem = await NftPixOrder.findById(orderId);
+        if (!ordem || ordem.status !== 'Pendente') {
+            return res.status(404).json({ sucesso: false, mensagem: "Pedido não encontrado ou já processado." });
+        }
+
+        if (acao === 'aprovar') {
+            const ok = await processarAprovacaoPixPorTxId(ordem.txId);
+            if (!ok) {
+                return res.status(400).json({ sucesso: false, mensagem: "Não foi possível aprovar o Mint do NFT." });
+            }
+            res.json({ sucesso: true, mensagem: `✅ Mint do ${ordem.nftName} aprovado e entregue ao inventário de ${ordem.nomeUsuario}!` });
+        } else {
+            ordem.status = 'Rejeitado';
+            await ordem.save();
+            res.json({ sucesso: true, mensagem: `🗑️ Pedido de Mint via Pix do ${ordem.nftName} rejeitado! O NFT continua disponível na loja.` });
+        }
+    } catch (error) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao processar pedido de Mint NFT." });
+    }
 });
 
 app.post('/api/admin/processar-socio', isAdmin, async (req, res) => {
@@ -2769,12 +2832,11 @@ async function setupInicial() {
                 await ceo.save();
             }
 
-            console.log("✅ Ecossistema SolidCoin + Pix Efí para Compra de SC e Mint de NFT ativo!");
+            console.log("✅ Ecossistema SolidCoin + Rotas ADM para Aprovar/Rejeitar Pix de SC e NFT ativas!");
         }
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }
 
-// Robô de verificação automática a cada 60s (Sócio, Compra de SC e Mint de NFT via Pix)
 async function verificarPixPendentesAutomatizado() {
     try {
         const sociosPendentes = await SocioOrder.find({ status: 'Pendente', metodoPagamento: 'Pix Efí' });
