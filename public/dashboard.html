@@ -778,7 +778,7 @@
                         <strong id="socio-instrucao-dado" style="color: #d4af37; user-select: all; font-size: 1.1em; letter-spacing: 1px;"></strong>
                         <a id="socio-link-pix" href="#" target="_blank" style="display:none; background-color: #2ecc71; color: #000; font-weight: bold; text-decoration: none; margin-top: 10px; padding: 10px; border-radius: 6px;">🔗 Clicar para pagar via Pix</a>
                     </div>
-                    <input type="text" id="socio-txid" placeholder="Cole aqui a ID da Transação ou Hash" required style="display: none;">
+                    <input type="text" id="socio-txid" placeholder="Cole aqui a ID da Transação ou Hash" style="display: none;">
                     <button type="submit" id="socio-btn" style="background-color: #9b59b6; color: #fff; display: none;">Assinar / Renovar Plano</button>
                 </form>
             </div>
@@ -993,7 +993,7 @@
     </div>
     
     <!-- ========================================================= -->
-    <!-- MODAL UNIFICADO DE PAGAMENTO PIX EFÍ (SALDO E MINT NFT) -->
+    <!-- MODAL UNIFICADO DE PAGAMENTO PIX EFÍ (SALDO, SÓCIO E NFT) -->
     <!-- ========================================================= -->
     <div id="modal-pagamento-pix">
         <div class="pix-modal-card">
@@ -1078,11 +1078,11 @@
     <!-- 2º SCRIPT COM LÓGICA DINÂMICA INJETADO NO FINAL -->
     <script>
         // =========================================================================
-        // --- FUNÇÕES DE COMPRA DE SOLIDCOIN E MINT DE NFT VIA PIX EFÍ ---
+        // --- FUNÇÕES DE COMPRA DE SOLIDCOIN, SÓCIO E MINT DE NFT VIA PIX EFÍ ---
         // =========================================================================
         let intervaloVerificacaoPix = null;
         let txidPixAtual = null;
-        let tipoOperacaoPixAtual = null; // 'compra_sc' ou 'mint_nft'
+        let tipoOperacaoPixAtual = null; // 'compra_sc', 'mint_nft' ou 'socio_pix'
 
         window.atualizarPreviewCompraScPix = function() {
             const inputEl = document.getElementById('input-compra-sc-reais');
@@ -2543,6 +2543,9 @@
 
         setTimeout(() => {
             const selectPlano = document.getElementById('socio-plano');
+            const selectPagamentoSocio = document.getElementById('socio-pagamento');
+            const socioForm = document.getElementById('socio-form');
+
             if(selectPlano) {
                 selectPlano.onchange = function() {
                     const plano = this.value;
@@ -2555,6 +2558,71 @@
                         document.getElementById('socio-btn').style.display = 'inline-block';
                     }
                 };
+            }
+
+            if (selectPagamentoSocio) {
+                selectPagamentoSocio.addEventListener('change', function() {
+                    const txidInput = document.getElementById('socio-txid');
+                    const instrucoesBox = document.getElementById('socio-instrucoes');
+                    const btnSocio = document.getElementById('socio-btn');
+
+                    if (this.value === 'Pix') {
+                        if (txidInput) {
+                            txidInput.required = false;
+                            txidInput.style.display = 'none';
+                        }
+                        if (instrucoesBox) instrucoesBox.style.display = 'none';
+                        if (btnSocio) btnSocio.innerText = '💠 Gerar QR Code Pix do Plano';
+                    } else {
+                        if (txidInput) {
+                            txidInput.required = true;
+                            txidInput.style.display = 'block';
+                        }
+                        if (btnSocio) btnSocio.innerText = 'Assinar / Renovar Plano';
+                    }
+                });
+            }
+
+            // Intercepta o envio do Clube de Sócios quando for Pix para abrir a janela com as duas folhas e confirmação automática
+            if (socioForm) {
+                socioForm.addEventListener('submit', async function(e) {
+                    const metodo = document.getElementById('socio-pagamento').value;
+                    if (metodo === 'Pix') {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+
+                        const plano = document.getElementById('socio-plano').value;
+                        if (!plano) return alert('Escolha um Plano de Sócio primeiro.');
+
+                        const configs = window.planosConfigDB[plano] || {};
+                        const valorReais = configs.valorReais || '';
+                        const moedas = configs.sc || '';
+
+                        try {
+                            const res = await fetch('/api/socio/assinar', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ plano, metodoPagamento: 'Pix' })
+                            });
+                            const data = await res.json();
+
+                            if (!data.sucesso) {
+                                return alert(data.mensagem || 'Erro ao gerar cobrança Pix do plano.');
+                            }
+
+                            abrirModalPixEfi(
+                                `💎 Plano ${plano}`,
+                                `Assinatura: R$ ${valorReais ? parseFloat(valorReais).toFixed(2) : ''} (+${moedas} SC)`,
+                                data.imagemQrcode,
+                                data.pixCopiaECola,
+                                data.txid,
+                                'socio_pix'
+                            );
+                        } catch (err) {
+                            alert('Erro ao conectar com o servidor para gerar o Pix do plano.');
+                        }
+                    }
+                }, true);
             }
 
             const selector = document.getElementById('metodo-saque-cripto');
