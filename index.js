@@ -269,6 +269,37 @@ async function calcularLimiteSaque(userId, currentSaldo, userEmail) {
 
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
+// =========================================================================
+// --- ROTA PÚBLICA QUE ENTREGA O JSON SALVO NO BANCO PARA A BLOCKCHAIN ---
+// =========================================================================
+app.get('/api/nfts/metadata/:id', async (req, res) => {
+    try {
+        const cleanId = String(req.params.id || '').replace(/\.json$/i, '').trim();
+        let doc = await NftTemplate.findById(cleanId).lean();
+        if (!doc) {
+            doc = await NftItem.findById(cleanId).lean();
+        }
+        if (!doc || !doc.metadata) {
+            return res.status(404).json({ error: "Metadata do NFT não encontrado no banco de dados." });
+        }
+
+        const metadataJson = JSON.parse(JSON.stringify(doc.metadata));
+
+        // Garante que o campo image dentro do JSON tenha o link HTTP válido para abrir na MetaMask/CeloScan
+        let img = metadataJson.image || doc.imageUrl || '';
+        if (img.startsWith('ipfs://')) {
+            img = img.replace('ipfs://', 'https://ipfs.io/ipfs/');
+        }
+        metadataJson.image = img;
+
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        return res.json(metadataJson);
+    } catch (e) {
+        return res.status(500).json({ error: "Erro ao ler JSON do NFT no banco de dados." });
+    }
+});
+
 app.post('/cadastrar', async (req, res) => {
     const { nome, email, senha, codigoIndicacao } = req.body;
     try {
@@ -757,7 +788,10 @@ app.post('/api/admin/nft-templates', isAdmin, async (req, res) => {
         const rarityAttr = metadata.attributes.find(a => a.trait_type === "Classificação" || a.trait_type === "Rarity");
         const rarity = rarityAttr ? rarityAttr.value : "Comum";
 
-        await new NftTemplate({ imageUrl, metadata, rarity, tokenUri: imageUrl, ativo: true }).save();
+        const novoTemplate = await new NftTemplate({ imageUrl, metadata, rarity, ativo: true }).save();
+        novoTemplate.tokenUri = `https://www.solidcoincommunity.com/api/nfts/metadata/${novoTemplate._id}.json`;
+        await novoTemplate.save();
+
         res.json({ sucesso: true, mensagem: "NFT adicionado ao catálogo para Mintagem!" });
     } catch(e) { res.status(400).json({ sucesso: false, mensagem: "Erro. Verifique se o JSON é válido." }); }
 });
@@ -800,9 +834,11 @@ app.post('/api/admin/nft-importar-ipfs', isAdmin, async (req, res) => {
 
                 const rarityAttr = metadata.attributes.find(a => a.trait_type === "Classificação" || a.trait_type === "Rarity");
                 const rarity = rarityAttr ? rarityAttr.value : "Comum";
-                const exactTokenUri = `${rawFolder}/${i}.json`;
 
-                await new NftTemplate({ imageUrl: imgUrl, metadata, rarity, tokenUri: exactTokenUri, ativo: true }).save();
+                const novoTemplate = await new NftTemplate({ imageUrl: imgUrl, metadata, rarity, ativo: true }).save();
+                novoTemplate.tokenUri = `https://www.solidcoincommunity.com/api/nfts/metadata/${novoTemplate._id}.json`;
+                await novoTemplate.save();
+
                 importados++;
             } catch (errLoop) {
                 erros++;
@@ -923,11 +959,13 @@ app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
         const maxBatteryAttr = template.metadata.attributes.find(a => a.trait_type === "Carga Máxima de Bateria");
         const maxBattery = maxBatteryAttr ? maxBatteryAttr.value : 100;
 
+        const linkJsonBanco = `https://www.solidcoincommunity.com/api/nfts/metadata/${template._id}.json`;
+
         const newItem = new NftItem({
             templateId: template._id,
             ownerId: user._id,
             imageUrl: template.imageUrl,
-            tokenUri: template.tokenUri || template.imageUrl,
+            tokenUri: linkJsonBanco,
             metadata: template.metadata,
             mintPrice: price,
             battery: maxBattery
@@ -946,7 +984,7 @@ app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
     } catch(e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao mintar NFT." }); }
 });
 
-// NOVA ROTA: Mintar o NFT do Inventário para a Blockchain Celo (Contrato 0x4340C2751F443B846262B99EE4f572Bc8784cC65) e remover da Plataforma
+// Mintar o NFT do Inventário para a Blockchain Celo usando o JSON que já está salvo no MongoDB
 app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => {
     try {
         const { nftId, walletAddress } = req.body;
@@ -973,7 +1011,6 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
             return res.status(400).json({ sucesso: false, mensagem: "Cancele a venda do NFT no mercado antes de enviá-lo para a Blockchain." });
         }
 
-        // Identifica a raridade e o preço exato exigido pelo Smart Contract SolidNFT
         const rarityAttr = nft.metadata && nft.metadata.attributes 
             ? nft.metadata.attributes.find(a => a.trait_type === "Classificação" || a.trait_type === "Rarity")
             : null;
@@ -1006,8 +1043,7 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
             });
         }
 
-        // 2. Como o usuário já pagou pelo NFT na plataforma, se a carteira Web3 dele não tiver as SLC on-chain exigidas pelo contrato SolidNFT,
-        // a carteira Admin envia automaticamente as SLC necessárias para a carteira dele antes do mint (elas voltam para a carteira Admin no próprio mint!)
+        // 2. Garante que a carteira Web3 do usuário tenha as SLC necessárias para o transferFrom do contrato SolidNFT
         const saldoSlcUsuario = await slcContract.balanceOf(enderecoLimpo);
         const temSaldoOnChain = (typeof saldoSlcUsuario === 'bigint')
             ? (saldoSlcUsuario >= precoWei)
@@ -1022,15 +1058,29 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
             await txFunding.wait();
         }
 
-        // 3. Monta o link exato dos metadados (tokenURI) para gravar no NFT na Blockchain
-        let linkExato = nft.tokenUri || '';
-        if (!linkExato && nft.templateId) {
-            const tmpl = await NftTemplate.findById(nft.templateId);
-            if (tmpl && tmpl.tokenUri) linkExato = tmpl.tokenUri;
+        // 3. Garante que o Template com o JSON e a Imagem permaneça salvo no MongoDB e gera o linkExato direto do Banco de Dados!
+        let templateDoc = null;
+        if (nft.templateId) {
+            templateDoc = await NftTemplate.findById(nft.templateId);
         }
-        if (!linkExato) {
-            linkExato = (nft.metadata && nft.metadata.image) ? nft.metadata.image : nft.imageUrl;
+        if (!templateDoc && nft.metadata && nft.metadata.name) {
+            templateDoc = await NftTemplate.findOne({ 'metadata.name': nft.metadata.name });
         }
+        if (!templateDoc) {
+            templateDoc = await new NftTemplate({
+                imageUrl: nft.imageUrl,
+                metadata: nft.metadata,
+                rarity: rarity,
+                ativo: false
+            }).save();
+        } else if (templateDoc.ativo !== false) {
+            templateDoc.ativo = false;
+            await templateDoc.save();
+        }
+
+        // Este linkExato entrega o JSON completo e a imagem salvos no seu MongoDB para o contrato na Blockchain Celo!
+        const hostUrl = `${req.protocol}://${req.get('host')}`;
+        const linkExato = `${hostUrl}/api/nfts/metadata/${templateDoc._id}.json`;
 
         // 4. Aciona a função exata do contrato SolidNFT de acordo com a raridade
         let txMint;
@@ -1046,20 +1096,21 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
 
         await txMint.wait();
 
-        // 5. Remove o NFT da plataforma SolidCoin (pois agora ele vive na carteira Web3 do usuário na Blockchain Celo)
+        // 5. Remove o NFT do inventário da plataforma (pois o NftTemplate continua salvo no banco servindo o JSON para a Blockchain)
         await NftItem.findByIdAndDelete(nft._id);
 
         await new Transaction({
             userId: req.session.user.id,
             tipo: 'Mint NFT na Blockchain (Celo)',
-            descricao: `${nft.metadata.name} -> Carteira ${enderecoLimpo.slice(0, 6)}...${enderecoLimpo.slice(-4)} (Hash: ${txMint.hash.slice(0, 10)}...)`,
+            descricao: `${nft.metadata.name} -> Carteira ${enderecoLimpo.slice(0, 6)}...${enderecoLimpo.slice(-4)}`,
             valor: 0
         }).save();
 
         res.json({
             sucesso: true,
             txHash: txMint.hash,
-            mensagem: `🎉 Sucesso! O ${nft.metadata.name} foi mintado oficialmente na Blockchain Celo na sua carteira e retirado da plataforma!`
+            tokenUri: linkExato,
+            mensagem: `🎉 Sucesso! O ${nft.metadata.name} foi mintado oficialmente na Blockchain Celo com o JSON do seu banco de dados e retirado da plataforma!`
         });
     } catch (err) {
         console.error("Erro ao mintar NFT na Blockchain Celo:", err);
@@ -2345,7 +2396,7 @@ async function setupInicial() {
                 await ceo.save();
             }
 
-            console.log("✅ Ecossistema SolidCoin + SolidNFT Blockchain Celo configurado com sucesso!");
+            console.log("✅ Ecossistema SolidCoin + Metadata JSON direto do MongoDB para a Blockchain Celo ativo!");
         }
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }
