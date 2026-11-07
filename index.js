@@ -15,13 +15,49 @@ const { OAuth2Client } = require('google-auth-library');
 // =========================================================================
 let celoProvider = null;
 let celoWallet = null;     // Carteira para saques MiniPay (USDC/cUSD/USDT)
-let nftAdminWallet = null; // Carteira Admin que criou os contratos SolidCoin e SolidNFT
+let nftAdminWallet = null; // Carteira Admin criadora do contrato SolidNFT
 let usdcContract = null;
 let slcContract = null;
 let solidNftContract = null;
 
 const SOLIDCOIN_CELO_ADDRESS = "0x6Ff689e75DD0f49375A2932E44354DD3271586f6";
 const SOLIDNFT_CELO_ADDRESS = "0x4340C2751F443B846262B99EE4f572Bc8784cC65";
+const CRIADOR_SOLIDNFT_ESPERADO = "0x414589C91d29AAe97402885Ce9D8977eF0b9F67B";
+
+// Aceita tanto Frase de Recuperação (12 palavras) quanto Chave Privada (0x...)
+function carregarCarteiraCelo(valorInput, provider, enderecoAlvo = null) {
+    if (!valorInput) return null;
+    const { ethers } = require('ethers');
+    const limpo = valorInput.trim().replace(/^['"]|['"]$/g, '').replace(/\s+/g, ' ');
+
+    // Se tiver espaço, interpreta como Frase de Recuperação (12/24 palavras)
+    if (limpo.includes(' ')) {
+        // Verifica as primeiras 10 contas da frase caso a carteira criadora seja a Conta 2, 3, etc.
+        for (let i = 0; i < 10; i++) {
+            try {
+                const caminho = `m/44'/60'/0'/0/${i}`;
+                let w = null;
+                if (ethers.HDNodeWallet && ethers.Mnemonic) {
+                    const mnemonic = ethers.Mnemonic.fromPhrase(limpo);
+                    w = ethers.HDNodeWallet.fromMnemonic(mnemonic, caminho).connect(provider);
+                } else if (ethers.Wallet && ethers.Wallet.fromMnemonic) {
+                    w = ethers.Wallet.fromMnemonic(limpo, caminho).connect(provider);
+                } else if (i === 0 && ethers.Wallet && ethers.Wallet.fromPhrase) {
+                    w = ethers.Wallet.fromPhrase(limpo).connect(provider);
+                }
+                if (w && (!enderecoAlvo || w.address.toLowerCase() === enderecoAlvo.toLowerCase())) {
+                    return w;
+                }
+            } catch (e) {}
+        }
+        // Se não encontrou o endereço alvo nas subcontas, retorna a Conta 1 (índice 0)
+        return (ethers.Wallet.fromPhrase ? ethers.Wallet.fromPhrase(limpo) : ethers.Wallet.fromMnemonic(limpo)).connect(provider);
+    } else {
+        // Interpreta como Chave Privada hexadecimal
+        const pk = limpo.startsWith('0x') ? limpo : `0x${limpo}`;
+        return new ethers.Wallet(pk, provider);
+    }
+}
 
 try {
     const { ethers } = require('ethers');
@@ -31,17 +67,17 @@ try {
     
     // 1. Configura a carteira da MiniPay para saques
     if (process.env.MINIPAY_SEED_PHRASE) {
-        const phrase = process.env.MINIPAY_SEED_PHRASE.trim();
-        celoWallet = (ethers.Wallet.fromPhrase ? ethers.Wallet.fromPhrase(phrase) : ethers.Wallet.fromMnemonic(phrase)).connect(celoProvider);
+        celoWallet = carregarCarteiraCelo(process.env.MINIPAY_SEED_PHRASE, celoProvider);
     } else if (process.env.MINIPAY_PRIVATE_KEY) {
-        celoWallet = new ethers.Wallet(process.env.MINIPAY_PRIVATE_KEY.trim(), celoProvider);
+        celoWallet = carregarCarteiraCelo(process.env.MINIPAY_PRIVATE_KEY, celoProvider);
     }
 
-    // 2. Configura a carteira Admin dos contratos (NFT_ADMIN_PRIVATE_KEY tem prioridade para o SolidNFT)
-    if (process.env.NFT_ADMIN_PRIVATE_KEY) {
-        nftAdminWallet = new ethers.Wallet(process.env.NFT_ADMIN_PRIVATE_KEY.trim(), celoProvider);
-    } else if (process.env.MINIPAY_PRIVATE_KEY) {
-        nftAdminWallet = new ethers.Wallet(process.env.MINIPAY_PRIVATE_KEY.trim(), celoProvider);
+    // 2. Configura a carteira Admin do SolidNFT (aceita Frase de 12 palavras ou Chave Privada em NFT_ADMIN_PRIVATE_KEY)
+    const chaveOuFraseNft = process.env.NFT_ADMIN_PRIVATE_KEY || process.env.NFT_ADMIN_SEED_PHRASE;
+    if (chaveOuFraseNft) {
+        nftAdminWallet = carregarCarteiraCelo(chaveOuFraseNft, celoProvider, CRIADOR_SOLIDNFT_ESPERADO);
+    } else if (process.env.MINIPAY_SEED_PHRASE) {
+        nftAdminWallet = carregarCarteiraCelo(process.env.MINIPAY_SEED_PHRASE, celoProvider, CRIADOR_SOLIDNFT_ESPERADO);
     } else if (celoWallet) {
         nftAdminWallet = celoWallet;
     }
@@ -69,23 +105,9 @@ try {
         slcContract = new ethers.Contract(SOLIDCOIN_CELO_ADDRESS, erc20Abi, nftAdminWallet);
         solidNftContract = new ethers.Contract(SOLIDNFT_CELO_ADDRESS, solidNftAbi, nftAdminWallet);
         console.log(`✅ Carteira Admin SolidNFT (${nftAdminWallet.address}) conectada!`);
-
-        // Verifica automaticamente na inicialização se a carteira Admin bate com a criadora do contrato SolidNFT
-        solidNftContract.adminWallet().then(donoContrato => {
-            if (donoContrato.toLowerCase() !== nftAdminWallet.address.toLowerCase()) {
-                if (celoWallet && celoWallet.address.toLowerCase() === donoContrato.toLowerCase()) {
-                    nftAdminWallet = celoWallet;
-                    slcContract = new ethers.Contract(SOLIDCOIN_CELO_ADDRESS, erc20Abi, nftAdminWallet);
-                    solidNftContract = new ethers.Contract(SOLIDNFT_CELO_ADDRESS, solidNftAbi, nftAdminWallet);
-                    console.log(`🔄 Carteira Admin SolidNFT ajustada automaticamente para ${nftAdminWallet.address}`);
-                } else {
-                    console.warn(`⚠️ ATENÇÃO: O contrato SolidNFT espera a carteira Admin ${donoContrato}, mas o servidor está configurado com ${nftAdminWallet.address}. Configure a variável NFT_ADMIN_PRIVATE_KEY no Render!`);
-                }
-            }
-        }).catch(() => {});
     }
 } catch (error) {
-    console.error("⚠️ Aviso: Biblioteca 'ethers' não instalada ou erro ao configurar carteiras Celo:", error.message);
+    console.error("⚠️ Aviso: Erro ao configurar carteiras Celo:", error.message);
 }
 
 // =========================================================================
@@ -1011,7 +1033,6 @@ app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
     } catch(e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao mintar NFT." }); }
 });
 
-// Mintar o NFT do Inventário para a Blockchain Celo validando a carteira Admin do contrato
 app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => {
     try {
         const { nftId, walletAddress } = req.body;
@@ -1030,12 +1051,11 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
             return res.status(400).json({ sucesso: false, mensagem: "Endereço da carteira Celo inválido." });
         }
 
-        // VERIFICAÇÃO AUTOMÁTICA DA CARTEIRA ADMIN DO CONTRATO SOLIDNFT ANTES DE PEDIR APPROVE
         const adminRealDoContrato = await solidNftContract.adminWallet();
         if (nftAdminWallet.address.toLowerCase() !== adminRealDoContrato.toLowerCase()) {
             return res.status(400).json({
                 sucesso: false,
-                mensagem: `A carteira configurada no servidor (${nftAdminWallet.address}) não é a criadora do contrato SolidNFT (${adminRealDoContrato}). No painel do Render (Environment), crie a variável NFT_ADMIN_PRIVATE_KEY com a Chave Privada da carteira ${adminRealDoContrato}.`
+                mensagem: `A carteira configurada no servidor (${nftAdminWallet.address}) não é a criadora do contrato SolidNFT (${adminRealDoContrato}). No painel do Render (Environment), cole as 12 palavras (ou Chave Privada) da carteira ${adminRealDoContrato} dentro da variável NFT_ADMIN_PRIVATE_KEY.`
             });
         }
 
@@ -1064,7 +1084,6 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
         const parseUnitsFn = ethers.parseUnits ? ethers.parseUnits : ethers.utils.parseUnits;
         const precoWei = parseUnitsFn(precoStr, 18);
 
-        // 1. Verifica se o usuário já aprovou (approve) o contrato SolidNFT no token SLC
         const allowanceAtual = await slcContract.allowance(enderecoLimpo, SOLIDNFT_CELO_ADDRESS);
         const temAllowance = (typeof allowanceAtual === 'bigint') 
             ? (allowanceAtual >= precoWei) 
@@ -1079,7 +1098,6 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
             });
         }
 
-        // 2. Garante que a carteira Web3 do usuário tenha as SLC necessárias para o transferFrom do contrato SolidNFT
         const saldoSlcUsuario = await slcContract.balanceOf(enderecoLimpo);
         const temSaldoOnChain = (typeof saldoSlcUsuario === 'bigint')
             ? (saldoSlcUsuario >= precoWei)
@@ -1094,7 +1112,6 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
             await txFunding.wait();
         }
 
-        // 3. Garante que o Template com o JSON e a Imagem permaneça salvo no MongoDB e gera o linkExato direto do Banco de Dados
         let templateDoc = null;
         if (nft.templateId) {
             templateDoc = await NftTemplate.findById(nft.templateId);
@@ -1117,7 +1134,6 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
         const hostUrl = `${req.protocol}://${req.get('host')}`;
         const linkExato = `${hostUrl}/api/nfts/metadata/${templateDoc._id}.json`;
 
-        // 4. Aciona a função exata do contrato SolidNFT de acordo com a raridade
         let txMint;
         if (rarity === "Lendario") {
             txMint = await solidNftContract.adminMintLendario(enderecoLimpo, linkExato);
@@ -1131,7 +1147,6 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
 
         await txMint.wait();
 
-        // 5. Remove o NFT do inventário da plataforma
         await NftItem.findByIdAndDelete(nft._id);
 
         await new Transaction({
@@ -2431,7 +2446,7 @@ async function setupInicial() {
                 await ceo.save();
             }
 
-            console.log("✅ Ecossistema SolidCoin + Metadata JSON direto do MongoDB para a Blockchain Celo ativo!");
+            console.log("✅ Ecossistema SolidCoin + Suporte a Frase de Recuperação para SolidNFT Celo ativo!");
         }
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }
