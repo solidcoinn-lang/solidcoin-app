@@ -14,7 +14,8 @@ const { OAuth2Client } = require('google-auth-library');
 // --- INTEGRAÇÃO WEB3 REDE CELO (MINIPAY USDC + SOLIDCOIN SLC + SOLIDNFT) ---
 // =========================================================================
 let celoProvider = null;
-let celoWallet = null;
+let celoWallet = null;     // Carteira para saques MiniPay (USDC/cUSD/USDT)
+let nftAdminWallet = null; // Carteira Admin que criou os contratos SolidCoin e SolidNFT
 let usdcContract = null;
 let slcContract = null;
 let solidNftContract = null;
@@ -28,6 +29,7 @@ try {
         ? new ethers.JsonRpcProvider('https://forno.celo.org') 
         : new ethers.providers.JsonRpcProvider('https://forno.celo.org');
     
+    // 1. Configura a carteira da MiniPay para saques
     if (process.env.MINIPAY_SEED_PHRASE) {
         const phrase = process.env.MINIPAY_SEED_PHRASE.trim();
         celoWallet = (ethers.Wallet.fromPhrase ? ethers.Wallet.fromPhrase(phrase) : ethers.Wallet.fromMnemonic(phrase)).connect(celoProvider);
@@ -35,29 +37,55 @@ try {
         celoWallet = new ethers.Wallet(process.env.MINIPAY_PRIVATE_KEY.trim(), celoProvider);
     }
 
+    // 2. Configura a carteira Admin dos contratos (NFT_ADMIN_PRIVATE_KEY tem prioridade para o SolidNFT)
+    if (process.env.NFT_ADMIN_PRIVATE_KEY) {
+        nftAdminWallet = new ethers.Wallet(process.env.NFT_ADMIN_PRIVATE_KEY.trim(), celoProvider);
+    } else if (process.env.MINIPAY_PRIVATE_KEY) {
+        nftAdminWallet = new ethers.Wallet(process.env.MINIPAY_PRIVATE_KEY.trim(), celoProvider);
+    } else if (celoWallet) {
+        nftAdminWallet = celoWallet;
+    }
+
+    const erc20Abi = [
+        "function transfer(address to, uint256 value) public returns (bool)",
+        "function balanceOf(address owner) view returns (uint256)",
+        "function allowance(address owner, address spender) view returns (uint256)"
+    ];
+    const solidNftAbi = [
+        "function adminMintComum(address usuario, string memory linkExato) public",
+        "function adminMintIncomum(address usuario, string memory linkExato) public",
+        "function adminMintRaro(address usuario, string memory linkExato) public",
+        "function adminMintLendario(address usuario, string memory linkExato) public",
+        "function adminWallet() view returns (address)"
+    ];
+
     if (celoWallet) {
         const USDC_ADDRESS = "0xcebA9300f2b948710d2653dD7B07f33A8B32118C";
-        const erc20Abi = [
-            "function transfer(address to, uint256 value) public returns (bool)",
-            "function balanceOf(address owner) view returns (uint256)",
-            "function allowance(address owner, address spender) view returns (uint256)"
-        ];
-        const solidNftAbi = [
-            "function adminMintComum(address usuario, string memory linkExato) public",
-            "function adminMintIncomum(address usuario, string memory linkExato) public",
-            "function adminMintRaro(address usuario, string memory linkExato) public",
-            "function adminMintLendario(address usuario, string memory linkExato) public",
-            "function adminWallet() view returns (address)"
-        ];
-
         usdcContract = new ethers.Contract(USDC_ADDRESS, erc20Abi, celoWallet);
-        slcContract = new ethers.Contract(SOLIDCOIN_CELO_ADDRESS, erc20Abi, celoWallet);
-        solidNftContract = new ethers.Contract(SOLIDNFT_CELO_ADDRESS, solidNftAbi, celoWallet);
+        console.log(`✅ Carteira MiniPay Saques (${celoWallet.address}) conectada!`);
+    }
 
-        console.log(`✅ Carteira Admin Celo (${celoWallet.address}) conectada (USDC, SLC e SolidNFT)!`);
+    if (nftAdminWallet) {
+        slcContract = new ethers.Contract(SOLIDCOIN_CELO_ADDRESS, erc20Abi, nftAdminWallet);
+        solidNftContract = new ethers.Contract(SOLIDNFT_CELO_ADDRESS, solidNftAbi, nftAdminWallet);
+        console.log(`✅ Carteira Admin SolidNFT (${nftAdminWallet.address}) conectada!`);
+
+        // Verifica automaticamente na inicialização se a carteira Admin bate com a criadora do contrato SolidNFT
+        solidNftContract.adminWallet().then(donoContrato => {
+            if (donoContrato.toLowerCase() !== nftAdminWallet.address.toLowerCase()) {
+                if (celoWallet && celoWallet.address.toLowerCase() === donoContrato.toLowerCase()) {
+                    nftAdminWallet = celoWallet;
+                    slcContract = new ethers.Contract(SOLIDCOIN_CELO_ADDRESS, erc20Abi, nftAdminWallet);
+                    solidNftContract = new ethers.Contract(SOLIDNFT_CELO_ADDRESS, solidNftAbi, nftAdminWallet);
+                    console.log(`🔄 Carteira Admin SolidNFT ajustada automaticamente para ${nftAdminWallet.address}`);
+                } else {
+                    console.warn(`⚠️ ATENÇÃO: O contrato SolidNFT espera a carteira Admin ${donoContrato}, mas o servidor está configurado com ${nftAdminWallet.address}. Configure a variável NFT_ADMIN_PRIVATE_KEY no Render!`);
+                }
+            }
+        }).catch(() => {});
     }
 } catch (error) {
-    console.error("⚠️ Aviso: Biblioteca 'ethers' não instalada ou erro ao configurar carteira Celo:", error.message);
+    console.error("⚠️ Aviso: Biblioteca 'ethers' não instalada ou erro ao configurar carteiras Celo:", error.message);
 }
 
 // =========================================================================
@@ -285,7 +313,6 @@ app.get('/api/nfts/metadata/:id', async (req, res) => {
 
         const metadataJson = JSON.parse(JSON.stringify(doc.metadata));
 
-        // Garante que o campo image dentro do JSON tenha o link HTTP válido para abrir na MetaMask/CeloScan
         let img = metadataJson.image || doc.imageUrl || '';
         if (img.startsWith('ipfs://')) {
             img = img.replace('ipfs://', 'https://ipfs.io/ipfs/');
@@ -984,7 +1011,7 @@ app.post('/api/nfts/mintar', checkAuthenticated, async (req, res) => {
     } catch(e) { res.status(500).json({ sucesso: false, mensagem: "Erro ao mintar NFT." }); }
 });
 
-// Mintar o NFT do Inventário para a Blockchain Celo usando o JSON que já está salvo no MongoDB
+// Mintar o NFT do Inventário para a Blockchain Celo validando a carteira Admin do contrato
 app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => {
     try {
         const { nftId, walletAddress } = req.body;
@@ -992,8 +1019,8 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
             return res.status(400).json({ sucesso: false, mensagem: "Conecte sua carteira MetaMask primeiro." });
         }
 
-        if (!celoWallet || !solidNftContract || !slcContract) {
-            return res.status(500).json({ sucesso: false, mensagem: "Carteira Admin Celo não configurada no servidor (MINIPAY_PRIVATE_KEY ou MINIPAY_SEED_PHRASE)." });
+        if (!nftAdminWallet || !solidNftContract || !slcContract) {
+            return res.status(500).json({ sucesso: false, mensagem: "Carteira Admin Celo não configurada no servidor. Adicione NFT_ADMIN_PRIVATE_KEY no Render." });
         }
 
         const { ethers } = require('ethers');
@@ -1001,6 +1028,15 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
         const isAddrValid = ethers.isAddress ? ethers.isAddress(enderecoLimpo) : ethers.utils.isAddress(enderecoLimpo);
         if (!isAddrValid) {
             return res.status(400).json({ sucesso: false, mensagem: "Endereço da carteira Celo inválido." });
+        }
+
+        // VERIFICAÇÃO AUTOMÁTICA DA CARTEIRA ADMIN DO CONTRATO SOLIDNFT ANTES DE PEDIR APPROVE
+        const adminRealDoContrato = await solidNftContract.adminWallet();
+        if (nftAdminWallet.address.toLowerCase() !== adminRealDoContrato.toLowerCase()) {
+            return res.status(400).json({
+                sucesso: false,
+                mensagem: `A carteira configurada no servidor (${nftAdminWallet.address}) não é a criadora do contrato SolidNFT (${adminRealDoContrato}). No painel do Render (Environment), crie a variável NFT_ADMIN_PRIVATE_KEY com a Chave Privada da carteira ${adminRealDoContrato}.`
+            });
         }
 
         const nft = await NftItem.findOne({ _id: nftId, ownerId: req.session.user.id });
@@ -1058,7 +1094,7 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
             await txFunding.wait();
         }
 
-        // 3. Garante que o Template com o JSON e a Imagem permaneça salvo no MongoDB e gera o linkExato direto do Banco de Dados!
+        // 3. Garante que o Template com o JSON e a Imagem permaneça salvo no MongoDB e gera o linkExato direto do Banco de Dados
         let templateDoc = null;
         if (nft.templateId) {
             templateDoc = await NftTemplate.findById(nft.templateId);
@@ -1078,7 +1114,6 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
             await templateDoc.save();
         }
 
-        // Este linkExato entrega o JSON completo e a imagem salvos no seu MongoDB para o contrato na Blockchain Celo!
         const hostUrl = `${req.protocol}://${req.get('host')}`;
         const linkExato = `${hostUrl}/api/nfts/metadata/${templateDoc._id}.json`;
 
@@ -1096,7 +1131,7 @@ app.post('/api/nfts/mintar-blockchain', checkAuthenticated, async (req, res) => 
 
         await txMint.wait();
 
-        // 5. Remove o NFT do inventário da plataforma (pois o NftTemplate continua salvo no banco servindo o JSON para a Blockchain)
+        // 5. Remove o NFT do inventário da plataforma
         await NftItem.findByIdAndDelete(nft._id);
 
         await new Transaction({
