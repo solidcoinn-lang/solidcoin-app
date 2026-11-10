@@ -23,6 +23,7 @@ let solidNftContract = null;
 const SOLIDCOIN_CELO_ADDRESS = "0x6Ff689e75DD0f49375A2932E44354DD3271586f6";
 const SOLIDNFT_CELO_ADDRESS = "0x4340C2751F443B846262B99EE4f572Bc8784cC65";
 const CRIADOR_SOLIDNFT_ESPERADO = "0x414589C91d29AAe97402885Ce9D8977eF0b9F67B";
+const CARTEIRA_PROJETO_LIQUIDEZ = "0x414589C91d29AAe97402885Ce9D8977eF0b9F67B";
 
 // Aceita tanto Frase de Recuperação (12 palavras) quanto Chave Privada (0x...)
 function carregarCarteiraCelo(valorInput, provider, enderecoAlvo = null) {
@@ -221,7 +222,6 @@ const NftItemSchema = new mongoose.Schema({
 });
 const NftItem = mongoose.models.NftItem || mongoose.model('NftItem', NftItemSchema);
 
-// SCHEMAS: Pedidos de Compra de SolidCoin via Pix e Mint de NFT via Pix
 const ScPixOrderSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     nomeUsuario: String,
@@ -248,6 +248,33 @@ const NftPixOrderSchema = new mongoose.Schema({
 });
 const NftPixOrder = mongoose.models.NftPixOrder || mongoose.model('NftPixOrder', NftPixOrderSchema);
 
+// =========================================================================
+// --- NOVOS SCHEMAS: POOL DE LIQUIDEZ OFICIAL CELO / SLC (v4 • 0.25%) ---
+// =========================================================================
+const LiquidityPoolSchema = new mongoose.Schema({
+    celoAtual: { type: Number, default: 129.74 },
+    slcAtual: { type: Number, default: 6938.72 },
+    metaCelo: { type: Number, default: 10000 },
+    tarifasGanhasBrl: { type: Number, default: 0 },
+    estadoPool: { type: String, default: 'Dentro do intervalo' },
+    carteiraProjeto: { type: String, default: CARTEIRA_PROJETO_LIQUIDEZ },
+    atualizadoEm: { type: Date, default: Date.now }
+});
+const LiquidityPool = mongoose.models.LiquidityPool || mongoose.model('LiquidityPool', LiquidityPoolSchema);
+
+const PoolContributionSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    nomeUsuario: String,
+    emailUsuario: String,
+    metodo: String, // 'Saldo Plataforma (SC)' ou 'MetaMask (CELO On-Chain)'
+    qtdCeloAdicionada: Number,
+    qtdSlcAdicionada: Number,
+    totalScPagoPlataforma: { type: Number, default: 0 },
+    txHash: { type: String, default: '' },
+    data: { type: Date, default: Date.now }
+});
+const PoolContribution = mongoose.models.PoolContribution || mongoose.model('PoolContribution', PoolContributionSchema);
+
 const GameProfileSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true },
     level: { type: Number, default: 1 },
@@ -272,6 +299,81 @@ const SystemSettingsSchema = new mongoose.Schema({
 if(mongoose.models.SystemSettings) delete mongoose.models.SystemSettings;
 const SysSettings = mongoose.model('SystemSettings', SystemSettingsSchema);
 
+// =========================================================================
+// --- COTAÇÃO DO CELO EM TEMPO REAL (COM CACHE INTELIGENTE DE 45 SEGUNDOS) ---
+// =========================================================================
+let cacheCotacaoCelo = {
+    brl: 0.369,
+    usd: 0.065,
+    ultimaAtualizacao: 0
+};
+
+async function obterCotacaoCeloTempoReal() {
+    const agora = Date.now();
+    if (agora - cacheCotacaoCelo.ultimaAtualizacao < 45000 && cacheCotacaoCelo.brl > 0) {
+        return cacheCotacaoCelo;
+    }
+
+    // 1ª Tentativa: CoinGecko (CELO em BRL e USD direto)
+    try {
+        const resCg = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=celo&vs_currencies=brl,usd');
+        if (resCg.ok) {
+            const dados = await resCg.json();
+            if (dados && dados.celo && dados.celo.brl) {
+                cacheCotacaoCelo = {
+                    brl: parseFloat(dados.celo.brl),
+                    usd: parseFloat(dados.celo.usd || (dados.celo.brl / 5.75)),
+                    ultimaAtualizacao: agora
+                };
+                return cacheCotacaoCelo;
+            }
+        }
+    } catch (e) {}
+
+    // 2ª Tentativa: Binance (CELOUSDT) + AwesomeAPI (USDBRL)
+    try {
+        const [resBin, resUsd] = await Promise.all([
+            fetch('https://api.binance.com/api/v3/ticker/price?symbol=CELOUSDT'),
+            fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL')
+        ]);
+        if (resBin.ok) {
+            const dBin = await resBin.json();
+            const celoUsd = parseFloat(dBin.price);
+            let usdBrl = 5.75;
+            if (resUsd.ok) {
+                const dUsd = await resUsd.json();
+                if (dUsd && dUsd.USDBRL && dUsd.USDBRL.ask) {
+                    usdBrl = parseFloat(dUsd.USDBRL.ask);
+                }
+            }
+            if (celoUsd > 0) {
+                cacheCotacaoCelo = {
+                    brl: parseFloat((celoUsd * usdBrl).toFixed(4)),
+                    usd: parseFloat(celoUsd.toFixed(4)),
+                    ultimaAtualizacao: agora
+                };
+                return cacheCotacaoCelo;
+            }
+        }
+    } catch (e) {}
+
+    return cacheCotacaoCelo;
+}
+
+async function obterOuCriarPool() {
+    let pool = await LiquidityPool.findOne();
+    if (!pool) {
+        pool = await new LiquidityPool({
+            celoAtual: 129.74,
+            slcAtual: 6938.72,
+            metaCelo: 10000,
+            tarifasGanhasBrl: 0,
+            estadoPool: 'Dentro do intervalo',
+            carteiraProjeto: CARTEIRA_PROJETO_LIQUIDEZ
+        }).save();
+    }
+    return pool;
+}
 
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true }).then(() => { setupInicial(); }).catch(err => console.error(err));
 
@@ -348,7 +450,6 @@ async function processarAprovacaoPixPorTxId(txid_pago) {
     const admin = await User.findOne({ email: ADMIN_EMAIL });
     if (!admin) return false;
 
-    // 1. Verifica se é Ordem de Plano de Sócio
     const ordemSocio = await SocioOrder.findOne({ txId: txid_pago, status: 'Pendente' });
     if (ordemSocio) {
         const user = await User.findById(ordemSocio.userId);
@@ -388,7 +489,6 @@ async function processarAprovacaoPixPorTxId(txid_pago) {
         }
     }
 
-    // 2. Verifica se é Ordem de Compra Direta de SolidCoins (Card de Saldo)
     const ordemSc = await ScPixOrder.findOne({ txId: txid_pago, status: 'Pendente' });
     if (ordemSc) {
         const user = await User.findById(ordemSc.userId);
@@ -410,7 +510,6 @@ async function processarAprovacaoPixPorTxId(txid_pago) {
         }
     }
 
-    // 3. Verifica se é Ordem de Mintagem de NFT via Pix
     const ordemNft = await NftPixOrder.findOne({ txId: txid_pago, status: 'Pendente' });
     if (ordemNft) {
         const user = await User.findById(ordemNft.userId);
@@ -506,6 +605,244 @@ app.get('/api/nfts/metadata/:id', async (req, res) => {
         return res.json(metadataJson);
     } catch (e) {
         return res.status(500).json({ error: "Erro ao ler JSON do NFT no banco de dados." });
+    }
+});
+
+// =========================================================================
+// --- ROTAS DA POOL DE LIQUIDEZ OFICIAL CELO / SLC (USUÁRIOS E CEO) ---
+// =========================================================================
+
+app.get('/api/pool/status', checkAuthenticated, async (req, res) => {
+    try {
+        const [pool, cotacaoCelo, scRate] = await Promise.all([
+            obterOuCriarPool(),
+            obterCotacaoCeloTempoReal(),
+            getSCRate()
+        ]);
+
+        // Valor de 1 CELO em SolidCoins baseado na cotação em tempo real (ou proporção da pool)
+        const slcPorCelo = parseFloat((cotacaoCelo.brl * scRate).toFixed(4));
+        const valorCeloPoolBrl = pool.celoAtual * cotacaoCelo.brl;
+        const valorSlcPoolBrl = pool.slcAtual / scRate;
+        const posicaoTotalBrl = valorCeloPoolBrl + valorSlcPoolBrl;
+
+        const pctCeloComposicao = posicaoTotalBrl > 0 ? ((valorCeloPoolBrl / posicaoTotalBrl) * 100) : 50;
+        const pctSlcComposicao = posicaoTotalBrl > 0 ? (100 - pctCeloComposicao) : 50;
+
+        const faltaCelo = Math.max(0, pool.metaCelo - pool.celoAtual);
+        const progressoMetaPct = pool.metaCelo > 0 ? Math.min(100, (pool.celoAtual / pool.metaCelo) * 100) : 0;
+
+        res.json({
+            sucesso: true,
+            pool: {
+                celoAtual: pool.celoAtual,
+                slcAtual: pool.slcAtual,
+                metaCelo: pool.metaCelo,
+                faltaCelo: faltaCelo,
+                progressoMetaPct: progressoMetaPct,
+                posicaoTotalBrl: posicaoTotalBrl,
+                pctCeloComposicao: pctCeloComposicao,
+                pctSlcComposicao: pctSlcComposicao,
+                tarifasGanhasBrl: pool.tarifasGanhasBrl || 0,
+                estadoPool: pool.estadoPool || 'Dentro do intervalo',
+                carteiraProjeto: pool.carteiraProjeto || CARTEIRA_PROJETO_LIQUIDEZ,
+                celoPrecoBrl: cotacaoCelo.brl,
+                celoPrecoUsd: cotacaoCelo.usd,
+                slcPorCelo: slcPorCelo,
+                scRate: scRate
+            }
+        });
+    } catch (e) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao carregar dados da Pool de Liquidez." });
+    }
+});
+
+// Opção 1: Usuário adiciona liquidez na Pool pagando o valor total em SolidCoins pela plataforma (Valor do CELO em SC + Valor da SolidCoin)
+app.post('/api/pool/contribuir-saldo', checkAuthenticated, async (req, res) => {
+    try {
+        const qtdCelo = parseFloat(req.body.quantidadeCelo);
+        if (isNaN(qtdCelo) || qtdCelo <= 0) {
+            return res.status(400).json({ sucesso: false, mensagem: "Digite uma quantidade válida de CELO para adicionar à Pool." });
+        }
+
+        const [pool, cotacaoCelo, scRate, user, admin] = await Promise.all([
+            obterOuCriarPool(),
+            obterCotacaoCeloTempoReal(),
+            getSCRate(),
+            User.findById(req.session.user.id),
+            User.findOne({ email: ADMIN_EMAIL })
+        ]);
+
+        const slcPorCelo = cotacaoCelo.brl * scRate;
+        const custoCeloEmSC = parseFloat((qtdCelo * slcPorCelo).toFixed(2));
+        const parteSlcPool = parseFloat((qtdCelo * slcPorCelo).toFixed(2));
+        const custoTotalSC = parseFloat((custoCeloEmSC + parteSlcPool).toFixed(2));
+
+        const limiteDisponivel = await calcularLimiteSaque(user._id, user.saldo, user.email);
+        if (custoTotalSC > limiteDisponivel) {
+            return res.status(400).json({
+                sucesso: false,
+                mensagem: `Saldo livre insuficiente! Para adicionar ${qtdCelo} CELO + ${parteSlcPool.toFixed(2)} SLC na Pool, são necessários ${custoTotalSC.toFixed(2)} SC livres (Disponível: ${limiteDisponivel.toFixed(2)} SC).`
+            });
+        }
+
+        user.saldo -= custoTotalSC;
+        if (admin && user.email !== ADMIN_EMAIL) {
+            admin.saldo += custoTotalSC;
+        }
+
+        pool.celoAtual = parseFloat((pool.celoAtual + qtdCelo).toFixed(4));
+        pool.slcAtual = parseFloat((pool.slcAtual + parteSlcPool).toFixed(2));
+        pool.atualizadoEm = Date.now();
+
+        const novaContribuicao = new PoolContribution({
+            userId: user._id,
+            nomeUsuario: user.nome,
+            emailUsuario: user.email,
+            metodo: 'Saldo Plataforma (SC)',
+            qtdCeloAdicionada: qtdCelo,
+            qtdSlcAdicionada: parteSlcPool,
+            totalScPagoPlataforma: custoTotalSC,
+            txHash: 'Saldo Interno'
+        });
+
+        const promessas = [
+            user.save(),
+            pool.save(),
+            novaContribuicao.save(),
+            new Transaction({
+                userId: user._id,
+                tipo: 'Liquidez Pool CELO/SLC',
+                descricao: `Adicionou +${qtdCelo} CELO e +${parteSlcPool.toFixed(2)} SLC na Pool`,
+                valor: -custoTotalSC
+            }).save()
+        ];
+
+        if (admin && user.email !== ADMIN_EMAIL) {
+            promessas.push(admin.save());
+            promessas.push(new Transaction({
+                userId: admin._id,
+                tipo: 'Apoio Liquidez Pool (Recebido)',
+                descricao: `De ${user.nome} (+${qtdCelo} CELO / +${parteSlcPool.toFixed(2)} SLC)`,
+                valor: custoTotalSC
+            }).save());
+        }
+
+        await Promise.all(promessas);
+
+        res.json({
+            sucesso: true,
+            mensagem: `🎉 Muito obrigado por fortalecer a Pool da SolidCoin! Você adicionou +${qtdCelo} CELO e +${parteSlcPool.toFixed(2)} SLC (Total: ${custoTotalSC.toFixed(2)} SC)!`,
+            novoSaldo: user.saldo
+        });
+    } catch (e) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao processar contribuição para a Pool." });
+    }
+});
+
+// Opção 2: Usuário transfere CELO diretamente via MetaMask para a carteira do projeto (0x414589C91d29AAe97402885Ce9D8977eF0b9F67B)
+app.post('/api/pool/contribuir-metamask', checkAuthenticated, async (req, res) => {
+    try {
+        const { quantidadeCelo, txHash } = req.body;
+        const qtdCelo = parseFloat(quantidadeCelo);
+
+        if (isNaN(qtdCelo) || qtdCelo <= 0 || !txHash) {
+            return res.status(400).json({ sucesso: false, mensagem: "Dados da transação MetaMask inválidos." });
+        }
+
+        const [pool, cotacaoCelo, scRate, user] = await Promise.all([
+            obterOuCriarPool(),
+            obterCotacaoCeloTempoReal(),
+            getSCRate(),
+            User.findById(req.session.user.id)
+        ]);
+
+        const slcEquivalente = parseFloat((qtdCelo * cotacaoCelo.brl * scRate).toFixed(2));
+
+        pool.celoAtual = parseFloat((pool.celoAtual + qtdCelo).toFixed(4));
+        pool.slcAtual = parseFloat((pool.slcAtual + slcEquivalente).toFixed(2));
+        pool.atualizadoEm = Date.now();
+
+        const novaContribuicao = new PoolContribution({
+            userId: user._id,
+            nomeUsuario: user.nome,
+            emailUsuario: user.email,
+            metodo: 'MetaMask (CELO On-Chain)',
+            qtdCeloAdicionada: qtdCelo,
+            qtdSlcAdicionada: slcEquivalente,
+            totalScPagoPlataforma: 0,
+            txHash: txHash
+        });
+
+        await Promise.all([
+            pool.save(),
+            novaContribuicao.save(),
+            new Transaction({
+                userId: user._id,
+                tipo: 'Liquidez Pool (MetaMask CELO)',
+                descricao: `Enviou +${qtdCelo} CELO para a Pool (Hash: ${txHash.slice(0, 10)}...)`,
+                valor: 0
+            }).save()
+        ]);
+
+        res.json({
+            sucesso: true,
+            mensagem: `🎉 Transação confirmada! Seus +${qtdCelo} CELO foram somados à Pool de Liquidez Oficial da SolidCoin!`
+        });
+    } catch (e) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao registrar contribuição via MetaMask." });
+    }
+});
+
+// Rotas do Painel ADM para o CEO gerenciar a Pool de Liquidez e atualizar o Objetivo
+app.get('/api/admin/pool-detalhes', isAdmin, async (req, res) => {
+    try {
+        const [pool, contribuicoes, cotacaoCelo] = await Promise.all([
+            obterOuCriarPool(),
+            PoolContribution.find({}).sort({ data: -1 }).limit(50),
+            obterCotacaoCeloTempoReal()
+        ]);
+        res.json({ sucesso: true, pool, contribuicoes, cotacaoCelo });
+    } catch (e) {
+        res.status(500).json({ sucesso: false });
+    }
+});
+
+app.post('/api/admin/pool-atualizar', isAdmin, async (req, res) => {
+    try {
+        const { modo, celo, slc, metaCelo, estadoPool, tarifasGanhasBrl } = req.body;
+        const pool = await obterOuCriarPool();
+
+        if (modo === 'somar') {
+            const addCelo = parseFloat(celo) || 0;
+            const addSlc = parseFloat(slc) || 0;
+            pool.celoAtual = parseFloat((pool.celoAtual + addCelo).toFixed(4));
+            pool.slcAtual = parseFloat((pool.slcAtual + addSlc).toFixed(2));
+        } else if (modo === 'definir') {
+            if (celo !== undefined && celo !== '') pool.celoAtual = parseFloat(celo);
+            if (slc !== undefined && slc !== '') pool.slcAtual = parseFloat(slc);
+        }
+
+        if (metaCelo !== undefined && metaCelo !== '' && parseFloat(metaCelo) > 0) {
+            pool.metaCelo = parseFloat(metaCelo);
+        }
+        if (estadoPool) {
+            pool.estadoPool = estadoPool.trim();
+        }
+        if (tarifasGanhasBrl !== undefined && tarifasGanhasBrl !== '') {
+            pool.tarifasGanhasBrl = parseFloat(tarifasGanhasBrl) || 0;
+        }
+
+        pool.atualizadoEm = Date.now();
+        await pool.save();
+
+        res.json({
+            sucesso: true,
+            mensagem: "✅ Dados e objetivos da Pool de Liquidez CELO / SLC atualizados com sucesso!",
+            pool
+        });
+    } catch (e) {
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao atualizar a Pool de Liquidez." });
     }
 });
 
@@ -2201,9 +2538,11 @@ app.post('/api/bot/perguntar', checkAuthenticated, async (req, res) => {
         const { mensagem } = req.body;
         const msg = (mensagem || '').toLowerCase();
         
-        let resposta = "Olá! Eu sou o Assistente SolidCoin 🤖. Como posso te ajudar hoje?\n\nTente perguntar sobre: 'comprar', 'celo', 'metamask', 'jogo', 'solidcrush', 'saque', 'pix', 'minipay', 'sócio', 'staking', 'nfc', 'indicação', 'investimentos' ou 'nft'.";
+        let resposta = "Olá! Eu sou o Assistente SolidCoin 🤖. Como posso te ajudar hoje?\n\nTente perguntar sobre: 'pool', 'liquidez', 'comprar', 'celo', 'metamask', 'jogo', 'solidcrush', 'saque', 'pix', 'minipay', 'sócio', 'staking', 'nfc', 'indicação', 'investimentos' ou 'nft'.";
 
-        if (msg.includes('comprar') || msg.includes('recarregar saldo')) {
+        if (msg.includes('pool') || msg.includes('liquidez')) {
+            resposta = "💧 **Pool de Liquidez CELO / SLC:** No card do **Seu Saldo**, você acompanha em tempo real a evolução da nossa Pool rumo ao objetivo de **10.000 CELO**! Você pode apoiar o projeto adicionando liquidez diretamente com seu saldo de SolidCoins da plataforma ou transferindo CELO via MetaMask!";
+        } else if (msg.includes('comprar') || msg.includes('recarregar saldo')) {
             resposta = "⚡ **Compra Rápida via Pix:** Agora você pode comprar SolidCoins diretamente no card do **Seu Saldo** a partir de **R$ 1,00** via Pix automático! Basta digitar o valor em reais, copiar o código Pix (ou ler o QR Code) e suas moedas caem na hora e 100% livres!";
         } else if (msg.includes('jogo') || msg.includes('crush') || msg.includes('ponto') || msg.includes('level') || msg.includes('nível')) {
             resposta = "🍬 **SolidCrush Saga (Nível 1 ao 1000):** Combine as joias da SolidCoin para passar de fase! Se você vencer a fase, **não perde vida** e continua jogando! A cada **1.000.000 de pontos** acumulados, você ganha automaticamente **1.000 SolidCoins**!";
@@ -2355,9 +2694,6 @@ app.post('/api/resgatar-giftcard-solidcoin', checkAuthenticated, async (req, res
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
-// =========================================================================
-// --- ROTAS DE PEDIDOS PENDENTES NO PAINEL ADM (INCLUINDO PIX SC E NFT) ---
-// =========================================================================
 app.get('/api/admin/pedidos-pendentes', isAdmin, async (req, res) => {
     try {
         const saques = await Withdrawal.find({ status: 'Pendente' }).sort({ data: 1 });
@@ -2385,7 +2721,6 @@ app.get('/api/admin/pedidos-pendentes', isAdmin, async (req, res) => {
     } catch (error) { res.status(500).json({ sucesso: false }); }
 });
 
-// Processar (Aprovar ou Rejeitar) Pedido de Compra de SolidCoins via Pix no Painel ADM
 app.post('/api/admin/processar-compra-sc-pix', isAdmin, async (req, res) => {
     try {
         const { orderId, acao } = req.body;
@@ -2410,7 +2745,6 @@ app.post('/api/admin/processar-compra-sc-pix', isAdmin, async (req, res) => {
     }
 });
 
-// Processar (Aprovar ou Rejeitar) Pedido de Mint de NFT via Pix no Painel ADM
 app.post('/api/admin/processar-mint-nft-pix', isAdmin, async (req, res) => {
     try {
         const { orderId, acao } = req.body;
@@ -2724,6 +3058,10 @@ async function setupInicial() {
 
         if (!(await SysSettings.findOne())) { await new SysSettings({ scPorReal: 500 }).save(); }
 
+        // Inicializa a Pool de Liquidez Oficial CELO / SLC (129.74 CELO e 6938.72 SLC, Meta 10000 CELO)
+        await obterOuCriarPool();
+        await obterCotacaoCeloTempoReal();
+
         const todosTemplates = await NftTemplate.find({});
         for (let t of todosTemplates) {
             if (t.imageUrl && t.metadata) {
@@ -2832,7 +3170,7 @@ async function setupInicial() {
                 await ceo.save();
             }
 
-            console.log("✅ Ecossistema SolidCoin + Rotas ADM para Aprovar/Rejeitar Pix de SC e NFT ativas!");
+            console.log("✅ Ecossistema SolidCoin + Pool de Liquidez CELO/SLC (Meta 10.000 CELO) ativo!");
         }
     } catch (e) { console.error("Erro no setup inicial:", e); }
 }

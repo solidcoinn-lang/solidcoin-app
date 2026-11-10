@@ -28,7 +28,7 @@
         /* ========================================================= */
         .compra-pix-saldo-box {
             margin: 18px auto 0 auto;
-            max-width: 460px;
+            max-width: 520px;
             background: linear-gradient(145deg, #0d1b15, #12241c);
             border: 1px solid rgba(0, 184, 148, 0.45);
             border-radius: 12px;
@@ -86,6 +86,163 @@
             margin-top: 8px;
             font-weight: bold;
         }
+
+        /* ========================================================= */
+        /* POOL DE LIQUIDEZ OFICIAL CELO / SLC DENTRO DO SALDO CARD */
+        /* ========================================================= */
+        .pool-liquidez-box {
+            margin: 18px auto 0 auto;
+            max-width: 520px;
+            background: linear-gradient(145deg, #0c0f14, #141922);
+            border: 1px solid rgba(252, 255, 82, 0.35);
+            border-radius: 14px;
+            padding: 18px;
+            text-align: left;
+            box-shadow: 0 6px 22px rgba(0, 0, 0, 0.6);
+        }
+        .pool-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            border-bottom: 1px solid #252b36;
+            padding-bottom: 12px;
+        }
+        .pool-pair-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .pool-icons-dual {
+            position: relative;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(90deg, #fcff52 50%, #163a24 50%);
+            border: 2px solid #d4af37;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #000;
+            font-size: 0.85em;
+        }
+        .pool-status-pill {
+            background: rgba(0, 255, 136, 0.12);
+            border: 1px solid rgba(0, 255, 136, 0.4);
+            color: #00ff88;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.78em;
+            font-weight: bold;
+        }
+        .pool-cotacao-live {
+            background: #090c10;
+            border: 1px dashed #35d07f;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-top: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.85em;
+        }
+        .pool-posicao-grid {
+            margin-top: 14px;
+            background: #0b0e13;
+            border: 1px solid #222834;
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .pool-split-bar {
+            display: flex;
+            height: 8px;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 8px 0;
+            background: #222;
+        }
+        .pool-split-celo {
+            background: #fcff52;
+            height: 100%;
+            transition: width 0.4s ease;
+        }
+        .pool-split-slc {
+            background: #00ff88;
+            height: 100%;
+            transition: width 0.4s ease;
+        }
+        .pool-meta-wrap {
+            margin-top: 14px;
+        }
+        .pool-meta-bar-bg {
+            background: #07090c;
+            border: 1px solid #3a4150;
+            border-radius: 20px;
+            height: 24px;
+            position: relative;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+        .pool-meta-bar-fill {
+            background: linear-gradient(90deg, #f39c12, #fcff52, #00ff88);
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        .pool-meta-bar-text {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8em;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 1px 3px #000;
+        }
+        .pool-contribute-box {
+            margin-top: 15px;
+            padding-top: 12px;
+            border-top: 1px solid #252b36;
+        }
+        .pool-btn-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .btn-pool-sc {
+            flex: 1 1 180px;
+            margin: 0 !important;
+            background: linear-gradient(135deg, #d4af37, #f1c40f);
+            color: #000;
+            font-weight: bold;
+            border: none;
+            padding: 11px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.88em;
+            transition: 0.2s;
+        }
+        .btn-pool-sc:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .btn-pool-metamask {
+            flex: 1 1 180px;
+            margin: 0 !important;
+            background: linear-gradient(135deg, #f6851b, #e2761b);
+            color: #fff;
+            font-weight: bold;
+            border: none;
+            padding: 11px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.88em;
+            transition: 0.2s;
+        }
+        .btn-pool-metamask:hover { filter: brightness(1.1); transform: translateY(-1px); }
 
         /* ========================================================= */
         /* MODAL PIX EFÍ COM DUAS FOLHAS PARA COPIAR E AUTO-CONFIRMAÇÃO */
@@ -370,7 +527,9 @@
 
         <div id="aviso-vencimento-socio" class="alerta-vencimento"></div>
 
-        <!-- CARD SEU SALDO + COMPRA RÁPIDA DE SOLIDCOINS VIA PIX (MÍN. R$ 1,00) -->
+        <!-- ========================================================= -->
+        <!-- CARD SEU SALDO + COMPRA PIX + POOL DE LIQUIDEZ CELO / SLC -->
+        <!-- ========================================================= -->
         <div class="card saldo-card">
             <h2 style="display: flex; align-items: center; justify-content: center; gap: 10px;">
                 Seu Saldo <span id="toggle-saldo" style="cursor: pointer; font-size: 0.9em; filter: grayscale(100%);">👁️</span>
@@ -385,7 +544,7 @@
                 <small style="color: #666; font-size: 0.8em;">(Cotação atual: <span id="cotacao-atual">500</span> SC = R$ 1,00)</small>
             </p>
 
-            <!-- CAMPO DE COMPRA DIRETA DE SOLIDCOIN VIA PIX EFÍ -->
+            <!-- 1. CAMPO DE COMPRA DIRETA DE SOLIDCOIN VIA PIX EFÍ -->
             <div class="compra-pix-saldo-box">
                 <div class="compra-pix-saldo-titulo">
                     ⚡ Comprar SolidCoins via Pix (Mín. R$ 1,00)
@@ -396,6 +555,79 @@
                 </div>
                 <div id="preview-compra-sc-pix" class="compra-pix-preview">
                     Digite o valor em R$ para ver quantas SolidCoins vai receber na hora!
+                </div>
+            </div>
+
+            <!-- 2. PAINEL DA POOL DE LIQUIDEZ OFICIAL CELO / SLC (META 10.000 CELO) -->
+            <div class="pool-liquidez-box">
+                <div class="pool-header-row">
+                    <div class="pool-pair-badge">
+                        <div class="pool-icons-dual">C/S</div>
+                        <div>
+                            <div style="font-weight: bold; font-size: 1.05em; color: #fff;">
+                                CELO / SLC <span style="font-size: 0.78em; color: #aaa; font-weight: normal;">v4 • 0.25%</span>
+                            </div>
+                            <div style="font-size: 0.8em; color: #fcff52; font-weight: bold;" id="pool-posicao-brl">
+                                Posição Total: R$ 90,53
+                            </div>
+                        </div>
+                    </div>
+                    <span id="pool-estado-badge" class="pool-status-pill">Dentro do intervalo</span>
+                </div>
+
+                <!-- COTAÇÃO DO CELO EM TEMPO REAL -->
+                <div class="pool-cotacao-live">
+                    <span style="color: #ccc;">🌐 Cotação CELO (Tempo Real): <strong id="pool-celo-brl" style="color: #fcff52;">R$ 0,37</strong></span>
+                    <span style="color: #00ff88; font-weight: bold;" id="pool-celo-slc-ratio">1 CELO = 55,96 SLC</span>
+                </div>
+
+                <!-- COMPOSIÇÃO ATUAL DA POOL (CELO vs SLC) -->
+                <div class="pool-posicao-grid">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85em; font-weight: bold;">
+                        <span style="color: #fcff52;">🟡 CELO (<span id="pool-pct-celo">51,14%</span>)</span>
+                        <span style="color: #00ff88;">🟢 SolidCoin (<span id="pool-pct-slc">48,86%</span>)</span>
+                    </div>
+                    <div class="pool-split-bar">
+                        <div id="pool-bar-split-celo" class="pool-split-celo" style="width: 51.14%;"></div>
+                        <div id="pool-bar-split-slc" class="pool-split-slc" style="width: 48.86%;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.92em; font-weight: bold; color: #fff;">
+                        <span id="pool-qtd-celo">129,74 CELO</span>
+                        <span id="pool-qtd-slc">6.938,72 SLC</span>
+                    </div>
+                </div>
+
+                <!-- BARRA DE PROGRESSO RUMO AO 1º OBJETIVO (10.000 CELO) -->
+                <div class="pool-meta-wrap">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.84em;">
+                        <span style="color: #d4af37; font-weight: bold;">🎯 1º Objetivo: <strong id="pool-meta-alvo">10.000</strong> CELO</span>
+                        <span style="color: #ccc;">Faltam: <strong id="pool-falta-celo" style="color: #fcff52;">9.870,26 CELO</strong></span>
+                    </div>
+                    <div class="pool-meta-bar-bg">
+                        <div id="pool-meta-bar-fill" class="pool-meta-bar-fill" style="width: 1.3%;"></div>
+                        <div id="pool-meta-bar-text" class="pool-meta-bar-text">129,74 / 10.000 CELO (1,30%)</div>
+                    </div>
+                </div>
+
+                <!-- ÁREA PARA OS USUÁRIOS AJUDAREM A POOL DE LIQUIDEZ -->
+                <div class="pool-contribute-box">
+                    <div style="font-size: 0.9em; font-weight: bold; color: #00ff88; margin-bottom: 6px; text-align: center;">
+                        🤝 Ajude a Fortalecer a Pool de Liquidez da SolidCoin!
+                    </div>
+                    <input type="number" id="input-pool-qtd-celo" placeholder="Quantos CELO deseja adicionar na Pool? (Ex: 5)" min="0.1" step="0.1" oninput="atualizarPreviewContribuicaoPool()" style="margin: 0 !important; background: #07090d; border: 1px solid #fcff52; color: #fff; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold;">
+                    
+                    <div id="preview-contribuicao-pool" style="font-size: 0.8em; color: #ccc; text-align: center; margin-top: 6px; line-height: 1.4;">
+                        Digite a quantidade de CELO acima para ver a soma em SolidCoins (Celo + SLC) ou enviar direto via MetaMask.
+                    </div>
+
+                    <div class="pool-btn-row">
+                        <button type="button" class="btn-pool-sc" onclick="contribuirPoolComSaldo()">
+                            🪙 Adicionar com Saldo SC (Celo + SLC)
+                        </button>
+                        <button type="button" class="btn-pool-metamask" onclick="contribuirPoolViaMetaMask()">
+                            🦊 Enviar CELO via MetaMask
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1082,6 +1314,182 @@
     <!-- 2º SCRIPT COM LÓGICA DINÂMICA INJETADO NO FINAL -->
     <script>
         // =========================================================================
+        // --- LÓGICA DA POOL DE LIQUIDEZ OFICIAL CELO / SLC (TEMPO REAL) ---
+        // =========================================================================
+        const CARTEIRA_PROJETO_POOL = "0x414589C91d29AAe97402885Ce9D8977eF0b9F67B";
+        let dadosPoolCache = {
+            celoPrecoBrl: 0.37,
+            slcPorCelo: 55.96,
+            scRate: 151,
+            carteiraProjeto: CARTEIRA_PROJETO_POOL
+        };
+
+        async function carregarDadosPoolLiquidez() {
+            try {
+                const res = await fetch('/api/pool/status');
+                if (!res.ok) return;
+                const d = await res.json();
+                if (!d.sucesso || !d.pool) return;
+
+                const p = d.pool;
+                dadosPoolCache = p;
+
+                const posBrlEl = document.getElementById('pool-posicao-brl');
+                const estadoEl = document.getElementById('pool-estado-badge');
+                const celoBrlEl = document.getElementById('pool-celo-brl');
+                const ratioEl = document.getElementById('pool-celo-slc-ratio');
+                const pctCeloEl = document.getElementById('pool-pct-celo');
+                const pctSlcEl = document.getElementById('pool-pct-slc');
+                const barCeloEl = document.getElementById('pool-bar-split-celo');
+                const barSlcEl = document.getElementById('pool-bar-split-slc');
+                const qtdCeloEl = document.getElementById('pool-qtd-celo');
+                const qtdSlcEl = document.getElementById('pool-qtd-slc');
+                const metaAlvoEl = document.getElementById('pool-meta-alvo');
+                const faltaCeloEl = document.getElementById('pool-falta-celo');
+                const metaFillEl = document.getElementById('pool-meta-bar-fill');
+                const metaTextEl = document.getElementById('pool-meta-bar-text');
+
+                if (posBrlEl) posBrlEl.innerText = `Posição Total: R$ ${parseFloat(p.posicaoTotalBrl || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                if (estadoEl) estadoEl.innerText = p.estadoPool || 'Dentro do intervalo';
+                if (celoBrlEl) celoBrlEl.innerText = `R$ ${parseFloat(p.celoPrecoBrl || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ($${parseFloat(p.celoPrecoUsd || 0).toFixed(3)})`;
+                if (ratioEl) ratioEl.innerText = `1 CELO = ${parseFloat(p.slcPorCelo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} SLC`;
+
+                const pctC = parseFloat(p.pctCeloComposicao || 50).toFixed(2);
+                const pctS = parseFloat(p.pctSlcComposicao || 50).toFixed(2);
+                if (pctCeloEl) pctCeloEl.innerText = `${pctC.replace('.', ',')}%`;
+                if (pctSlcEl) pctSlcEl.innerText = `${pctS.replace('.', ',')}%`;
+                if (barCeloEl) barCeloEl.style.width = `${pctC}%`;
+                if (barSlcEl) barSlcEl.style.width = `${pctS}%`;
+
+                if (qtdCeloEl) qtdCeloEl.innerText = `${parseFloat(p.celoAtual || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CELO`;
+                if (qtdSlcEl) qtdSlcEl.innerText = `${parseFloat(p.slcAtual || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SLC`;
+
+                if (metaAlvoEl) metaAlvoEl.innerText = parseFloat(p.metaCelo || 10000).toLocaleString('pt-BR');
+                if (faltaCeloEl) faltaCeloEl.innerText = `${parseFloat(p.faltaCelo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CELO`;
+
+                const progPct = Math.min(100, parseFloat(p.progressoMetaPct || 0));
+                if (metaFillEl) metaFillEl.style.width = `${Math.max(2, progPct)}%`;
+                if (metaTextEl) {
+                    metaTextEl.innerText = `${parseFloat(p.celoAtual || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / ${parseFloat(p.metaCelo || 10000).toLocaleString('pt-BR')} CELO (${progPct.toFixed(2).replace('.', ',')}%)`;
+                }
+            } catch (e) {}
+        }
+
+        window.atualizarPreviewContribuicaoPool = function() {
+            const inputEl = document.getElementById('input-pool-qtd-celo');
+            const previewEl = document.getElementById('preview-contribuicao-pool');
+            if (!inputEl || !previewEl) return;
+
+            const qtdCelo = parseFloat(inputEl.value);
+            if (isNaN(qtdCelo) || qtdCelo <= 0) {
+                previewEl.style.color = '#ccc';
+                previewEl.innerText = 'Digite a quantidade de CELO acima para ver a soma em SolidCoins (Celo + SLC) ou enviar direto via MetaMask.';
+                return;
+            }
+
+            const slcPorCelo = parseFloat(dadosPoolCache.slcPorCelo) || 55.96;
+            const parteCeloEmSC = qtdCelo * slcPorCelo;
+            const parteSlcPar = qtdCelo * slcPorCelo;
+            const totalSomaSC = parteCeloEmSC + parteSlcPar;
+
+            previewEl.style.color = '#ffd32a';
+            previewEl.innerHTML = `💧 <strong>Pelo Saldo da Plataforma:</strong> ${qtdCelo} CELO (${parteCeloEmSC.toFixed(2)} SC) + ${parteSlcPar.toFixed(2)} SLC do par = <strong>Total: ${totalSomaSC.toFixed(2)} SolidCoins</strong><br>` +
+                                  `🦊 <strong>Pela MetaMask:</strong> Transfere <strong>${qtdCelo} CELO</strong> direto para a carteira da Pool!`;
+        };
+
+        window.contribuirPoolComSaldo = async function() {
+            const inputEl = document.getElementById('input-pool-qtd-celo');
+            const quantidadeCelo = parseFloat(inputEl ? inputEl.value : 0);
+
+            if (isNaN(quantidadeCelo) || quantidadeCelo <= 0) {
+                return alert('Digite primeiro a quantidade de CELO que deseja adicionar à Pool!');
+            }
+
+            const slcPorCelo = parseFloat(dadosPoolCache.slcPorCelo) || 55.96;
+            const parteSC = (quantidadeCelo * slcPorCelo).toFixed(2);
+            const totalSC = (quantidadeCelo * slcPorCelo * 2).toFixed(2);
+
+            if (!confirm(`💧 APOIAR POOL DE LIQUIDEZ (SALDO PLATAFORMA)\n\nVocê vai adicionar:\n• +${quantidadeCelo} CELO (equivalente a ${parteSC} SC)\n• +${parteSC} SLC do par\n\nTotal a descontar do seu saldo livre: ${totalSC} SolidCoins.\n\nDeseja confirmar?`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/pool/contribuir-saldo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ quantidadeCelo })
+                });
+                const data = await res.json();
+                alert(data.mensagem);
+
+                if (data.sucesso) {
+                    if (inputEl) inputEl.value = '';
+                    atualizarPreviewContribuicaoPool();
+                    carregarDadosPoolLiquidez();
+                    fetchDashboardData();
+                }
+            } catch (e) {
+                alert('Erro de conexão ao enviar contribuição para a Pool.');
+            }
+        };
+
+        // Envia CELO nativo na Rede Celo Mainnet via MetaMask direto para 0x414589C91d29AAe97402885Ce9D8977eF0b9F67B
+        window.contribuirPoolViaMetaMask = async function() {
+            const inputEl = document.getElementById('input-pool-qtd-celo');
+            const quantidadeCelo = parseFloat(inputEl ? inputEl.value : 0);
+
+            if (isNaN(quantidadeCelo) || quantidadeCelo <= 0) {
+                return alert('Digite primeiro a quantidade de CELO que deseja transferir para a Pool via MetaMask!');
+            }
+
+            const carteiraConectada = await window.conectarMetaMaskCelo();
+            if (!carteiraConectada) return;
+
+            try {
+                // Garante que a MetaMask está na Celo Mainnet (0xa4ec)
+                const currentChain = await window.ethereum.request({ method: 'eth_chainId' });
+                if (currentChain.toLowerCase() !== CELO_MAINNET_PARAMS.chainId.toLowerCase()) {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: CELO_MAINNET_PARAMS.chainId }]
+                    });
+                }
+
+                // Converte quantidadeCelo para Wei em Hexadecimal (18 casas decimais)
+                const microCelo = BigInt(Math.round(quantidadeCelo * 1e6));
+                const weiBigInt = microCelo * (10n ** 12n);
+                const valueHex = "0x" + weiBigInt.toString(16);
+
+                const txHash = await window.ethereum.request({
+                    method: 'eth_sendTransaction',
+                    params: [{
+                        from: carteiraConectada,
+                        to: CARTEIRA_PROJETO_POOL,
+                        value: valueHex
+                    }]
+                });
+
+                const res = await fetch('/api/pool/contribuir-metamask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ quantidadeCelo, txHash })
+                });
+                const data = await res.json();
+                alert(data.mensagem);
+
+                if (data.sucesso) {
+                    if (inputEl) inputEl.value = '';
+                    atualizarPreviewContribuicaoPool();
+                    carregarDadosPoolLiquidez();
+                    fetchDashboardData();
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Transação de CELO cancelada na MetaMask ou saldo de CELO insuficiente.');
+            }
+        };
+
+        // =========================================================================
         // --- FUNÇÕES DE COMPRA DE SOLIDCOIN, SÓCIO E MINT DE NFT VIA PIX EFÍ ---
         // =========================================================================
         let intervaloVerificacaoPix = null;
@@ -1177,6 +1585,11 @@
                 const res = await fetch(`/api/pix/verificar-txid/${txidPixAtual}`);
                 const data = await res.json();
 
+                if (data.rejeitado) {
+                    fecharModalPix();
+                    return alert(data.mensagem || 'Pedido Pix cancelado.');
+                }
+
                 if (data.sucesso && data.pago) {
                     if (intervaloVerificacaoPix) {
                         clearInterval(intervaloVerificacaoPix);
@@ -1267,7 +1680,6 @@
             }
         };
 
-        // Gera o QR Code Pix do Clube de Sócios e abre a janela com as duas folhas
         window.gerarPixSocioPlano = async function() {
             const planoEl = document.getElementById('socio-plano');
             const plano = planoEl ? planoEl.value : '';
@@ -2477,11 +2889,13 @@
                 const qPix = (d.saquesPix || []).length;
                 const qDep = (d.depositos || []).length;
                 const qSocios = (d.socios || []).length;
+                const qComprasSc = (d.comprasScPix || []).length;
+                const qMintsNft = (d.mintsNftPix || []).length;
                 const qGifts = (d.gifts || []).length;
                 const qRecargas = (d.recharges || []).length;
                 const qNfc = (d.cartoesNfc || []).length;
 
-                const total = qSaques + qPix + qDep + qSocios + qGifts + qRecargas + qNfc;
+                const total = qSaques + qPix + qDep + qSocios + qComprasSc + qMintsNft + qGifts + qRecargas + qNfc;
 
                 const adminBtn = document.getElementById('admin-btn');
                 const alertaBox = document.getElementById('alerta-admin-pendentes');
@@ -2493,15 +2907,17 @@
                     }
 
                     let itens = [];
+                    if (qComprasSc > 0) itens.push(`${qComprasSc} Compra(s) SC Pix`);
+                    if (qMintsNft > 0) itens.push(`${qMintsNft} Mint(s) NFT Pix`);
+                    if (qSocios > 0) itens.push(`${qSocios} Plano(s) Sócio`);
                     if (qSaques > 0) itens.push(`${qSaques} Saque(s) Cripto`);
                     if (qPix > 0) itens.push(`${qPix} Saque(s) Pix`);
                     if (qDep > 0) itens.push(`${qDep} Depósito(s)`);
-                    if (qSocios > 0) itens.push(`${qSocios} Plano(s) Sócio`);
                     if (qGifts > 0) itens.push(`${qGifts} Gift Card(s)`);
                     if (qRecargas > 0) itens.push(`${qRecargas} Recarga(s)`);
                     if (qNfc > 0) itens.push(`${qNfc} Cartão(ões) NFC`);
 
-                    if (resumoBox) resumoBox.innerText = `Aguardando aprovação: ${itens.join(' • ')}`;
+                    if (resumoBox) resumoBox.innerText = `Aguardando verificação: ${itens.join(' • ')}`;
                     if (alertaBox) alertaBox.style.display = 'flex';
 
                     if (ultimoTotalPendentes !== null && total > ultimoTotalPendentes) {
@@ -2600,11 +3016,12 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             fetchDashboardData();
-            setInterval(fetchDashboardData, 3000); 
+            carregarDadosPoolLiquidez();
+            setInterval(fetchDashboardData, 3000);
+            setInterval(carregarDadosPoolLiquidez, 8000);
         });
 
         setTimeout(() => {
-            // Remove qualquer evento antigo de scripts.js clonando o formulário de sócio
             const oldSocioForm = document.getElementById('socio-form');
             if (oldSocioForm) {
                 const newSocioForm = oldSocioForm.cloneNode(true);
@@ -2641,7 +3058,6 @@
                         btnSocio.innerText = '💠 Gerar QR Code Pix do Plano';
                         btnSocio.style.background = 'linear-gradient(135deg, #00b894, #00cec9)';
                         btnSocio.style.color = '#000';
-                        // Já abre a janela do QR Code Pix imediatamente ao selecionar!
                         gerarPixSocioPlano();
                     } else if (this.value === 'Solana') {
                         txidInput.required = true;

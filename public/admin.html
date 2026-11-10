@@ -46,6 +46,7 @@
             display: none;
         }
 
+        .btn-pool-adm { border-bottom: 4px solid #fcff52; background: linear-gradient(145deg, #191c0e, #12150a); }
         .btn-users { border-bottom: 4px solid #9b59b6; }
         .btn-cotacao { border-bottom: 4px solid #3498db; }
         .btn-gerargift { border-bottom: 4px solid #d4af37; }
@@ -84,6 +85,9 @@
         </div>
 
         <div id="menu-botoes" class="feature-grid">
+            <button class="feature-btn btn-pool-adm" onclick="abrirSecaoPainel('sec-pool-liquidez')">
+                <span class="icon">💧</span><span class="text">Pool Liquidez (CELO/SLC)</span>
+            </button>
             <button class="feature-btn btn-comprasscpix" onclick="abrirSecaoPainel('sec-compras-sc-pix')">
                 <span id="badge-compras-sc" class="badge-count-adm">0</span>
                 <span class="icon">💠</span><span class="text">Compras SC (PIX)</span>
@@ -147,7 +151,115 @@
         </div>
 
         <!-- ========================================================== -->
-        <!-- NOVA SEÇÃO: PEDIDOS DE COMPRA DE SOLIDCOINS VIA PIX -->
+        <!-- NOVA SEÇÃO: GESTÃO DA POOL DE LIQUIDEZ OFICIAL CELO / SLC -->
+        <!-- ========================================================== -->
+        <div id="sec-pool-liquidez" class="feature-section">
+            <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
+            <div class="section-card" style="border-left: 5px solid #fcff52;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h2 style="margin-top: 0; color: #fcff52;">💧 Gestão da Pool de Liquidez Oficial (CELO / SLC)</h2>
+                        <p style="color: #aaa; font-size: 0.9em; margin-top: -8px;">
+                            Adicione liquidez quando você mesmo injetar mais moedas na Pool, ou atualize o objetivo (meta de CELO) exibido para todos os usuários no Dashboard.
+                        </p>
+                    </div>
+                    <button onclick="carregarDetalhesPoolAdmin()" class="btn-admin" style="background: #333; color: #fcff52; border: 1px solid #fcff52;">🔄 Atualizar Dados</button>
+                </div>
+
+                <!-- RESUMO ATUAL DA POOL -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 15px 0; background: #111; padding: 15px; border-radius: 10px; border: 1px solid #333;">
+                    <div>
+                        <span style="color: #aaa; font-size: 0.8em;">Saldo Atual de CELO na Pool:</span><br>
+                        <strong id="adm-pool-celo-atual" style="color: #fcff52; font-size: 1.3em;">129,74 CELO</strong>
+                    </div>
+                    <div>
+                        <span style="color: #aaa; font-size: 0.8em;">Saldo Atual de SLC na Pool:</span><br>
+                        <strong id="adm-pool-slc-atual" style="color: #00ff88; font-size: 1.3em;">6.938,72 SLC</strong>
+                    </div>
+                    <div>
+                        <span style="color: #aaa; font-size: 0.8em;">Objetivo Atual (Meta):</span><br>
+                        <strong id="adm-pool-meta-atual" style="color: #d4af37; font-size: 1.3em;">10.000 CELO</strong>
+                    </div>
+                    <div>
+                        <span style="color: #aaa; font-size: 0.8em;">Cotação CELO (Tempo Real):</span><br>
+                        <strong id="adm-pool-cotacao-celo" style="color: #3498db; font-size: 1.2em;">R$ 0,37</strong>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+                    <!-- BLOCO 1: SOMAR LIQUIDEZ QUANDO O CEO ADICIONAR MAIS -->
+                    <div style="background: #111; padding: 18px; border-radius: 10px; border: 1px solid #00ff88;">
+                        <h3 style="color: #00ff88; margin-top: 0;">➕ 1. Adicionar Liquidez (Somar à Pool)</h3>
+                        <p style="font-size: 0.85em; color: #aaa;">Use este campo quando você colocar mais CELO e SLC na Pool e quiser somar aos valores que já estão lá:</p>
+                        
+                        <label style="color: #ccc; font-size: 0.82em;">Quantidade de CELO para somar (+):</label>
+                        <input type="number" id="adm-somar-celo" class="input-admin" placeholder="Ex: 50.5" step="0.01" style="margin-bottom: 10px;">
+
+                        <label style="color: #ccc; font-size: 0.82em;">Quantidade de SLC para somar (+):</label>
+                        <input type="number" id="adm-somar-slc" class="input-admin" placeholder="Ex: 2500" step="0.01" style="margin-bottom: 12px;">
+
+                        <button onclick="somarLiquidezPoolAdmin()" class="btn-admin" style="background: #00ff88; color: #000; width: 100%;">
+                            ➕ Somar Liquidez na Pool
+                        </button>
+                    </div>
+
+                    <!-- BLOCO 2: DEFINIR OBJETIVO (META) E AJUSTAR VALORES EXATOS -->
+                    <div style="background: #111; padding: 18px; border-radius: 10px; border: 1px solid #fcff52;">
+                        <h3 style="color: #fcff52; margin-top: 0;">🎯 2. Atualizar Objetivo (Meta) e Posição Exata</h3>
+                        <p style="font-size: 0.85em; color: #aaa;">Altere o objetivo (Ex: 10000 CELO) ou substitua os valores exatos da Pool conforme aparecem na sua carteira Web3:</p>
+
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <div style="flex: 1;">
+                                <label style="color: #ccc; font-size: 0.8em;">Total Exato CELO:</label>
+                                <input type="number" id="adm-definir-celo" class="input-admin" step="0.01">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="color: #ccc; font-size: 0.8em;">Total Exato SLC:</label>
+                                <input type="number" id="adm-definir-slc" class="input-admin" step="0.01">
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                            <div style="flex: 1;">
+                                <label style="color: #d4af37; font-size: 0.8em; font-weight: bold;">🎯 Objetivo / Meta (CELO):</label>
+                                <input type="number" id="adm-definir-meta" class="input-admin" step="1" placeholder="10000">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="color: #ccc; font-size: 0.8em;">Estado da Pool:</label>
+                                <input type="text" id="adm-definir-estado" class="input-admin" placeholder="Dentro do intervalo">
+                            </div>
+                        </div>
+
+                        <button onclick="definirConfigPoolAdmin()" class="btn-admin" style="background: #fcff52; color: #000; width: 100%;">
+                            💾 Salvar Configuração e Objetivo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- HISTÓRICO DE CONTRIBUIÇÕES DOS USUÁRIOS -->
+                <h3 style="color: #fcff52; margin-top: 30px;">🤝 Histórico de Contribuições dos Usuários na Pool</h3>
+                <div style="max-height: 400px; overflow-y: auto; border: 1px solid #333; border-radius: 6px;">
+                    <table>
+                        <thead style="position: sticky; top: 0; z-index: 10;">
+                            <tr>
+                                <th>Data</th>
+                                <th>Investidor</th>
+                                <th>Método Utilizado</th>
+                                <th>+ CELO Adicionado</th>
+                                <th>+ SLC Adicionado</th>
+                                <th>Total SC Pago / Comprovante</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-pool-contribuicoes">
+                            <tr><td colspan="6" style="text-align: center; color: #888;">Carregando contribuições...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================== -->
+        <!-- SEÇÃO: PEDIDOS DE COMPRA DE SOLIDCOINS VIA PIX -->
         <!-- ========================================================== -->
         <div id="sec-compras-sc-pix" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
@@ -180,7 +292,7 @@
         </div>
 
         <!-- ========================================================== -->
-        <!-- NOVA SEÇÃO: PEDIDOS DE MINT DE NFT VIA PIX -->
+        <!-- SEÇÃO: PEDIDOS DE MINT DE NFT VIA PIX -->
         <!-- ========================================================== -->
         <div id="sec-mints-nft-pix" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
@@ -533,7 +645,7 @@
     <!-- 1º CARREGA O SCRIPT COM A LÓGICA DE APROVAÇÕES -->
     <script src="admin-scripts.js"></script>
 
-    <!-- 2º SCRIPT COM AS FUNÇÕES DE COMPRA SC PIX, MINT NFT PIX E GESTÃO -->
+    <!-- 2º SCRIPT COM AS FUNÇÕES DE POOL LIQUIDEZ, COMPRA SC PIX, MINT NFT PIX E GESTÃO -->
     <script>
         window.fecharTodasSecoes = function() {
             const secoes = document.querySelectorAll('.feature-section');
@@ -551,6 +663,9 @@
             document.getElementById(idSecao).style.display = 'block';
             window.scrollTo({ top: 0, behavior: 'smooth' });
             
+            if (idSecao === 'sec-pool-liquidez') {
+                carregarDetalhesPoolAdmin();
+            }
             if (idSecao === 'sec-compras-sc-pix' || idSecao === 'sec-mints-nft-pix' || idSecao === 'sec-socios') {
                 carregarFilasPixExtrasAdm();
                 if (typeof window.carregarPendentes === 'function') window.carregarPendentes();
@@ -560,6 +675,114 @@
             if (idSecao === 'sec-imagens') carregarImagensSistema();
             if (idSecao === 'sec-links-adm') carregarLinksAdmin();
             if (idSecao === 'sec-nfts') { carregarConfigsNft(); carregarTemplatesNft(); }
+        };
+
+        // =========================================================================
+        // --- FUNÇÕES DE GESTÃO DA POOL DE LIQUIDEZ OFICIAL CELO / SLC (CEO) ---
+        // =========================================================================
+        window.carregarDetalhesPoolAdmin = async function() {
+            try {
+                const res = await fetch('/api/admin/pool-detalhes');
+                if (!res.ok) return;
+                const d = await res.json();
+                if (!d.sucesso || !d.pool) return;
+
+                const p = d.pool;
+                const cot = d.cotacaoCelo || { brl: 0.37, usd: 0.065 };
+
+                document.getElementById('adm-pool-celo-atual').innerText = `${parseFloat(p.celoAtual || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} CELO`;
+                document.getElementById('adm-pool-slc-atual').innerText = `${parseFloat(p.slcAtual || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SLC`;
+                document.getElementById('adm-pool-meta-atual').innerText = `${parseFloat(p.metaCelo || 10000).toLocaleString('pt-BR')} CELO`;
+                document.getElementById('adm-pool-cotacao-celo').innerText = `R$ ${parseFloat(cot.brl || 0).toFixed(4)} ($${parseFloat(cot.usd || 0).toFixed(3)})`;
+
+                document.getElementById('adm-definir-celo').value = p.celoAtual;
+                document.getElementById('adm-definir-slc').value = p.slcAtual;
+                document.getElementById('adm-definir-meta').value = p.metaCelo;
+                document.getElementById('adm-definir-estado').value = p.estadoPool || 'Dentro do intervalo';
+
+                const tbody = document.getElementById('tabela-pool-contribuicoes');
+                if (tbody) {
+                    tbody.innerHTML = '';
+                    const lista = d.contribuicoes || [];
+                    if (lista.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhuma contribuição de usuário registrada ainda.</td></tr>';
+                    } else {
+                        lista.forEach(item => {
+                            let detalhePagamento = '';
+                            if (item.txHash && item.txHash.startsWith('0x')) {
+                                detalhePagamento = `<a href="https://celoscan.io/tx/${item.txHash}" target="_blank" style="color: #fcff52; text-decoration: underline;">🔗 Ver no CeloScan (${item.txHash.slice(0, 10)}...)</a>`;
+                            } else {
+                                detalhePagamento = `<strong style="color: #d4af37;">${parseFloat(item.totalScPagoPlataforma || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} SC</strong> (Saldo Interno)`;
+                            }
+
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td>${new Date(item.data).toLocaleString('pt-BR')}</td>
+                                <td><strong>${item.nomeUsuario || 'Investidor'}</strong><br><small style="color: #888;">${item.emailUsuario || ''}</small></td>
+                                <td><span style="color: #00ff88; font-weight: bold;">${item.metodo}</span></td>
+                                <td><strong style="color: #fcff52;">+${parseFloat(item.qtdCeloAdicionada || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} CELO</strong></td>
+                                <td><strong style="color: #00ff88;">+${parseFloat(item.qtdSlcAdicionada || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} SLC</strong></td>
+                                <td>${detalhePagamento}</td>
+                            `;
+                            tbody.appendChild(tr);
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error("Erro ao carregar detalhes da Pool ADM:", e);
+            }
+        };
+
+        window.somarLiquidezPoolAdmin = async function() {
+            const celo = parseFloat(document.getElementById('adm-somar-celo').value) || 0;
+            const slc = parseFloat(document.getElementById('adm-somar-slc').value) || 0;
+
+            if (celo <= 0 && slc <= 0) {
+                return alert("Digite a quantidade de CELO e/ou SLC que deseja somar à Pool!");
+            }
+
+            if (!confirm(`Confirma a adição de +${celo} CELO e +${slc} SLC ao saldo atual da Pool de Liquidez?`)) return;
+
+            try {
+                const res = await fetch('/api/admin/pool-atualizar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ modo: 'somar', celo, slc })
+                });
+                const data = await res.json();
+                alert(data.mensagem);
+                if (data.sucesso) {
+                    document.getElementById('adm-somar-celo').value = '';
+                    document.getElementById('adm-somar-slc').value = '';
+                    carregarDetalhesPoolAdmin();
+                }
+            } catch (e) {
+                alert("Erro ao somar liquidez na Pool.");
+            }
+        };
+
+        window.definirConfigPoolAdmin = async function() {
+            const celo = document.getElementById('adm-definir-celo').value;
+            const slc = document.getElementById('adm-definir-slc').value;
+            const metaCelo = document.getElementById('adm-definir-meta').value;
+            const estadoPool = document.getElementById('adm-definir-estado').value;
+
+            if (!confirm(`Deseja atualizar a configuração da Pool para:\n• Total CELO: ${celo}\n• Total SLC: ${slc}\n• Objetivo (Meta): ${metaCelo} CELO?`)) return;
+
+            try {
+                const res = await fetch('/api/admin/pool-atualizar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ modo: 'definir', celo, slc, metaCelo, estadoPool })
+                });
+                const data = await res.json();
+                alert(data.mensagem);
+                if (data.sucesso) {
+                    carregarDetalhesPoolAdmin();
+                }
+            } catch (e) {
+                alert("Erro ao salvar configuração da Pool.");
+            }
         };
 
         // =========================================================================
@@ -583,7 +806,6 @@
                 const data = await res.json();
                 if (!data.sucesso) return;
 
-                // Atualiza contadores vermelhos nos botões do menu ADM
                 atualizarBadgeBotaoAdm('badge-compras-sc', (data.comprasScPix || []).length);
                 atualizarBadgeBotaoAdm('badge-mints-nft', (data.mintsNftPix || []).length);
                 atualizarBadgeBotaoAdm('badge-socios', (data.socios || []).length);
@@ -594,7 +816,6 @@
                 atualizarBadgeBotaoAdm('badge-gifts', (data.gifts || []).length);
                 atualizarBadgeBotaoAdm('badge-recargas', (data.recharges || []).length);
 
-                // 1. Preenche tabela de Compras de SolidCoins via Pix
                 const comprasScPixList = document.getElementById('compras-sc-pix-lista');
                 if (comprasScPixList) {
                     comprasScPixList.innerHTML = '';
@@ -622,7 +843,6 @@
                     }
                 }
 
-                // 2. Preenche tabela de Mints de NFT via Pix
                 const mintsNftPixList = document.getElementById('mints-nft-pix-lista');
                 if (mintsNftPixList) {
                     mintsNftPixList.innerHTML = '';
