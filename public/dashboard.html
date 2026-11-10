@@ -28,7 +28,7 @@
         /* ========================================================= */
         .compra-pix-saldo-box {
             margin: 18px auto 0 auto;
-            max-width: 520px;
+            max-width: 540px;
             background: linear-gradient(145deg, #0d1b15, #12241c);
             border: 1px solid rgba(0, 184, 148, 0.45);
             border-radius: 12px;
@@ -88,11 +88,11 @@
         }
 
         /* ========================================================= */
-        /* POOL DE LIQUIDEZ OFICIAL CELO / SLC DENTRO DO SALDO CARD */
+        /* POOL DE LIQUIDEZ OFICIAL CELO / SLC + RANKING PREMIADO */
         /* ========================================================= */
         .pool-liquidez-box {
             margin: 18px auto 0 auto;
-            max-width: 520px;
+            max-width: 540px;
             background: linear-gradient(145deg, #0c0f14, #141922);
             border: 1px solid rgba(252, 255, 82, 0.35);
             border-radius: 14px;
@@ -204,8 +204,19 @@
             color: #fff;
             text-shadow: 0 1px 3px #000;
         }
+        .pool-reward-banner {
+            margin-top: 12px;
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.14), rgba(0, 255, 136, 0.1));
+            border: 1px solid rgba(212, 175, 55, 0.45);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 0.82em;
+            color: #eee;
+            line-height: 1.45;
+            text-align: center;
+        }
         .pool-contribute-box {
-            margin-top: 15px;
+            margin-top: 14px;
             padding-top: 12px;
             border-top: 1px solid #252b36;
         }
@@ -243,6 +254,36 @@
             transition: 0.2s;
         }
         .btn-pool-metamask:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+        .pool-ranking-wrap {
+            margin-top: 16px;
+            background: #080b10;
+            border: 1px solid #262e3d;
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .pool-ranking-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+            font-size: 0.8em;
+        }
+        .pool-ranking-table th {
+            background: #121722;
+            color: #fcff52;
+            padding: 7px 6px;
+            text-align: center;
+            border-bottom: 1px solid #2a3344;
+        }
+        .pool-ranking-table td {
+            padding: 7px 6px;
+            text-align: center;
+            border-bottom: 1px solid #1a202c;
+            color: #ddd;
+        }
+        .pool-ranking-table tr:nth-child(1) td { color: #ffd32a; font-weight: bold; background: rgba(255, 211, 42, 0.07); }
+        .pool-ranking-table tr:nth-child(2) td { color: #e0e0e0; font-weight: bold; }
+        .pool-ranking-table tr:nth-child(3) td { color: #ff9f43; font-weight: bold; }
 
         /* ========================================================= */
         /* MODAL PIX EFÍ COM DUAS FOLHAS PARA COPIAR E AUTO-CONFIRMAÇÃO */
@@ -558,7 +599,7 @@
                 </div>
             </div>
 
-            <!-- 2. PAINEL DA POOL DE LIQUIDEZ OFICIAL CELO / SLC (META 10.000 CELO) -->
+            <!-- 2. PAINEL DA POOL DE LIQUIDEZ OFICIAL CELO / SLC + RANKING & RECOMPENSA -->
             <div class="pool-liquidez-box">
                 <div class="pool-header-row">
                     <div class="pool-pair-badge">
@@ -609,6 +650,11 @@
                     </div>
                 </div>
 
+                <!-- BANNER DE RECOMPENSA AUTOMÁTICA AO BATER A META -->
+                <div class="pool-reward-banner">
+                    🏆 <strong style="color: #ffd32a;">Recompensa Automática ao Bater a Meta:</strong> Todos os apoiadores recebem automaticamente <strong style="color: #00ff88;">+<span id="pool-bonus-pct-label">15</span>% em SolidCoins</strong> sobre a liquidez apoiada + Bónus Pódio (<strong style="color: #ffd32a;">🥇 +<span id="pool-top1-label">1000</span> SC</strong> • <strong style="color: #e0e0e0;">🥈 +<span id="pool-top2-label">500</span> SC</strong> • <strong style="color: #ff9f43;">🥉 +<span id="pool-top3-label">250</span> SC</strong>)!
+                </div>
+
                 <!-- ÁREA PARA OS USUÁRIOS AJUDAREM A POOL DE LIQUIDEZ -->
                 <div class="pool-contribute-box">
                     <div style="font-size: 0.9em; font-weight: bold; color: #00ff88; margin-bottom: 6px; text-align: center;">
@@ -617,7 +663,7 @@
                     <input type="number" id="input-pool-qtd-celo" placeholder="Quantos CELO deseja adicionar na Pool? (Ex: 5)" min="0.1" step="0.1" oninput="atualizarPreviewContribuicaoPool()" style="margin: 0 !important; background: #07090d; border: 1px solid #fcff52; color: #fff; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold;">
                     
                     <div id="preview-contribuicao-pool" style="font-size: 0.8em; color: #ccc; text-align: center; margin-top: 6px; line-height: 1.4;">
-                        Digite a quantidade de CELO acima para ver a soma em SolidCoins (Celo + SLC) ou enviar direto via MetaMask.
+                        Digite a quantidade de CELO acima para ver a soma em SolidCoins (Celo + SLC) e sua recompensa garantida!
                     </div>
 
                     <div class="pool-btn-row">
@@ -627,6 +673,29 @@
                         <button type="button" class="btn-pool-metamask" onclick="contribuirPoolViaMetaMask()">
                             🦊 Enviar CELO via MetaMask
                         </button>
+                    </div>
+                </div>
+
+                <!-- RANKING TOP 10 APOIADORES DA POOL -->
+                <div class="pool-ranking-wrap">
+                    <div style="font-size: 0.88em; font-weight: bold; color: #fcff52; text-align: center;">
+                        🏅 Ranking Top 10 Apoiadores da Pool (Recompensa Automática)
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table class="pool-ranking-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Apoiador</th>
+                                    <th>+ CELO</th>
+                                    <th>+ SLC</th>
+                                    <th>Prêmio na Meta</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pool-ranking-body">
+                                <tr><td colspan="5" style="color: #888;">Seja o 1º a apoiar a Pool e liderar o Ranking!</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -1039,7 +1108,7 @@
                         <p style="margin: 0; font-size: 0.85em; color: #aaa;">Taxa (5%): <span id="pix-taxa-sc">0.00</span> SC</p>
                         <p style="margin: 5px 0 0 0; font-weight: bold; color: #00b894;">Você receberá na conta: R$ <span id="pix-receber-brl">0.00</span></p>
                     </div>
-                    <p style="font-size: 0.78em; color: #888; margin-bottom: 10px; line-height: 1.3;">⚠️ *Nota de Sustentabilidade: Moedas recebidas por Planos de Sócio e pacotes de 1.000 SC do jogo liberam 25% do saque a cada 30 dias de conta ativa. Ganhos de depósitos, compras via Pix, staking e indicações são 100% livres.*</p>
+                    <p style="font-size: 0.78em; color: #888; margin-bottom: 10px; line-height: 1.3;">⚠️ *Nota de Sustentabilidade: Moedas recebidas por Planos de Sócio e pacotes de 1.000 SC do jogo liberam 25% do saque a cada 30 dias de conta ativa. Ganhos de depósitos, compras via Pix, prêmios da Pool, staking e indicações são 100% livres.*</p>
                     <button type="submit" style="background-color: #00b894; color: #fff;">Solicitar Saque Pix</button>
                 </form>
             </div>
@@ -1314,13 +1383,17 @@
     <!-- 2º SCRIPT COM LÓGICA DINÂMICA INJETADO NO FINAL -->
     <script>
         // =========================================================================
-        // --- LÓGICA DA POOL DE LIQUIDEZ OFICIAL CELO / SLC (TEMPO REAL) ---
+        // --- LÓGICA DA POOL DE LIQUIDEZ OFICIAL CELO / SLC + RANKING PREMIADO ---
         // =========================================================================
         const CARTEIRA_PROJETO_POOL = "0x414589C91d29AAe97402885Ce9D8977eF0b9F67B";
         let dadosPoolCache = {
             celoPrecoBrl: 0.37,
             slcPorCelo: 55.96,
             scRate: 151,
+            percentualRecompensaMeta: 15,
+            bonusTop1: 1000,
+            bonusTop2: 500,
+            bonusTop3: 250,
             carteiraProjeto: CARTEIRA_PROJETO_POOL
         };
 
@@ -1349,6 +1422,16 @@
                 const metaFillEl = document.getElementById('pool-meta-bar-fill');
                 const metaTextEl = document.getElementById('pool-meta-bar-text');
 
+                const bonusPctEl = document.getElementById('pool-bonus-pct-label');
+                const top1El = document.getElementById('pool-top1-label');
+                const top2El = document.getElementById('pool-top2-label');
+                const top3El = document.getElementById('pool-top3-label');
+
+                if (bonusPctEl) bonusPctEl.innerText = p.percentualRecompensaMeta || 15;
+                if (top1El) top1El.innerText = p.bonusTop1 || 1000;
+                if (top2El) top2El.innerText = p.bonusTop2 || 500;
+                if (top3El) top3El.innerText = p.bonusTop3 || 250;
+
                 if (posBrlEl) posBrlEl.innerText = `Posição Total: R$ ${parseFloat(p.posicaoTotalBrl || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                 if (estadoEl) estadoEl.innerText = p.estadoPool || 'Dentro do intervalo';
                 if (celoBrlEl) celoBrlEl.innerText = `R$ ${parseFloat(p.celoPrecoBrl || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ($${parseFloat(p.celoPrecoUsd || 0).toFixed(3)})`;
@@ -1372,6 +1455,36 @@
                 if (metaTextEl) {
                     metaTextEl.innerText = `${parseFloat(p.celoAtual || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / ${parseFloat(p.metaCelo || 10000).toLocaleString('pt-BR')} CELO (${progPct.toFixed(2).replace('.', ',')}%)`;
                 }
+
+                // Renderiza a Tabela de Ranking dos Apoiadores da Pool
+                const rankingBody = document.getElementById('pool-ranking-body');
+                if (rankingBody && Array.isArray(d.ranking)) {
+                    if (d.ranking.length === 0) {
+                        rankingBody.innerHTML = '<tr><td colspan="5" style="color: #888;">Seja o 1º a apoiar a Pool e liderar o Ranking!</td></tr>';
+                    } else {
+                        rankingBody.innerHTML = '';
+                        d.ranking.forEach(item => {
+                            let medalha = `${item.posicao}º`;
+                            if (item.posicao === 1) medalha = '🥇 1º';
+                            else if (item.posicao === 2) medalha = '🥈 2º';
+                            else if (item.posicao === 3) medalha = '🥉 3º';
+
+                            const textoPremio = item.jaPago
+                                ? `<span style="color:#3498db;">✅ Pago (+${item.recompensaJaRecebidaSC.toLocaleString('pt-BR')} SC)</span>`
+                                : `<span style="color:#00ff88; font-weight:bold;">+${item.recompensaEstimadaSC.toLocaleString('pt-BR')} SC</span>`;
+
+                            rankingBody.innerHTML += `
+                                <tr>
+                                    <td>${medalha}</td>
+                                    <td>${item.nome}</td>
+                                    <td style="color:#fcff52;">+${item.totalCelo.toLocaleString('pt-BR')}</td>
+                                    <td>+${item.totalSlc.toLocaleString('pt-BR')}</td>
+                                    <td>${textoPremio}</td>
+                                </tr>
+                            `;
+                        });
+                    }
+                }
             } catch (e) {}
         }
 
@@ -1383,18 +1496,21 @@
             const qtdCelo = parseFloat(inputEl.value);
             if (isNaN(qtdCelo) || qtdCelo <= 0) {
                 previewEl.style.color = '#ccc';
-                previewEl.innerText = 'Digite a quantidade de CELO acima para ver a soma em SolidCoins (Celo + SLC) ou enviar direto via MetaMask.';
+                previewEl.innerText = 'Digite a quantidade de CELO acima para ver a soma em SolidCoins (Celo + SLC) e sua recompensa garantida!';
                 return;
             }
 
             const slcPorCelo = parseFloat(dadosPoolCache.slcPorCelo) || 55.96;
+            const pctBonus = parseFloat(dadosPoolCache.percentualRecompensaMeta) || 15;
             const parteCeloEmSC = qtdCelo * slcPorCelo;
             const parteSlcPar = qtdCelo * slcPorCelo;
             const totalSomaSC = parteCeloEmSC + parteSlcPar;
+            const recompensaEstimada = Math.max(10, totalSomaSC * (pctBonus / 100));
 
             previewEl.style.color = '#ffd32a';
-            previewEl.innerHTML = `💧 <strong>Pelo Saldo da Plataforma:</strong> ${qtdCelo} CELO (${parteCeloEmSC.toFixed(2)} SC) + ${parteSlcPar.toFixed(2)} SLC do par = <strong>Total: ${totalSomaSC.toFixed(2)} SolidCoins</strong><br>` +
-                                  `🦊 <strong>Pela MetaMask:</strong> Transfere <strong>${qtdCelo} CELO</strong> direto para a carteira da Pool!`;
+            previewEl.innerHTML = `💧 <strong>Pelo Saldo da Plataforma:</strong> ${qtdCelo} CELO (${parteCeloEmSC.toFixed(2)} SC) + ${parteSlcPar.toFixed(2)} SLC = <strong>${totalSomaSC.toFixed(2)} SC</strong><br>` +
+                                  `🦊 <strong>Pela MetaMask:</strong> Envia <strong>${qtdCelo} CELO</strong> direto para a Pool!<br>` +
+                                  `🎁 <strong style="color:#00ff88;">Sua Recompensa Automática ao bater a meta: +${recompensaEstimada.toFixed(2)} SC (+ Bónus se ficar no Top 3!)</strong>`;
         };
 
         window.contribuirPoolComSaldo = async function() {
@@ -1406,10 +1522,12 @@
             }
 
             const slcPorCelo = parseFloat(dadosPoolCache.slcPorCelo) || 55.96;
+            const pctBonus = parseFloat(dadosPoolCache.percentualRecompensaMeta) || 15;
             const parteSC = (quantidadeCelo * slcPorCelo).toFixed(2);
             const totalSC = (quantidadeCelo * slcPorCelo * 2).toFixed(2);
+            const premioSC = Math.max(10, (quantidadeCelo * slcPorCelo * 2) * (pctBonus / 100)).toFixed(2);
 
-            if (!confirm(`💧 APOIAR POOL DE LIQUIDEZ (SALDO PLATAFORMA)\n\nVocê vai adicionar:\n• +${quantidadeCelo} CELO (equivalente a ${parteSC} SC)\n• +${parteSC} SLC do par\n\nTotal a descontar do seu saldo livre: ${totalSC} SolidCoins.\n\nDeseja confirmar?`)) {
+            if (!confirm(`💧 APOIAR POOL DE LIQUIDEZ (SALDO PLATAFORMA)\n\nVocê vai adicionar:\n• +${quantidadeCelo} CELO (${parteSC} SC)\n• +${parteSC} SLC do par\n• Total descontado do saldo livre: ${totalSC} SC\n\n🏆 Recompensa garantida ao bater a meta: +${premioSC} SC (+ Bónus Pódio Top 3)!\n\nDeseja confirmar?`)) {
                 return;
             }
 
@@ -1433,7 +1551,6 @@
             }
         };
 
-        // Envia CELO nativo na Rede Celo Mainnet via MetaMask direto para 0x414589C91d29AAe97402885Ce9D8977eF0b9F67B
         window.contribuirPoolViaMetaMask = async function() {
             const inputEl = document.getElementById('input-pool-qtd-celo');
             const quantidadeCelo = parseFloat(inputEl ? inputEl.value : 0);
@@ -1446,7 +1563,6 @@
             if (!carteiraConectada) return;
 
             try {
-                // Garante que a MetaMask está na Celo Mainnet (0xa4ec)
                 const currentChain = await window.ethereum.request({ method: 'eth_chainId' });
                 if (currentChain.toLowerCase() !== CELO_MAINNET_PARAMS.chainId.toLowerCase()) {
                     await window.ethereum.request({
@@ -1455,7 +1571,6 @@
                     });
                 }
 
-                // Converte quantidadeCelo para Wei em Hexadecimal (18 casas decimais)
                 const microCelo = BigInt(Math.round(quantidadeCelo * 1e6));
                 const weiBigInt = microCelo * (10n ** 12n);
                 const valueHex = "0x" + weiBigInt.toString(16);
@@ -1494,7 +1609,7 @@
         // =========================================================================
         let intervaloVerificacaoPix = null;
         let txidPixAtual = null;
-        let tipoOperacaoPixAtual = null; // 'compra_sc', 'mint_nft' ou 'socio_pix'
+        let tipoOperacaoPixAtual = null;
 
         window.atualizarPreviewCompraScPix = function() {
             const inputEl = document.getElementById('input-compra-sc-reais');

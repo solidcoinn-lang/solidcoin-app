@@ -151,46 +151,50 @@
         </div>
 
         <!-- ========================================================== -->
-        <!-- NOVA SEÇÃO: GESTÃO DA POOL DE LIQUIDEZ OFICIAL CELO / SLC -->
+        <!-- SEÇÃO: GESTÃO DA POOL DE LIQUIDEZ + RANKING E RECOMPENSAS -->
         <!-- ========================================================== -->
         <div id="sec-pool-liquidez" class="feature-section">
             <button class="voltar-btn" onclick="fecharTodasSecoes()">🔙 Voltar ao Painel</button>
             <div class="section-card" style="border-left: 5px solid #fcff52;">
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                     <div>
-                        <h2 style="margin-top: 0; color: #fcff52;">💧 Gestão da Pool de Liquidez Oficial (CELO / SLC)</h2>
+                        <h2 style="margin-top: 0; color: #fcff52;">💧 Gestão da Pool de Liquidez Oficial (CELO / SLC) & Recompensas</h2>
                         <p style="color: #aaa; font-size: 0.9em; margin-top: -8px;">
-                            Adicione liquidez quando você mesmo injetar mais moedas na Pool, ou atualize o objetivo (meta de CELO) exibido para todos os usuários no Dashboard.
+                            Assim que a Pool atinge o objetivo de CELO, o sistema debita automaticamente do saldo do CEO e paga a recompensa a todos os apoiadores!
                         </p>
                     </div>
                     <button onclick="carregarDetalhesPoolAdmin()" class="btn-admin" style="background: #333; color: #fcff52; border: 1px solid #fcff52;">🔄 Atualizar Dados</button>
                 </div>
 
-                <!-- RESUMO ATUAL DA POOL -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 15px 0; background: #111; padding: 15px; border-radius: 10px; border: 1px solid #333;">
+                <!-- RESUMO ATUAL DA POOL E PREMIAÇÕES -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 15px 0; background: #111; padding: 15px; border-radius: 10px; border: 1px solid #333;">
                     <div>
-                        <span style="color: #aaa; font-size: 0.8em;">Saldo Atual de CELO na Pool:</span><br>
-                        <strong id="adm-pool-celo-atual" style="color: #fcff52; font-size: 1.3em;">129,74 CELO</strong>
+                        <span style="color: #aaa; font-size: 0.8em;">Saldo Atual de CELO:</span><br>
+                        <strong id="adm-pool-celo-atual" style="color: #fcff52; font-size: 1.25em;">129,74 CELO</strong>
                     </div>
                     <div>
-                        <span style="color: #aaa; font-size: 0.8em;">Saldo Atual de SLC na Pool:</span><br>
-                        <strong id="adm-pool-slc-atual" style="color: #00ff88; font-size: 1.3em;">6.938,72 SLC</strong>
+                        <span style="color: #aaa; font-size: 0.8em;">Saldo Atual de SLC:</span><br>
+                        <strong id="adm-pool-slc-atual" style="color: #00ff88; font-size: 1.25em;">6.938,72 SLC</strong>
                     </div>
                     <div>
                         <span style="color: #aaa; font-size: 0.8em;">Objetivo Atual (Meta):</span><br>
-                        <strong id="adm-pool-meta-atual" style="color: #d4af37; font-size: 1.3em;">10.000 CELO</strong>
+                        <strong id="adm-pool-meta-atual" style="color: #d4af37; font-size: 1.25em;">10.000 CELO</strong>
                     </div>
                     <div>
-                        <span style="color: #aaa; font-size: 0.8em;">Cotação CELO (Tempo Real):</span><br>
+                        <span style="color: #aaa; font-size: 0.8em;">Cotação CELO (Vivo):</span><br>
                         <strong id="adm-pool-cotacao-celo" style="color: #3498db; font-size: 1.2em;">R$ 0,37</strong>
+                    </div>
+                    <div>
+                        <span style="color: #aaa; font-size: 0.8em;">Metas Concluídas / Pagas:</span><br>
+                        <strong id="adm-pool-metas-concluidas" style="color: #00ff88; font-size: 1.2em;">0 Metas (0 SC)</strong>
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-top: 20px;">
                     <!-- BLOCO 1: SOMAR LIQUIDEZ QUANDO O CEO ADICIONAR MAIS -->
                     <div style="background: #111; padding: 18px; border-radius: 10px; border: 1px solid #00ff88;">
                         <h3 style="color: #00ff88; margin-top: 0;">➕ 1. Adicionar Liquidez (Somar à Pool)</h3>
-                        <p style="font-size: 0.85em; color: #aaa;">Use este campo quando você colocar mais CELO e SLC na Pool e quiser somar aos valores que já estão lá:</p>
+                        <p style="font-size: 0.85em; color: #aaa;">Use este campo quando você colocar mais CELO e SLC na Pool. Se essa soma atingir a Meta, as recompensas dos apoiadores serão pagas na hora!</p>
                         
                         <label style="color: #ccc; font-size: 0.82em;">Quantidade de CELO para somar (+):</label>
                         <input type="number" id="adm-somar-celo" class="input-admin" placeholder="Ex: 50.5" step="0.01" style="margin-bottom: 10px;">
@@ -203,10 +207,10 @@
                         </button>
                     </div>
 
-                    <!-- BLOCO 2: DEFINIR OBJETIVO (META) E AJUSTAR VALORES EXATOS -->
+                    <!-- BLOCO 2: DEFINIR OBJETIVO, VALORES EXATOS E RECOMPENSAS DO RANKING -->
                     <div style="background: #111; padding: 18px; border-radius: 10px; border: 1px solid #fcff52;">
-                        <h3 style="color: #fcff52; margin-top: 0;">🎯 2. Atualizar Objetivo (Meta) e Posição Exata</h3>
-                        <p style="font-size: 0.85em; color: #aaa;">Altere o objetivo (Ex: 10000 CELO) ou substitua os valores exatos da Pool conforme aparecem na sua carteira Web3:</p>
+                        <h3 style="color: #fcff52; margin-top: 0;">🎯 2. Atualizar Objetivo, Posição e Recompensas</h3>
+                        <p style="font-size: 0.85em; color: #aaa;">Ajuste a meta de CELO, os saldos exatos da Pool e os valores de recompensa automática ao bater a meta:</p>
 
                         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                             <div style="flex: 1;">
@@ -219,25 +223,64 @@
                             </div>
                         </div>
 
-                        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                             <div style="flex: 1;">
                                 <label style="color: #d4af37; font-size: 0.8em; font-weight: bold;">🎯 Objetivo / Meta (CELO):</label>
                                 <input type="number" id="adm-definir-meta" class="input-admin" step="1" placeholder="10000">
                             </div>
                             <div style="flex: 1;">
-                                <label style="color: #ccc; font-size: 0.8em;">Estado da Pool:</label>
-                                <input type="text" id="adm-definir-estado" class="input-admin" placeholder="Dentro do intervalo">
+                                <label style="color: #00ff88; font-size: 0.8em; font-weight: bold;">🎁 Bónus Todos (%):</label>
+                                <input type="number" id="adm-definir-pct-bonus" class="input-admin" step="1" placeholder="15">
                             </div>
                         </div>
 
+                        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                            <div style="flex: 1;">
+                                <label style="color: #ffd32a; font-size: 0.78em;">🥇 1º Lugar (SC):</label>
+                                <input type="number" id="adm-definir-top1" class="input-admin" step="1" placeholder="1000">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="color: #e0e0e0; font-size: 0.78em;">🥈 2º Lugar (SC):</label>
+                                <input type="number" id="adm-definir-top2" class="input-admin" step="1" placeholder="500">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="color: #ff9f43; font-size: 0.78em;">🥉 3º Lugar (SC):</label>
+                                <input type="number" id="adm-definir-top3" class="input-admin" step="1" placeholder="250">
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 12px;">
+                            <label style="color: #ccc; font-size: 0.8em;">Estado da Pool:</label>
+                            <input type="text" id="adm-definir-estado" class="input-admin" placeholder="Dentro do intervalo">
+                        </div>
+
                         <button onclick="definirConfigPoolAdmin()" class="btn-admin" style="background: #fcff52; color: #000; width: 100%;">
-                            💾 Salvar Configuração e Objetivo
+                            💾 Salvar Configuração, Meta e Recompensas
                         </button>
                     </div>
                 </div>
 
+                <!-- RANKING TOP 10 APOIADORES NO PAINEL ADM -->
+                <h3 style="color: #ffd32a; margin-top: 30px;">🏅 Ranking Atual dos Apoiadores da Pool (Previsão de Pagamento na Meta)</h3>
+                <div style="max-height: 350px; overflow-y: auto; border: 1px solid #333; border-radius: 6px;">
+                    <table>
+                        <thead style="position: sticky; top: 0; z-index: 10;">
+                            <tr>
+                                <th>Posição</th>
+                                <th>Apoiador</th>
+                                <th>Total +CELO</th>
+                                <th>Total +SLC</th>
+                                <th>Recompensa Automática na Meta</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-adm-pool-ranking">
+                            <tr><td colspan="5" style="text-align: center; color: #888;">Carregando ranking da Pool...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
                 <!-- HISTÓRICO DE CONTRIBUIÇÕES DOS USUÁRIOS -->
-                <h3 style="color: #fcff52; margin-top: 30px;">🤝 Histórico de Contribuições dos Usuários na Pool</h3>
+                <h3 style="color: #fcff52; margin-top: 30px;">🤝 Histórico Geral de Contribuições na Pool</h3>
                 <div style="max-height: 400px; overflow-y: auto; border: 1px solid #333; border-radius: 6px;">
                     <table>
                         <thead style="position: sticky; top: 0; z-index: 10;">
@@ -248,10 +291,11 @@
                                 <th>+ CELO Adicionado</th>
                                 <th>+ SLC Adicionado</th>
                                 <th>Total SC Pago / Comprovante</th>
+                                <th>Status Recompensa</th>
                             </tr>
                         </thead>
                         <tbody id="tabela-pool-contribuicoes">
-                            <tr><td colspan="6" style="text-align: center; color: #888;">Carregando contribuições...</td></tr>
+                            <tr><td colspan="7" style="text-align: center; color: #888;">Carregando contribuições...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -645,7 +689,7 @@
     <!-- 1º CARREGA O SCRIPT COM A LÓGICA DE APROVAÇÕES -->
     <script src="admin-scripts.js"></script>
 
-    <!-- 2º SCRIPT COM AS FUNÇÕES DE POOL LIQUIDEZ, COMPRA SC PIX, MINT NFT PIX E GESTÃO -->
+    <!-- 2º SCRIPT COM AS FUNÇÕES DE POOL LIQUIDEZ, RANKING, COMPRA SC PIX, MINT NFT PIX E GESTÃO -->
     <script>
         window.fecharTodasSecoes = function() {
             const secoes = document.querySelectorAll('.feature-section');
@@ -678,7 +722,7 @@
         };
 
         // =========================================================================
-        // --- FUNÇÕES DE GESTÃO DA POOL DE LIQUIDEZ OFICIAL CELO / SLC (CEO) ---
+        // --- FUNÇÕES DE GESTÃO DA POOL DE LIQUIDEZ + RANKING E RECOMPENSAS ---
         // =========================================================================
         window.carregarDetalhesPoolAdmin = async function() {
             try {
@@ -694,18 +738,55 @@
                 document.getElementById('adm-pool-slc-atual').innerText = `${parseFloat(p.slcAtual || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SLC`;
                 document.getElementById('adm-pool-meta-atual').innerText = `${parseFloat(p.metaCelo || 10000).toLocaleString('pt-BR')} CELO`;
                 document.getElementById('adm-pool-cotacao-celo').innerText = `R$ ${parseFloat(cot.brl || 0).toFixed(4)} ($${parseFloat(cot.usd || 0).toFixed(3)})`;
+                document.getElementById('adm-pool-metas-concluidas').innerText = `${p.metasConcluidas || 0} Meta(s) (${parseFloat(p.totalRecompensasPagasSC || 0).toLocaleString('pt-BR')} SC pagos)`;
 
                 document.getElementById('adm-definir-celo').value = p.celoAtual;
                 document.getElementById('adm-definir-slc').value = p.slcAtual;
                 document.getElementById('adm-definir-meta').value = p.metaCelo;
+                document.getElementById('adm-definir-pct-bonus').value = p.percentualRecompensaMeta !== undefined ? p.percentualRecompensaMeta : 15;
+                document.getElementById('adm-definir-top1').value = p.bonusTop1 !== undefined ? p.bonusTop1 : 1000;
+                document.getElementById('adm-definir-top2').value = p.bonusTop2 !== undefined ? p.bonusTop2 : 500;
+                document.getElementById('adm-definir-top3').value = p.bonusTop3 !== undefined ? p.bonusTop3 : 250;
                 document.getElementById('adm-definir-estado').value = p.estadoPool || 'Dentro do intervalo';
 
+                // 1. Preenche o Ranking Top 10 Apoiadores da Pool
+                const tbodyRanking = document.getElementById('tabela-adm-pool-ranking');
+                if (tbodyRanking) {
+                    tbodyRanking.innerHTML = '';
+                    const rk = d.ranking || [];
+                    if (rk.length === 0) {
+                        tbodyRanking.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #888;">Nenhum apoiador no ranking ainda.</td></tr>';
+                    } else {
+                        rk.forEach(item => {
+                            let medalha = `${item.posicao}º`;
+                            if (item.posicao === 1) medalha = '🥇 1º';
+                            else if (item.posicao === 2) medalha = '🥈 2º';
+                            else if (item.posicao === 3) medalha = '🥉 3º';
+
+                            const statusPremio = item.jaPago
+                                ? `<span style="color:#3498db; font-weight:bold;">✅ Pago (+${item.recompensaJaRecebidaSC.toLocaleString('pt-BR')} SC)</span>`
+                                : `<span style="color:#00ff88; font-weight:bold;">⏳ Vai receber +${item.recompensaEstimadaSC.toLocaleString('pt-BR')} SC ao bater a meta</span>`;
+
+                            tbodyRanking.innerHTML += `
+                                <tr>
+                                    <td><strong>${medalha}</strong></td>
+                                    <td><strong>${item.nome}</strong></td>
+                                    <td style="color:#fcff52; font-weight:bold;">+${item.totalCelo.toLocaleString('pt-BR')} CELO</td>
+                                    <td style="color:#00ff88; font-weight:bold;">+${item.totalSlc.toLocaleString('pt-BR')} SLC</td>
+                                    <td>${statusPremio}</td>
+                                </tr>
+                            `;
+                        });
+                    }
+                }
+
+                // 2. Preenche o Histórico de Contribuições
                 const tbody = document.getElementById('tabela-pool-contribuicoes');
                 if (tbody) {
                     tbody.innerHTML = '';
                     const lista = d.contribuicoes || [];
                     if (lista.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">Nenhuma contribuição de usuário registrada ainda.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #888;">Nenhuma contribuição de usuário registrada ainda.</td></tr>';
                     } else {
                         lista.forEach(item => {
                             let detalhePagamento = '';
@@ -715,6 +796,10 @@
                                 detalhePagamento = `<strong style="color: #d4af37;">${parseFloat(item.totalScPagoPlataforma || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} SC</strong> (Saldo Interno)`;
                             }
 
+                            const statusRecompensaHtml = item.recompensaPaga
+                                ? `<span style="color: #2ecc71; font-weight: bold;">✅ Paga (+${parseFloat(item.recompensaRecebidaSC || 0).toLocaleString('pt-BR')} SC)</span>`
+                                : `<span style="color: #f1c40f; font-weight: bold;">⏳ Aguarda Meta</span>`;
+
                             const tr = document.createElement('tr');
                             tr.innerHTML = `
                                 <td>${new Date(item.data).toLocaleString('pt-BR')}</td>
@@ -723,6 +808,7 @@
                                 <td><strong style="color: #fcff52;">+${parseFloat(item.qtdCeloAdicionada || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} CELO</strong></td>
                                 <td><strong style="color: #00ff88;">+${parseFloat(item.qtdSlcAdicionada || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} SLC</strong></td>
                                 <td>${detalhePagamento}</td>
+                                <td>${statusRecompensaHtml}</td>
                             `;
                             tbody.appendChild(tr);
                         });
@@ -741,7 +827,7 @@
                 return alert("Digite a quantidade de CELO e/ou SLC que deseja somar à Pool!");
             }
 
-            if (!confirm(`Confirma a adição de +${celo} CELO e +${slc} SLC ao saldo atual da Pool de Liquidez?`)) return;
+            if (!confirm(`Confirma a adição de +${celo} CELO e +${slc} SLC ao saldo atual da Pool de Liquidez?\n(Se atingir a meta atual, as recompensas dos apoiadores serão pagas automaticamente!)`)) return;
 
             try {
                 const res = await fetch('/api/admin/pool-atualizar', {
@@ -765,15 +851,29 @@
             const celo = document.getElementById('adm-definir-celo').value;
             const slc = document.getElementById('adm-definir-slc').value;
             const metaCelo = document.getElementById('adm-definir-meta').value;
+            const percentualRecompensaMeta = document.getElementById('adm-definir-pct-bonus').value;
+            const bonusTop1 = document.getElementById('adm-definir-top1').value;
+            const bonusTop2 = document.getElementById('adm-definir-top2').value;
+            const bonusTop3 = document.getElementById('adm-definir-top3').value;
             const estadoPool = document.getElementById('adm-definir-estado').value;
 
-            if (!confirm(`Deseja atualizar a configuração da Pool para:\n• Total CELO: ${celo}\n• Total SLC: ${slc}\n• Objetivo (Meta): ${metaCelo} CELO?`)) return;
+            if (!confirm(`Deseja atualizar a configuração da Pool para:\n• Total CELO: ${celo}\n• Total SLC: ${slc}\n• Objetivo (Meta): ${metaCelo} CELO\n• Bónus Todos Apoiadores: ${percentualRecompensaMeta}%\n• Bónus Pódio: 1º (${bonusTop1} SC) | 2º (${bonusTop2} SC) | 3º (${bonusTop3} SC)?`)) return;
 
             try {
                 const res = await fetch('/api/admin/pool-atualizar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ modo: 'definir', celo, slc, metaCelo, estadoPool })
+                    body: JSON.stringify({
+                        modo: 'definir',
+                        celo,
+                        slc,
+                        metaCelo,
+                        percentualRecompensaMeta,
+                        bonusTop1,
+                        bonusTop2,
+                        bonusTop3,
+                        estadoPool
+                    })
                 });
                 const data = await res.json();
                 alert(data.mensagem);
