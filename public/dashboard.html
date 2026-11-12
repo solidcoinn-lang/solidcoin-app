@@ -32,12 +32,12 @@
             background: linear-gradient(145deg, #0d1b15, #12241c);
             border: 1px solid rgba(0, 184, 148, 0.45);
             border-radius: 12px;
-            padding: 15px;
+            padding: 14px 16px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         }
         .compra-pix-saldo-titulo {
             color: #00ff88;
-            font-size: 0.95em;
+            font-size: 0.92em;
             font-weight: bold;
             margin: 0 0 10px 0;
             display: flex;
@@ -57,9 +57,9 @@
             background: #07110d;
             border: 1px solid #00b894;
             color: #fff;
-            padding: 11px 12px;
+            padding: 10px 12px;
             border-radius: 8px;
-            font-size: 1em;
+            font-size: 0.95em;
             font-weight: bold;
             text-align: center;
         }
@@ -70,10 +70,10 @@
             color: #000;
             font-weight: bold;
             border: none;
-            padding: 11px 16px;
+            padding: 10px 16px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 0.95em;
+            font-size: 0.92em;
             transition: 0.2s;
         }
         .compra-pix-input-row button:hover {
@@ -81,33 +81,42 @@
             transform: translateY(-1px);
         }
         .compra-pix-preview {
-            font-size: 0.85em;
+            font-size: 0.82em;
             color: #d4af37;
             margin-top: 8px;
             font-weight: bold;
         }
 
         /* ========================================================= */
-        /* POOL DE LIQUIDEZ OFICIAL CELO / SLC + RANKING PREMIADO */
+        /* POOL DE LIQUIDEZ RETRÁTIL (SANFONA COM SETINHA) */
         /* ========================================================= */
         .pool-liquidez-box {
-            margin: 18px auto 0 auto;
+            margin: 12px auto 0 auto;
             max-width: 540px;
-            background: linear-gradient(145deg, #0c0f14, #141922);
-            border: 1px solid rgba(252, 255, 82, 0.35);
-            border-radius: 14px;
-            padding: 18px;
+            background: linear-gradient(145deg, #0e1218, #151b24);
+            border: 1px solid rgba(252, 255, 82, 0.32);
+            border-radius: 12px;
+            overflow: hidden;
             text-align: left;
-            box-shadow: 0 6px 22px rgba(0, 0, 0, 0.6);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            transition: border-color 0.25s ease;
         }
-        .pool-header-row {
+        .pool-liquidez-box:hover {
+            border-color: rgba(252, 255, 82, 0.65);
+        }
+        .pool-toggle-header {
+            padding: 12px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
+            cursor: pointer;
+            user-select: none;
             gap: 10px;
-            border-bottom: 1px solid #252b36;
-            padding-bottom: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            transition: background 0.2s ease;
+        }
+        .pool-toggle-header:hover {
+            background: rgba(252, 255, 82, 0.05);
         }
         .pool-pair-badge {
             display: flex;
@@ -115,9 +124,8 @@
             gap: 10px;
         }
         .pool-icons-dual {
-            position: relative;
-            width: 38px;
-            height: 38px;
+            width: 34px;
+            height: 34px;
             border-radius: 50%;
             background: linear-gradient(90deg, #fcff52 50%, #163a24 50%);
             border: 2px solid #d4af37;
@@ -126,43 +134,88 @@
             justify-content: center;
             font-weight: bold;
             color: #000;
-            font-size: 0.85em;
-        }
-        .pool-status-pill {
-            background: rgba(0, 255, 136, 0.12);
-            border: 1px solid rgba(0, 255, 136, 0.4);
-            color: #00ff88;
-            padding: 4px 10px;
-            border-radius: 20px;
             font-size: 0.78em;
-            font-weight: bold;
+            flex-shrink: 0;
         }
-        .pool-cotacao-live {
-            background: #090c10;
-            border: 1px dashed #35d07f;
-            border-radius: 8px;
-            padding: 8px 12px;
-            margin-top: 12px;
+        .pool-header-right {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
-            font-size: 0.85em;
+            gap: 10px;
         }
-        .pool-posicao-grid {
-            margin-top: 14px;
-            background: #0b0e13;
+        .pool-mini-meta-pill {
+            background: rgba(252, 255, 82, 0.1);
+            border: 1px solid rgba(252, 255, 82, 0.35);
+            color: #fcff52;
+            padding: 4px 9px;
+            border-radius: 20px;
+            font-size: 0.76em;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .pool-arrow-btn {
+            background: #1e2633;
+            border: 1px solid #3a4659;
+            color: #fcff52;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85em;
+            transition: transform 0.3s ease, background 0.2s;
+            flex-shrink: 0;
+        }
+        .pool-arrow-btn.aberta {
+            transform: rotate(180deg);
+            background: #fcff52;
+            color: #000;
+        }
+        .pool-collapsible-body {
+            display: none;
+            padding: 14px 16px 16px 16px;
+            border-top: 1px solid #222936;
+            animation: fadeIn 0.25s ease-in-out;
+        }
+        .pool-collapsible-body.aberta {
+            display: block;
+        }
+        .pool-top-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .pool-mini-card {
+            background: #090c10;
+            border: 1px solid #222834;
+            border-radius: 8px;
+            padding: 8px 10px;
+            text-align: center;
+        }
+        .pool-mini-card span {
+            display: block;
+            font-size: 0.73em;
+            color: #999;
+            margin-bottom: 2px;
+        }
+        .pool-mini-card strong {
+            font-size: 0.88em;
+            color: #fff;
+        }
+        .pool-section-box {
+            background: #090c10;
             border: 1px solid #222834;
             border-radius: 10px;
-            padding: 12px;
+            padding: 11px 12px;
+            margin-bottom: 10px;
         }
         .pool-split-bar {
             display: flex;
-            height: 8px;
+            height: 7px;
             border-radius: 6px;
             overflow: hidden;
-            margin: 8px 0;
+            margin: 6px 0;
             background: #222;
         }
         .pool-split-celo {
@@ -175,14 +228,11 @@
             height: 100%;
             transition: width 0.4s ease;
         }
-        .pool-meta-wrap {
-            margin-top: 14px;
-        }
         .pool-meta-bar-bg {
-            background: #07090c;
-            border: 1px solid #3a4150;
+            background: #050709;
+            border: 1px solid #333b4a;
             border-radius: 20px;
-            height: 24px;
+            height: 20px;
             position: relative;
             overflow: hidden;
             margin-top: 6px;
@@ -199,84 +249,72 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.8em;
+            font-size: 0.75em;
             font-weight: bold;
             color: #fff;
             text-shadow: 0 1px 3px #000;
         }
-        .pool-reward-banner {
-            margin-top: 12px;
-            background: linear-gradient(135deg, rgba(212, 175, 55, 0.14), rgba(0, 255, 136, 0.1));
-            border: 1px solid rgba(212, 175, 55, 0.45);
-            border-radius: 10px;
-            padding: 10px 12px;
-            font-size: 0.82em;
-            color: #eee;
-            line-height: 1.45;
+        .pool-reward-compact {
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px dashed rgba(212, 175, 55, 0.45);
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 0.78em;
+            color: #ddd;
             text-align: center;
-        }
-        .pool-contribute-box {
-            margin-top: 14px;
-            padding-top: 12px;
-            border-top: 1px solid #252b36;
+            margin-bottom: 10px;
+            line-height: 1.35;
         }
         .pool-btn-row {
             display: flex;
             gap: 8px;
-            margin-top: 10px;
+            margin-top: 8px;
             flex-wrap: wrap;
         }
         .btn-pool-sc {
-            flex: 1 1 180px;
+            flex: 1 1 160px;
             margin: 0 !important;
             background: linear-gradient(135deg, #d4af37, #f1c40f);
             color: #000;
             font-weight: bold;
             border: none;
-            padding: 11px 12px;
+            padding: 10px 10px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 0.88em;
+            font-size: 0.82em;
             transition: 0.2s;
         }
         .btn-pool-sc:hover { filter: brightness(1.1); transform: translateY(-1px); }
         .btn-pool-metamask {
-            flex: 1 1 180px;
+            flex: 1 1 160px;
             margin: 0 !important;
             background: linear-gradient(135deg, #f6851b, #e2761b);
             color: #fff;
             font-weight: bold;
             border: none;
-            padding: 11px 12px;
+            padding: 10px 10px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 0.88em;
+            font-size: 0.82em;
             transition: 0.2s;
         }
         .btn-pool-metamask:hover { filter: brightness(1.1); transform: translateY(-1px); }
 
-        .pool-ranking-wrap {
-            margin-top: 16px;
-            background: #080b10;
-            border: 1px solid #262e3d;
-            border-radius: 10px;
-            padding: 12px;
-        }
         .pool-ranking-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 8px;
-            font-size: 0.8em;
+            margin-top: 6px;
+            font-size: 0.78em;
         }
         .pool-ranking-table th {
             background: #121722;
             color: #fcff52;
-            padding: 7px 6px;
+            padding: 6px 5px;
             text-align: center;
             border-bottom: 1px solid #2a3344;
         }
         .pool-ranking-table td {
-            padding: 7px 6px;
+            padding: 6px 5px;
             text-align: center;
             border-bottom: 1px solid #1a202c;
             color: #ddd;
@@ -569,7 +607,7 @@
         <div id="aviso-vencimento-socio" class="alerta-vencimento"></div>
 
         <!-- ========================================================= -->
-        <!-- CARD SEU SALDO + COMPRA PIX + POOL DE LIQUIDEZ CELO / SLC -->
+        <!-- CARD SEU SALDO + COMPRA PIX + POOL DE LIQUIDEZ RETRÁTIL -->
         <!-- ========================================================= -->
         <div class="card saldo-card">
             <h2 style="display: flex; align-items: center; justify-content: center; gap: 10px;">
@@ -599,104 +637,109 @@
                 </div>
             </div>
 
-            <!-- 2. PAINEL DA POOL DE LIQUIDEZ OFICIAL CELO / SLC + RANKING & RECOMPENSA -->
+            <!-- 2. PAINEL COMPACTO E RETRÁTIL DA POOL DE LIQUIDEZ CELO / SLC -->
             <div class="pool-liquidez-box">
-                <div class="pool-header-row">
+                <!-- CABEÇALHO CLICÁVEL COM A SETINHA -->
+                <div class="pool-toggle-header" onclick="togglePoolLiquidez()">
                     <div class="pool-pair-badge">
                         <div class="pool-icons-dual">C/S</div>
                         <div>
-                            <div style="font-weight: bold; font-size: 1.05em; color: #fff;">
-                                CELO / SLC <span style="font-size: 0.78em; color: #aaa; font-weight: normal;">v4 • 0.25%</span>
+                            <div style="font-weight: bold; font-size: 0.96em; color: #fff; display: flex; align-items: center; gap: 6px;">
+                                Pool CELO / SLC <span style="font-size: 0.72em; color: #00ff88; background: rgba(0,255,136,0.12); padding: 2px 6px; border-radius: 4px;" id="pool-estado-badge">Ativa</span>
                             </div>
-                            <div style="font-size: 0.8em; color: #fcff52; font-weight: bold;" id="pool-posicao-brl">
-                                Posição Total: R$ 90,53
+                            <div style="font-size: 0.78em; color: #fcff52; font-weight: bold;" id="pool-posicao-brl">
+                                Posição Total: R$ 172,28
                             </div>
                         </div>
                     </div>
-                    <span id="pool-estado-badge" class="pool-status-pill">Dentro do intervalo</span>
-                </div>
 
-                <!-- COTAÇÃO DO CELO EM TEMPO REAL -->
-                <div class="pool-cotacao-live">
-                    <span style="color: #ccc;">🌐 Cotação CELO (Tempo Real): <strong id="pool-celo-brl" style="color: #fcff52;">R$ 0,37</strong></span>
-                    <span style="color: #00ff88; font-weight: bold;" id="pool-celo-slc-ratio">1 CELO = 55,96 SLC</span>
-                </div>
-
-                <!-- COMPOSIÇÃO ATUAL DA POOL (CELO vs SLC) -->
-                <div class="pool-posicao-grid">
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85em; font-weight: bold;">
-                        <span style="color: #fcff52;">🟡 CELO (<span id="pool-pct-celo">51,14%</span>)</span>
-                        <span style="color: #00ff88;">🟢 SolidCoin (<span id="pool-pct-slc">48,86%</span>)</span>
-                    </div>
-                    <div class="pool-split-bar">
-                        <div id="pool-bar-split-celo" class="pool-split-celo" style="width: 51.14%;"></div>
-                        <div id="pool-bar-split-slc" class="pool-split-slc" style="width: 48.86%;"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 0.92em; font-weight: bold; color: #fff;">
-                        <span id="pool-qtd-celo">129,74 CELO</span>
-                        <span id="pool-qtd-slc">6.938,72 SLC</span>
+                    <div class="pool-header-right">
+                        <span id="pool-resumo-header-pct" class="pool-mini-meta-pill">🎯 Meta: 2,39%</span>
+                        <div id="pool-arrow-icon" class="pool-arrow-btn" title="Abrir / Fechar detalhes da Pool">▼</div>
                     </div>
                 </div>
 
-                <!-- BARRA DE PROGRESSO RUMO AO 1º OBJETIVO (10.000 CELO) -->
-                <div class="pool-meta-wrap">
-                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.84em;">
-                        <span style="color: #d4af37; font-weight: bold;">🎯 1º Objetivo: <strong id="pool-meta-alvo">10.000</strong> CELO</span>
-                        <span style="color: #ccc;">Faltam: <strong id="pool-falta-celo" style="color: #fcff52;">9.870,26 CELO</strong></span>
-                    </div>
-                    <div class="pool-meta-bar-bg">
-                        <div id="pool-meta-bar-fill" class="pool-meta-bar-fill" style="width: 1.3%;"></div>
-                        <div id="pool-meta-bar-text" class="pool-meta-bar-text">129,74 / 10.000 CELO (1,30%)</div>
-                    </div>
-                </div>
-
-                <!-- BANNER DE RECOMPENSA AUTOMÁTICA AO BATER A META -->
-                <div class="pool-reward-banner">
-                    🏆 <strong style="color: #ffd32a;">Recompensa Automática ao Bater a Meta:</strong> Todos os apoiadores recebem automaticamente <strong style="color: #00ff88;">+<span id="pool-bonus-pct-label">15</span>% em SolidCoins</strong> sobre a liquidez apoiada + Bónus Pódio (<strong style="color: #ffd32a;">🥇 +<span id="pool-top1-label">1000</span> SC</strong> • <strong style="color: #e0e0e0;">🥈 +<span id="pool-top2-label">500</span> SC</strong> • <strong style="color: #ff9f43;">🥉 +<span id="pool-top3-label">250</span> SC</strong>)!
-                </div>
-
-                <!-- ÁREA PARA OS USUÁRIOS AJUDAREM A POOL DE LIQUIDEZ -->
-                <div class="pool-contribute-box">
-                    <div style="font-size: 0.9em; font-weight: bold; color: #00ff88; margin-bottom: 6px; text-align: center;">
-                        🤝 Ajude a Fortalecer a Pool de Liquidez da SolidCoin!
-                    </div>
-                    <input type="number" id="input-pool-qtd-celo" placeholder="Quantos CELO deseja adicionar na Pool? (Ex: 5)" min="0.1" step="0.1" oninput="atualizarPreviewContribuicaoPool()" style="margin: 0 !important; background: #07090d; border: 1px solid #fcff52; color: #fff; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold;">
+                <!-- CONTEÚDO INTERNO (ABRE AO CLICAR NA SETINHA) -->
+                <div id="pool-collapsible-content" class="pool-collapsible-body">
                     
-                    <div id="preview-contribuicao-pool" style="font-size: 0.8em; color: #ccc; text-align: center; margin-top: 6px; line-height: 1.4;">
-                        Digite a quantidade de CELO acima para ver a soma em SolidCoins (Celo + SLC) e sua recompensa garantida!
+                    <!-- LINHA 1: COTAÇÃO AO VIVO EM CARTÕES COMPACTOS -->
+                    <div class="pool-top-info-grid">
+                        <div class="pool-mini-card">
+                            <span>🌐 Cotação CELO (Tempo Real)</span>
+                            <strong id="pool-celo-brl" style="color: #fcff52;">R$ 0,3675 ($0.066)</strong>
+                        </div>
+                        <div class="pool-mini-card">
+                            <span>⚖️ Paridade na Plataforma</span>
+                            <strong id="pool-celo-slc-ratio" style="color: #00ff88;">1 CELO = 55,48 SLC</strong>
+                        </div>
                     </div>
 
-                    <div class="pool-btn-row">
-                        <button type="button" class="btn-pool-sc" onclick="contribuirPoolComSaldo()">
-                            🪙 Adicionar com Saldo SC (Celo + SLC)
-                        </button>
-                        <button type="button" class="btn-pool-metamask" onclick="contribuirPoolViaMetaMask()">
-                            🦊 Enviar CELO via MetaMask
-                        </button>
-                    </div>
-                </div>
+                    <!-- LINHA 2: PROPORÇÃO E PROGRESSO DA META 10.000 CELO -->
+                    <div class="pool-section-box">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.78em; font-weight: bold;">
+                            <span style="color: #fcff52;">🟡 <span id="pool-qtd-celo">238,74 CELO</span> (<span id="pool-pct-celo">50,92%</span>)</span>
+                            <span style="color: #00ff88;">🟢 <span id="pool-qtd-slc">12.768,07 SLC</span> (<span id="pool-pct-slc">49,08%</span>)</span>
+                        </div>
+                        <div class="pool-split-bar">
+                            <div id="pool-bar-split-celo" class="pool-split-celo" style="width: 50.92%;"></div>
+                            <div id="pool-bar-split-slc" class="pool-split-slc" style="width: 49.08%;"></div>
+                        </div>
 
-                <!-- RANKING TOP 10 APOIADORES DA POOL -->
-                <div class="pool-ranking-wrap">
-                    <div style="font-size: 0.88em; font-weight: bold; color: #fcff52; text-align: center;">
-                        🏅 Ranking Top 10 Apoiadores da Pool (Recompensa Automática)
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78em; margin-top: 10px;">
+                            <span style="color: #d4af37; font-weight: bold;">🎯 1º Objetivo: <strong id="pool-meta-alvo">10.000</strong> CELO</span>
+                            <span style="color: #bbb;">Faltam: <strong id="pool-falta-celo" style="color: #fcff52;">9.761,26 CELO</strong></span>
+                        </div>
+                        <div class="pool-meta-bar-bg">
+                            <div id="pool-meta-bar-fill" class="pool-meta-bar-fill" style="width: 2.39%;"></div>
+                            <div id="pool-meta-bar-text" class="pool-meta-bar-text">238,74 / 10.000 CELO (2,39%)</div>
+                        </div>
                     </div>
-                    <div style="overflow-x: auto;">
-                        <table class="pool-ranking-table">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Apoiador</th>
-                                    <th>+ CELO</th>
-                                    <th>+ SLC</th>
-                                    <th>Prêmio na Meta</th>
-                                </tr>
-                            </thead>
-                            <tbody id="pool-ranking-body">
-                                <tr><td colspan="5" style="color: #888;">Seja o 1º a apoiar a Pool e liderar o Ranking!</td></tr>
-                            </tbody>
-                        </table>
+
+                    <!-- LINHA 3: RECOMPENSA E BOTÕES PARA APOIAR A POOL -->
+                    <div class="pool-reward-compact">
+                        🏆 <strong>Prêmio Automático na Meta:</strong> <strong style="color: #00ff88;">+<span id="pool-bonus-pct-label">15</span>% em SC</strong> para todos + Pódio (<strong style="color: #ffd32a;">🥇+<span id="pool-top1-label">1000</span></strong> • <strong style="color: #e0e0e0;">🥈+<span id="pool-top2-label">500</span></strong> • <strong style="color: #ff9f43;">🥉+<span id="pool-top3-label">250</span> SC</strong>)
                     </div>
+
+                    <div class="pool-section-box" style="margin-bottom: 10px;">
+                        <input type="number" id="input-pool-qtd-celo" placeholder="Quantos CELO deseja adicionar na Pool? (Ex: 5)" min="0.1" step="0.1" oninput="atualizarPreviewContribuicaoPool()" style="margin: 0 !important; background: #05070a; border: 1px solid #fcff52; color: #fff; padding: 9px 12px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 0.9em; width: 100%; box-sizing: border-box;">
+                        
+                        <div id="preview-contribuicao-pool" style="font-size: 0.76em; color: #aaa; text-align: center; margin-top: 6px; line-height: 1.35;">
+                            Digite a quantidade de CELO acima para calcular o valor em SC e sua recompensa!
+                        </div>
+
+                        <div class="pool-btn-row">
+                            <button type="button" class="btn-pool-sc" onclick="contribuirPoolComSaldo()">
+                                🪙 Com Saldo SC (Celo + SLC)
+                            </button>
+                            <button type="button" class="btn-pool-metamask" onclick="contribuirPoolViaMetaMask()">
+                                🦊 Enviar CELO (MetaMask)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- LINHA 4: RANKING TOP 10 APOIADORES -->
+                    <div class="pool-section-box" style="margin-bottom: 0;">
+                        <div style="font-size: 0.82em; font-weight: bold; color: #fcff52; text-align: center;">
+                            🏅 Ranking Top 10 Apoiadores da Pool
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table class="pool-ranking-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Apoiador</th>
+                                        <th>+ CELO</th>
+                                        <th>+ SLC</th>
+                                        <th>Prêmio Meta</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pool-ranking-body">
+                                    <tr><td colspan="5" style="color: #888;">Seja o 1º a apoiar a Pool e liderar o Ranking!</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -1383,6 +1426,25 @@
     <!-- 2º SCRIPT COM LÓGICA DINÂMICA INJETADO NO FINAL -->
     <script>
         // =========================================================================
+        // --- FUNÇÃO PARA ABRIR / FECHAR A POOL DE LIQUIDEZ COM A SETINHA ---
+        // =========================================================================
+        window.togglePoolLiquidez = function() {
+            const content = document.getElementById('pool-collapsible-content');
+            const arrow = document.getElementById('pool-arrow-icon');
+            if (!content || !arrow) return;
+
+            const isOpen = content.classList.contains('aberta');
+            if (isOpen) {
+                content.classList.remove('aberta');
+                arrow.classList.remove('aberta');
+            } else {
+                content.classList.add('aberta');
+                arrow.classList.add('aberta');
+                carregarDadosPoolLiquidez();
+            }
+        };
+
+        // =========================================================================
         // --- LÓGICA DA POOL DE LIQUIDEZ OFICIAL CELO / SLC + RANKING PREMIADO ---
         // =========================================================================
         const CARTEIRA_PROJETO_POOL = "0x414589C91d29AAe97402885Ce9D8977eF0b9F67B";
@@ -1421,6 +1483,7 @@
                 const faltaCeloEl = document.getElementById('pool-falta-celo');
                 const metaFillEl = document.getElementById('pool-meta-bar-fill');
                 const metaTextEl = document.getElementById('pool-meta-bar-text');
+                const resumoHeaderPctEl = document.getElementById('pool-resumo-header-pct');
 
                 const bonusPctEl = document.getElementById('pool-bonus-pct-label');
                 const top1El = document.getElementById('pool-top1-label');
@@ -1433,9 +1496,9 @@
                 if (top3El) top3El.innerText = p.bonusTop3 || 250;
 
                 if (posBrlEl) posBrlEl.innerText = `Posição Total: R$ ${parseFloat(p.posicaoTotalBrl || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                if (estadoEl) estadoEl.innerText = p.estadoPool || 'Dentro do intervalo';
+                if (estadoEl) estadoEl.innerText = p.estadoPool || 'Ativa';
                 if (celoBrlEl) celoBrlEl.innerText = `R$ ${parseFloat(p.celoPrecoBrl || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ($${parseFloat(p.celoPrecoUsd || 0).toFixed(3)})`;
-                if (ratioEl) ratioEl.innerText = `1 CELO = ${parseFloat(p.slcPorCelo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} SLC`;
+                if (ratioEl) ratioEl.innerText = `1 CELO = ${parseFloat(p.slcPorCelo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SLC`;
 
                 const pctC = parseFloat(p.pctCeloComposicao || 50).toFixed(2);
                 const pctS = parseFloat(p.pctSlcComposicao || 50).toFixed(2);
@@ -1451,12 +1514,12 @@
                 if (faltaCeloEl) faltaCeloEl.innerText = `${parseFloat(p.faltaCelo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CELO`;
 
                 const progPct = Math.min(100, parseFloat(p.progressoMetaPct || 0));
+                if (resumoHeaderPctEl) resumoHeaderPctEl.innerText = `🎯 Meta: ${progPct.toFixed(2).replace('.', ',')}%`;
                 if (metaFillEl) metaFillEl.style.width = `${Math.max(2, progPct)}%`;
                 if (metaTextEl) {
                     metaTextEl.innerText = `${parseFloat(p.celoAtual || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / ${parseFloat(p.metaCelo || 10000).toLocaleString('pt-BR')} CELO (${progPct.toFixed(2).replace('.', ',')}%)`;
                 }
 
-                // Renderiza a Tabela de Ranking dos Apoiadores da Pool
                 const rankingBody = document.getElementById('pool-ranking-body');
                 if (rankingBody && Array.isArray(d.ranking)) {
                     if (d.ranking.length === 0) {
@@ -1495,8 +1558,8 @@
 
             const qtdCelo = parseFloat(inputEl.value);
             if (isNaN(qtdCelo) || qtdCelo <= 0) {
-                previewEl.style.color = '#ccc';
-                previewEl.innerText = 'Digite a quantidade de CELO acima para ver a soma em SolidCoins (Celo + SLC) e sua recompensa garantida!';
+                previewEl.style.color = '#aaa';
+                previewEl.innerText = 'Digite a quantidade de CELO acima para calcular o valor em SC e sua recompensa!';
                 return;
             }
 
@@ -1508,9 +1571,8 @@
             const recompensaEstimada = Math.max(10, totalSomaSC * (pctBonus / 100));
 
             previewEl.style.color = '#ffd32a';
-            previewEl.innerHTML = `💧 <strong>Pelo Saldo da Plataforma:</strong> ${qtdCelo} CELO (${parteCeloEmSC.toFixed(2)} SC) + ${parteSlcPar.toFixed(2)} SLC = <strong>${totalSomaSC.toFixed(2)} SC</strong><br>` +
-                                  `🦊 <strong>Pela MetaMask:</strong> Envia <strong>${qtdCelo} CELO</strong> direto para a Pool!<br>` +
-                                  `🎁 <strong style="color:#00ff88;">Sua Recompensa Automática ao bater a meta: +${recompensaEstimada.toFixed(2)} SC (+ Bónus se ficar no Top 3!)</strong>`;
+            previewEl.innerHTML = `🪙 <strong>Com Saldo:</strong> ${totalSomaSC.toFixed(2)} SC (${parteCeloEmSC.toFixed(2)} SC Celo + ${parteSlcPar.toFixed(2)} SLC) • 🦊 <strong>MetaMask:</strong> ${qtdCelo} CELO<br>` +
+                                  `🎁 <strong style="color:#00ff88;">Sua Recompensa na Meta: +${recompensaEstimada.toFixed(2)} SC (+ Bónus Pódio Top 3)</strong>`;
         };
 
         window.contribuirPoolComSaldo = async function() {
